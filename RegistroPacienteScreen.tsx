@@ -12,7 +12,7 @@ interface CountryCodeType {
     name: string;
     mask: string;
 }
-
+//hola
 const ViremLogo = require('./assets/imagenes/Virem.png'); 
 const { width } = Dimensions.get('window');
 
