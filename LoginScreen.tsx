@@ -23,7 +23,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 
 // --- CONFIGURACIÓN DE RUTAS ---
 // Usamos la ruta local Virem.png, que es el logo de referencia.
-const ViremLogo = require('./assets/imagenes/Virem.png'); 
+const ViremLogo = require('./assets/imagenes/descarga.png'); 
 
 // 🎯 Tipo de navegación para esta pantalla
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;

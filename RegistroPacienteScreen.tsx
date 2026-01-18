@@ -13,7 +13,7 @@ interface CountryCodeType {
     mask: string;
 }
 //hola
-const ViremLogo = require('./assets/imagenes/Virem.png'); 
+const ViremLogo = require('./assets/imagenes/descarga.png'); 
 const { width } = Dimensions.get('window');
 
 const countryCodes: CountryCodeType[] = [
