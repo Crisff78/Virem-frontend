@@ -13,6 +13,7 @@ import {
   View,
   ActivityIndicator,
   Image,
+  Platform,
 } from 'react-native';
 import { RootStackParamList } from './App';
 
@@ -34,6 +35,20 @@ const colors = {
   slate50: '#f8fafc',
 };
 
+// ===============================
+// 🔌 BACKEND_URL (MUY IMPORTANTE)
+// ===============================
+// 👉 Si pruebas en PC (Expo Web): usa http://localhost:3000
+// 👉 Si pruebas en Android Emulator: usa http://10.0.2.2:3000
+// 👉 Si pruebas en celular físico (misma wifi): usa http://TU_IP_PC:3000 (ej: http://10.0.0.135:3000)
+//
+// NOTA: como tú dices que estás en PC, lo normal es localhost.
+// ===============================
+const BACKEND_URL =
+  Platform.OS === 'web'
+    ? 'http://localhost:3000'
+    : 'http://10.0.0.135:3000'; // cámbialo según el dispositivo (si es celular)
+
 const RegistroCredencialesScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute<RegistroRouteProp>();
@@ -44,9 +59,31 @@ const RegistroCredencialesScreen: React.FC = () => {
   const [secureText, setSecureText] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
+  // ===============================
+  // ✅ Validación simple de email
+  // (para evitar emails raros)
+  // ===============================
+  const isEmailValido = (e: string) => {
+    const v = e.toLowerCase().trim();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  };
+
   const handleFinish = async () => {
+    // ---------------------------
+    // VALIDACIONES FRONTEND
+    // ---------------------------
     if (!email || !password || !confirmPassword) {
       Alert.alert('Error', 'Complete todos los campos.');
+      return;
+    }
+
+    if (!isEmailValido(email)) {
+      Alert.alert('Error', 'El correo no tiene un formato válido.');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres.');
       return;
     }
 
@@ -58,33 +95,42 @@ const RegistroCredencialesScreen: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Unimos los datos del paso 1 con las credenciales del paso 2
+      // ===============================
+      // ✅ API para REGISTRO DE USUARIO
+      // Endpoint (Backend): POST /api/auth/register
+      //
+      // Enviamos:
+      // - datos personales (vienen del RegistroPaciente)
+      // - email + password (este paso)
+      // ===============================
       const bodyCompleto = {
         ...route.params.datosPersonales,
         email: email.toLowerCase().trim(),
         password: password,
       };
 
-      // ⚠️ Cuando estés en PC, normalmente debe ser localhost (o 127.0.0.1)
-      // Si estás en un teléfono en la misma red, usa tu IP local.
-      const response = await fetch('http://10.0.0.135:3000/registrar-paciente', {
+      const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyCompleto),
       });
 
-      const res = await response.json();
+      const res = await response.json().catch(() => null);
 
-      if (res.success) {
-        Alert.alert('¡Éxito!', 'Registro completado en la base de datos.');
-        navigation.replace('Login');
-      } else {
-        Alert.alert('Error', res.error || 'Fallo en el servidor.');
+      if (!response.ok || !res?.success) {
+        Alert.alert('Error', res?.message || `Fallo en el servidor (HTTP ${response.status}).`);
+        return;
       }
+
+      // ✅ Registro exitoso
+      Alert.alert('¡Éxito!', 'Cuenta creada correctamente. Ahora inicia sesión.');
+      navigation.replace('Login');
     } catch (error) {
       Alert.alert(
         'Error de Red',
-        'No se pudo conectar al servidor. Verifique que el servidor esté encendido y la URL sea correcta.'
+        `No se pudo conectar al servidor.\n\nBackend actual: ${BACKEND_URL}\n\n` +
+          `Si estás en PC usa: http://localhost:3000\n` +
+          `Si estás en móvil usa: http://TU_IP:3000`
       );
     } finally {
       setIsLoading(false);
@@ -96,7 +142,6 @@ const RegistroCredencialesScreen: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.logoGroup}>
-            {/* ✅ Reemplazo del icono por tu imagen */}
             <Image source={ViremLogo} style={styles.logoImage} />
             <Text style={styles.logoText}>VIREM</Text>
           </View>
@@ -145,11 +190,7 @@ const RegistroCredencialesScreen: React.FC = () => {
                   secureTextEntry={secureText}
                 />
                 <TouchableOpacity onPress={() => setSecureText(!secureText)}>
-                  <MaterialIcons
-                    name={secureText ? 'visibility' : 'visibility-off'}
-                    size={20}
-                    color={colors.blueGray}
-                  />
+                  <MaterialIcons name={secureText ? 'visibility' : 'visibility-off'} size={20} color={colors.blueGray} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -175,6 +216,11 @@ const RegistroCredencialesScreen: React.FC = () => {
             <TouchableOpacity style={styles.btnBack} onPress={() => navigation.goBack()}>
               <Text style={styles.btnBackText}>Volver</Text>
             </TouchableOpacity>
+
+            {/* Mini info para no perderte */}
+            <Text style={{ marginTop: 14, fontSize: 12, color: colors.blueGray, textAlign: 'center' }}>
+              Backend: {BACKEND_URL}
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -194,12 +240,8 @@ const styles = StyleSheet.create({
   },
   headerContent: { flexDirection: 'row', alignItems: 'center' },
 
-  // ✅ Grupo del logo
   logoGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-
-  // ✅ Estilo de tu imagen
   logoImage: { width: 42, height: 42, resizeMode: 'contain', borderRadius: 10 },
-
   logoText: { fontSize: 22, fontWeight: 'bold', color: colors.navyDark },
 
   contentWrapper: { padding: 20, maxWidth: 500, alignSelf: 'center', width: '100%' },
@@ -207,9 +249,11 @@ const styles = StyleSheet.create({
   progressTitle: { fontSize: 18, fontWeight: 'bold', color: colors.navyDark, marginBottom: 10 },
   progressBarBackground: { height: 8, backgroundColor: '#e2e8f0', borderRadius: 4, overflow: 'hidden' },
   progressBarFill: { height: '100%', width: '100%', backgroundColor: colors.primary },
+
   formCard: { backgroundColor: 'white', borderRadius: 20, padding: 25, elevation: 5 },
   cardTitle: { fontSize: 24, fontWeight: 'bold', color: colors.navyDark, textAlign: 'center', marginBottom: 10 },
   cardSubtitle: { fontSize: 15, color: colors.blueGray, textAlign: 'center', marginBottom: 25 },
+
   inputGroup: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: '600', color: colors.navyDark, marginBottom: 8 },
   inputContainer: {
@@ -223,8 +267,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.slate50,
   },
   textInput: { flex: 1, fontSize: 16, color: colors.navyDark },
-  btnPrimary: { backgroundColor: colors.primary, height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
+
+  btnPrimary: {
+    backgroundColor: colors.primary,
+    height: 55,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+  },
   btnPrimaryText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+
   btnBack: { marginTop: 20, alignItems: 'center' },
   btnBackText: { color: colors.blueGray, fontWeight: '600' },
 });
