@@ -146,9 +146,6 @@ const formatCedulaRD = (text: string) => {
 
 // =========================================
 // API para validar teléfono (FRONTEND -> BACKEND)
-// - El frontend NO tiene API KEY
-// - Llama a tu backend /validar-telefono
-// - El backend llama a Veriphone con la key en .env
 // =========================================
 const BACKEND_URL = 'http://localhost:3000';
 
@@ -163,8 +160,9 @@ const validarTelefonoBackend = async (
   try {
     const digits = phoneFormatted.replace(/\D/g, '');
 
-    // API para validar teléfono (backend -> Veriphone)
-    const res = await fetch(`${BACKEND_URL}/validar-telefono`, {
+    // ✅ FIX: tu backend monta phoneRoutes en /api/phone
+    // Por eso el endpoint correcto es /api/phone/validar-telefono
+    const res = await fetch(`${BACKEND_URL}/api/phone/validar-telefono`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ countryCode, phone: digits }),
