@@ -168,6 +168,7 @@ const colors = {
 };
 
 export default function RegistroMedicoScreen() {
+
   const navigation = useNavigation<NavigationProps>();
 
   const [fotoUri, setFotoUri] = useState<string | null>(null);
