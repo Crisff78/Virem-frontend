@@ -15,7 +15,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { RootStackParamList } from './App';
+import { RootStackParamList } from './navigation/types';
+import { apiUrl } from './config/backend';
 
 // Tipado navegación
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'RegistroPaciente'>;
@@ -144,11 +145,6 @@ const formatCedulaRD = (text: string) => {
   return `${p1}-${p2}-${p3}`;
 };
 
-// =========================================
-// API para validar teléfono (FRONTEND -> BACKEND)
-// =========================================
-const BACKEND_URL = 'http://localhost:3000';
-
 type ValidacionTelefonoBackendResult =
   | { ok: true; meta?: any }
   | { ok: false; reason: string };
@@ -162,7 +158,7 @@ const validarTelefonoBackend = async (
 
     // ✅ FIX: tu backend monta phoneRoutes en /api/phone
     // Por eso el endpoint correcto es /api/phone/validar-telefono
-    const res = await fetch(`${BACKEND_URL}/api/phone/validar-telefono`, {
+    const res = await fetch(apiUrl('/api/phone/validar-telefono'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ countryCode, phone: digits }),
@@ -239,7 +235,7 @@ const styles = StyleSheet.create({
 });
 
 const RegistroPacienteScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'RegistroPaciente'>>();
+  const navigation = useNavigation<NavigationProps>();
 
   const [names, setNames] = useState('');
   const [lastNames, setLastNames] = useState('');
