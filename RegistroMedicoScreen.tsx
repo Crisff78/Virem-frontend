@@ -492,23 +492,20 @@ const RegistroMedicoScreen: React.FC = () => {
       return;
     }
 
-    navigation.navigate(
-      "RegistroCredenciales",
-      {
-        datosPersonales: {
-          nombres: names,
-          apellidos: lastNames,
-          fechanacimiento: birthDate,
-          genero: gender,
-          especialidad,
-          cedula,
-          telefono: `${selectedCountryCode.code} ${phone}`,
-        },
-      } as any
-    );
+    navigation.navigate("RegistroCredenciales", {
+      datosPersonales: {
+        nombres: names,
+        apellidos: lastNames,
+        fechanacimiento: birthDate,
+        genero: gender,
+        especialidad,
+        cedula,
+        telefono: `${selectedCountryCode.code} ${phone}`,
+      },
+    });
   };
 
-  const handleCancel = () => navigation.navigate("SeleccionPerfil" as any);
+  const handleCancel = () => navigation.navigate("SeleccionPerfil");
 
   return (
     <View style={styles.mainWrapper}>

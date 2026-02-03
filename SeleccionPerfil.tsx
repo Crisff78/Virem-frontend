@@ -138,12 +138,8 @@ const SeleccionPerfil: React.FC = () => {
     };
 
   const handleRegister = (profile: 'Medico' | 'Paciente') => {
-    if (profile === 'Paciente') {
-      navigation.navigate('RegistroPaciente');
-    } else {
-      // ✅ AQUÍ ESTÁ LO QUE TE FALTABA
-      navigation.navigate('RegistroMedico');
-    }
+    const route = profile === 'Paciente' ? 'RegistroPaciente' : 'RegistroMedico';
+    navigation.navigate(route);
   };
 
   const handleLogin = () => {
@@ -202,7 +198,6 @@ const SeleccionPerfil: React.FC = () => {
 };
 
 
-export default SeleccionPerfil; 
-
 export default SeleccionPerfil;
+
 
