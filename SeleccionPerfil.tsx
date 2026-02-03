@@ -3,13 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-nati
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-
-// 1. Definición de las rutas disponibles en la aplicación
-export type RootStackParamList = {
-    SeleccionPerfil: undefined;
-    Login: undefined;
-    RegistroPaciente: undefined; // Nombre exacto de tu archivo/pantalla de registro
-};
+import { RootStackParamList } from './navigation/types';
 
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'SeleccionPerfil'>;
 
@@ -130,8 +124,7 @@ const SeleccionPerfil: React.FC = () => {
             // Navega a la pantalla de registro de paciente
             navigation.navigate('RegistroPaciente');
         } else {
-            // Lógica para Médico (puedes crear una pantalla similar después)
-            alert("Pantalla de registro para Médicos próximamente.");
+            navigation.navigate('RegistroMedico');
         }
     };
 

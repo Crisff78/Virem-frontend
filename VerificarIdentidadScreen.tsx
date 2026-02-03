@@ -3,14 +3,8 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { createRef, useRef, useState } from 'react';
 import { Dimensions, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
-
-type RootStackParamList = {
-    SeleccionPerfil: undefined; 
-    Login: undefined;
-    RecuperarContrasena: undefined;
-    VerificarIdentidad: { email: string };
-    EstablecerNuevaContrasena: undefined;
-};
+import { apiUrl } from './config/backend';
+import { RootStackParamList } from './navigation/types';
 
 type VerificarIdentidadRouteProp = RouteProp<RootStackParamList, 'VerificarIdentidad'>;
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'VerificarIdentidad'>;
@@ -81,14 +75,14 @@ const VerificarIdentidadScreen: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const response = await fetch('http://10.0.0.135:3000/validar-codigo', {
+            const response = await fetch(apiUrl('/validar-codigo'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: recipient, codigo: code }),
             });
 
             if (response.ok) {
-                navigation.navigate('EstablecerNuevaContrasena'); 
+                navigation.navigate('EstablecerNuevaContrasena', { email: recipient }); 
             } else {
                 Alert.alert("Error", "Código incorrecto o expirado.");
             }

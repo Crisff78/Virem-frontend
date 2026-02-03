@@ -17,7 +17,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "./App";
+import { RootStackParamList } from './navigation/types';
+import { apiUrl } from './config/backend';
 
 // ✅ Tipado navegación
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, "RegistroMedico">;
@@ -60,11 +61,6 @@ const ESPECIALIDADES = [
   "Reumatología",
   "Medicina Familiar",
 ];
-
-// ===============================
-// 🔌 BACKEND_URL
-// ===============================
-const BACKEND_URL = "http://localhost:3000";
 
 // =========================================
 // VALIDACIÓN: Cédula Dominicana (igual que paciente)
@@ -132,7 +128,7 @@ const validarTelefonoBackend = async (
   try {
     const digits = phoneFormatted.replace(/\D/g, "");
 
-    const res = await fetch(`${BACKEND_URL}/validar-telefono`, {
+    const res = await fetch(apiUrl('/api/phone/validar-telefono'), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ countryCode, phone: digits }),
