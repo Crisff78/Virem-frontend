@@ -13,9 +13,10 @@ import {
   View,
   ActivityIndicator,
   Image,
-  Platform,
 } from 'react-native';
-import { RootStackParamList } from './App';
+import { RootStackParamList } from './navigation/types';
+import { BACKEND_URL, apiUrl } from './config/backend';
+import { isStrongPassword, isValidEmail } from './utils/validation';
 
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'RegistroCredenciales'>;
 type RegistroRouteProp = RouteProp<RootStackParamList, 'RegistroCredenciales'>;
@@ -35,20 +36,6 @@ const colors = {
   slate50: '#f8fafc',
 };
 
-// ===============================
-// 🔌 BACKEND_URL (MUY IMPORTANTE)
-// ===============================
-// 👉 Si pruebas en PC (Expo Web): usa http://localhost:3000
-// 👉 Si pruebas en Android Emulator: usa http://10.0.2.2:3000
-// 👉 Si pruebas en celular físico (misma wifi): usa http://TU_IP_PC:3000 (ej: http://10.0.0.135:3000)
-//
-// NOTA: como tú dices que estás en PC, lo normal es localhost.
-// ===============================
-const BACKEND_URL =
-  Platform.OS === 'web'
-    ? 'http://localhost:3000'
-    : 'http://10.0.0.135:3000'; // cámbialo según el dispositivo (si es celular)
-
 const RegistroCredencialesScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute<RegistroRouteProp>();
@@ -59,16 +46,12 @@ const RegistroCredencialesScreen: React.FC = () => {
   const [secureText, setSecureText] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ===============================
-  // ✅ Validación simple de email
-  // (para evitar emails raros)
-  // ===============================
-  const isEmailValido = (e: string) => {
-    const v = e.toLowerCase().trim();
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-  };
-
   const handleFinish = async () => {
+    if (!route.params?.datosPersonales) {
+      Alert.alert('Error', 'Faltan datos personales para completar el registro.');
+      return;
+    }
+
     // ---------------------------
     // VALIDACIONES FRONTEND
     // ---------------------------
@@ -77,13 +60,16 @@ const RegistroCredencialesScreen: React.FC = () => {
       return;
     }
 
-    if (!isEmailValido(email)) {
+    if (!isValidEmail(email)) {
       Alert.alert('Error', 'El correo no tiene un formato válido.');
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres.');
+    if (!isStrongPassword(password)) {
+      Alert.alert(
+        'Seguridad',
+        'La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.'
+      );
       return;
     }
 
@@ -109,7 +95,7 @@ const RegistroCredencialesScreen: React.FC = () => {
         password: password,
       };
 
-      const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
+      const response = await fetch(apiUrl('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyCompleto),

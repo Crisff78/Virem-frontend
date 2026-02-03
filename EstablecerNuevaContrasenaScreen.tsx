@@ -3,11 +3,11 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
 import { Dimensions, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
-import { RootStackParamList } from './App';
+import { apiUrl } from './config/backend';
+import { RootStackParamList } from './navigation/types';
 
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'EstablecerNuevaContrasena'>;
-// Necesitamos el correo para saber a qué usuario cambiarle la clave
-type RouteProps = RouteProp<RootStackParamList, 'VerificarIdentidad'>;
+type RouteProps = RouteProp<RootStackParamList, 'EstablecerNuevaContrasena'>;
 
 const ViremLogo = require('./assets/imagenes/Virem.png'); 
 const { width } = Dimensions.get('window');
@@ -45,6 +45,11 @@ const EstablecerNuevaContrasenaScreen: React.FC = () => {
     };
 
     const handlePasswordReset = async () => {
+        if (!email) {
+            Alert.alert("Error", "No se encontró el correo para actualizar la contraseña.");
+            return;
+        }
+
         if (newPassword !== confirmPassword) {
             Alert.alert("Error", "Las contraseñas no coinciden.");
             return;
@@ -58,7 +63,7 @@ const EstablecerNuevaContrasenaScreen: React.FC = () => {
 
         try {
             // PETICIÓN PARA ACTUALIZAR LA CLAVE EN POSTGRES
-            const response = await fetch('http://10.0.0.135:3000/actualizar-password', {
+            const response = await fetch(apiUrl('/actualizar-password'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 

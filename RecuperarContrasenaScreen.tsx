@@ -3,15 +3,9 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-
-// Define tus parámetros de navegación (debe coincidir con App.tsx)
-type RootStackParamList = {
-    SeleccionPerfil: undefined; 
-    Login: undefined;
-    RecuperarContrasena: undefined;
-    VerificarIdentidad: { email: string }; // <-- Necesario para pasar el email
-    EstablecerNuevaContrasena: undefined;
-};
+import { apiUrl } from './config/backend';
+import { RootStackParamList } from './navigation/types';
+import { isValidEmail } from './utils/validation';
 
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'RecuperarContrasena'>;
 
@@ -140,8 +134,15 @@ const RecuperarContrasenaScreen: React.FC = () => {
 
     const handleSendCode = async () => { 
         // 1. Validación básica de campo vacío
-        if (!emailOrPhone || emailOrPhone.trim() === '') {
+        const cleanedEmail = emailOrPhone.toLowerCase().trim();
+
+        if (!cleanedEmail) {
             Alert.alert("Atención", "Por favor, ingresa tu correo electrónico.");
+            return;
+        }
+
+        if (!isValidEmail(cleanedEmail)) {
+            Alert.alert("Atención", "Ingresa un correo electrónico válido.");
             return;
         }
 
@@ -149,13 +150,13 @@ const RecuperarContrasenaScreen: React.FC = () => {
 
         try {
             // 2. FETCH CORREGIDO: Con headers explícitos y manejo de errores de red
-            const response = await fetch('http://10.0.0.135:3000/enviar-codigo', {
+            const response = await fetch(apiUrl('/enviar-codigo'), {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
                     'Accept': 'application/json' 
                 },
-                body: JSON.stringify({ email: emailOrPhone.toLowerCase().trim() }),
+                body: JSON.stringify({ email: cleanedEmail }),
             });
 
             // Intentamos convertir la respuesta a JSON
@@ -164,7 +165,7 @@ const RecuperarContrasenaScreen: React.FC = () => {
             // 3. Verificación de éxito según la respuesta del backend
             if (response.ok && data.success) {
                 // Navegamos pasando el correo como parámetro
-                navigation.navigate('VerificarIdentidad', { email: emailOrPhone.toLowerCase().trim() }); 
+                navigation.navigate('VerificarIdentidad', { email: cleanedEmail }); 
             } else {
                 // Error controlado del servidor (ej. 404 correo no encontrado)
                 Alert.alert("Error", data.message || "El correo ingresado no está registrado.");
@@ -174,7 +175,7 @@ const RecuperarContrasenaScreen: React.FC = () => {
             // Error de conexión física (servidor apagado, IP mal escrita, WiFi distinto)
             Alert.alert(
                 "Error de Conexión", 
-                "No se pudo contactar al servidor. Revisa si el backend está encendido en la IP 10.0.0.135 y puerto 3000."
+                "No se pudo contactar al servidor. Revisa si el backend está encendido y la URL configurada."
             );
         } finally {
             setIsLoading(false); 

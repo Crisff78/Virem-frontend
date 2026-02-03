@@ -19,6 +19,11 @@ import {
 } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
+
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from './navigation/types';
+import { apiUrl } from './config/backend';
 import * as FaceDetector from "expo-face-detector";
 
 import { RootStackParamList } from "./App";
@@ -192,13 +197,14 @@ const validarTelefonoBackend = async (
 ): Promise<ValidacionTelefonoBackendResult> => {
   try {
     const digits = phoneFormatted.replace(/\D/g, "");
-
-    const res = await fetch(`${BACKEND_URL}/api/phone/validar-telefono`, {
+    
+    const res = await fetch(apiUrl('/api/phone/validar-telefono'), {
+      const res = await fetch(`${BACKEND_URL}/api/phone/validar-telefono`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ countryCode, phone: digits }),
     });
-
+    
     const data = await res.json().catch(() => null);
 
     if (!res.ok || !data?.success) {
