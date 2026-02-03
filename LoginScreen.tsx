@@ -14,7 +14,10 @@ import {
 
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from './App';
+import * as SecureStore from 'expo-secure-store';
+import { RootStackParamList } from './navigation/types';
+import { apiUrl } from './config/backend';
+import { isValidEmail } from './utils/validation';
 
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -33,9 +36,6 @@ const COLORS = {
   iconColor: '#888888',
 };
 
-// ✅ Para WEB (misma PC): usa localhost
-const BACKEND_URL = 'http://localhost:3000';
-
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
 
@@ -52,6 +52,11 @@ const LoginScreen: React.FC = () => {
       return;
     }
 
+    if (!isValidEmail(emailTrim)) {
+      Alert.alert('Error', 'El correo no tiene un formato válido.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -59,7 +64,7 @@ const LoginScreen: React.FC = () => {
       // ✅ API para LOGIN (Backend)
       // Endpoint: POST /api/auth/login
       // ===============================
-      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      const response = await fetch(apiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -75,17 +80,28 @@ const LoginScreen: React.FC = () => {
         return;
       }
 
-      // ✅ Por ahora solo mostramos mensaje (luego guardamos token y navegamos)
-      Alert.alert('✅ Éxito', 'Iniciaste sesión correctamente.');
+      const token = data?.token ?? data?.data?.token;
+      const userProfile = data?.user ?? data?.data?.user;
 
-      // Luego lo hacemos:
-      // - guardar data.token en AsyncStorage
-      // - navegar a Home
+      try {
+        if (token) {
+          await SecureStore.setItemAsync('authToken', token);
+        }
+
+        if (userProfile) {
+          await SecureStore.setItemAsync('userProfile', JSON.stringify(userProfile));
+        }
+      } catch {
+        Alert.alert('Aviso', 'No se pudo guardar la sesión de forma segura.');
+      }
+
+      Alert.alert('✅ Éxito', 'Iniciaste sesión correctamente.');
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
 
     } catch (err) {
       Alert.alert(
         'Error de red',
-        'No se pudo conectar al backend. Asegúrate de que esté encendido y que uses http://localhost:3000'
+        'No se pudo conectar al backend. Asegúrate de que esté encendido y configurado.'
       );
     } finally {
       setIsLoading(false);
