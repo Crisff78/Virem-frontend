@@ -27,8 +27,10 @@ const App: React.FC = () => {
       >
         <Stack.Screen name="SeleccionPerfil" component={SeleccionPerfil} />
         <Stack.Screen name="Login" component={LoginScreen} />
+
         <Stack.Screen name="RegistroPaciente" component={RegistroPacienteScreen} />
         <Stack.Screen name="RegistroMedico" component={RegistroMedicoScreen} />
+
         <Stack.Screen name="RegistroCredenciales" component={RegistroCredencialesScreen} />
         <Stack.Screen name="RecuperarContrasena" component={RecuperarContrasenaScreen} />
         <Stack.Screen name="VerificarIdentidad" component={VerificarIdentidadScreen} />
