@@ -1,0 +1,1079 @@
+diff --git a/EstablecerNuevaContrasenaScreen.tsx b/EstablecerNuevaContrasenaScreen.tsx
+index bdf55a4..684137b 100644
+--- a/EstablecerNuevaContrasenaScreen.tsx
++++ b/EstablecerNuevaContrasenaScreen.tsx
+@@ -3,11 +3,11 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+ import React, { useState } from 'react';
+ import { Dimensions, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
+-import { RootStackParamList } from './App';
++import { apiUrl } from './config/backend';
++import { RootStackParamList } from './navigation/types';
+ 
+ type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'EstablecerNuevaContrasena'>;
+-// Necesitamos el correo para saber a qué usuario cambiarle la clave
+-type RouteProps = RouteProp<RootStackParamList, 'VerificarIdentidad'>;
++type RouteProps = RouteProp<RootStackParamList, 'EstablecerNuevaContrasena'>;
+ 
+ const ViremLogo = require('./assets/imagenes/Virem.png'); 
+ const { width } = Dimensions.get('window');
+@@ -45,6 +45,11 @@ const EstablecerNuevaContrasenaScreen: React.FC = () => {
+     };
+ 
+     const handlePasswordReset = async () => {
++        if (!email) {
++            Alert.alert("Error", "No se encontró el correo para actualizar la contraseña.");
++            return;
++        }
++
+         if (newPassword !== confirmPassword) {
+             Alert.alert("Error", "Las contraseñas no coinciden.");
+             return;
+@@ -58,7 +63,7 @@ const EstablecerNuevaContrasenaScreen: React.FC = () => {
+ 
+         try {
+             // PETICIÓN PARA ACTUALIZAR LA CLAVE EN POSTGRES
+-            const response = await fetch('http://10.0.0.135:3000/actualizar-password', {
++            const response = await fetch(apiUrl('/actualizar-password'), {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ 
+@@ -190,4 +195,4 @@ const styles = StyleSheet.create({
+     footerIcon: { color: colors.textSecondary }
+ });
+ 
+-export default EstablecerNuevaContrasenaScreen;
+\ No newline at end of file
++export default EstablecerNuevaContrasenaScreen;
+diff --git a/LoginScreen.tsx b/LoginScreen.tsx
+index 90a45a1..44edaba 100644
+--- a/LoginScreen.tsx
++++ b/LoginScreen.tsx
+@@ -14,7 +14,10 @@ import {
+ 
+ import { useNavigation } from '@react-navigation/native';
+ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+-import { RootStackParamList } from './App';
++import * as SecureStore from 'expo-secure-store';
++import { RootStackParamList } from './navigation/types';
++import { apiUrl } from './config/backend';
++import { isValidEmail } from './utils/validation';
+ 
+ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+ 
+@@ -33,9 +36,6 @@ const COLORS = {
+   iconColor: '#888888',
+ };
+ 
+-// ✅ Para WEB (misma PC): usa localhost
+-const BACKEND_URL = 'http://localhost:3000';
+-
+ const LoginScreen: React.FC = () => {
+   const navigation = useNavigation<LoginScreenNavigationProp>();
+ 
+@@ -52,6 +52,11 @@ const LoginScreen: React.FC = () => {
+       return;
+     }
+ 
++    if (!isValidEmail(emailTrim)) {
++      Alert.alert('Error', 'El correo no tiene un formato válido.');
++      return;
++    }
++
+     setIsLoading(true);
+ 
+     try {
+@@ -59,7 +64,7 @@ const LoginScreen: React.FC = () => {
+       // ✅ API para LOGIN (Backend)
+       // Endpoint: POST /api/auth/login
+       // ===============================
+-      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
++      const response = await fetch(apiUrl('/api/auth/login'), {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+@@ -75,17 +80,28 @@ const LoginScreen: React.FC = () => {
+         return;
+       }
+ 
+-      // ✅ Por ahora solo mostramos mensaje (luego guardamos token y navegamos)
+-      Alert.alert('✅ Éxito', 'Iniciaste sesión correctamente.');
++      const token = data?.token ?? data?.data?.token;
++      const userProfile = data?.user ?? data?.data?.user;
+ 
+-      // Luego lo hacemos:
+-      // - guardar data.token en AsyncStorage
+-      // - navegar a Home
++      try {
++        if (token) {
++          await SecureStore.setItemAsync('authToken', token);
++        }
++
++        if (userProfile) {
++          await SecureStore.setItemAsync('userProfile', JSON.stringify(userProfile));
++        }
++      } catch {
++        Alert.alert('Aviso', 'No se pudo guardar la sesión de forma segura.');
++      }
++
++      Alert.alert('✅ Éxito', 'Iniciaste sesión correctamente.');
++      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+ 
+     } catch (err) {
+       Alert.alert(
+         'Error de red',
+-        'No se pudo conectar al backend. Asegúrate de que esté encendido y que uses http://localhost:3000'
++        'No se pudo conectar al backend. Asegúrate de que esté encendido y configurado.'
+       );
+     } finally {
+       setIsLoading(false);
+diff --git a/RecuperarContrasenaScreen.tsx b/RecuperarContrasenaScreen.tsx
+index ee9a7e3..d8efe5f 100644
+--- a/RecuperarContrasenaScreen.tsx
++++ b/RecuperarContrasenaScreen.tsx
+@@ -3,15 +3,9 @@ import { useNavigation } from '@react-navigation/native';
+ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+ import React, { useState } from 'react';
+ import { ActivityIndicator, Alert, Dimensions, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+-
+-// Define tus parámetros de navegación (debe coincidir con App.tsx)
+-type RootStackParamList = {
+-    SeleccionPerfil: undefined; 
+-    Login: undefined;
+-    RecuperarContrasena: undefined;
+-    VerificarIdentidad: { email: string }; // <-- Necesario para pasar el email
+-    EstablecerNuevaContrasena: undefined;
+-};
++import { apiUrl } from './config/backend';
++import { RootStackParamList } from './navigation/types';
++import { isValidEmail } from './utils/validation';
+ 
+ type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'RecuperarContrasena'>;
+ 
+@@ -140,22 +134,29 @@ const RecuperarContrasenaScreen: React.FC = () => {
+ 
+     const handleSendCode = async () => { 
+         // 1. Validación básica de campo vacío
+-        if (!emailOrPhone || emailOrPhone.trim() === '') {
++        const cleanedEmail = emailOrPhone.toLowerCase().trim();
++
++        if (!cleanedEmail) {
+             Alert.alert("Atención", "Por favor, ingresa tu correo electrónico.");
+             return;
+         }
+ 
++        if (!isValidEmail(cleanedEmail)) {
++            Alert.alert("Atención", "Ingresa un correo electrónico válido.");
++            return;
++        }
++
+         setIsLoading(true);
+ 
+         try {
+             // 2. FETCH CORREGIDO: Con headers explícitos y manejo de errores de red
+-            const response = await fetch('http://10.0.0.135:3000/enviar-codigo', {
++            const response = await fetch(apiUrl('/enviar-codigo'), {
+                 method: 'POST',
+                 headers: { 
+                     'Content-Type': 'application/json',
+                     'Accept': 'application/json' 
+                 },
+-                body: JSON.stringify({ email: emailOrPhone.toLowerCase().trim() }),
++                body: JSON.stringify({ email: cleanedEmail }),
+             });
+ 
+             // Intentamos convertir la respuesta a JSON
+@@ -164,7 +165,7 @@ const RecuperarContrasenaScreen: React.FC = () => {
+             // 3. Verificación de éxito según la respuesta del backend
+             if (response.ok && data.success) {
+                 // Navegamos pasando el correo como parámetro
+-                navigation.navigate('VerificarIdentidad', { email: emailOrPhone.toLowerCase().trim() }); 
++                navigation.navigate('VerificarIdentidad', { email: cleanedEmail }); 
+             } else {
+                 // Error controlado del servidor (ej. 404 correo no encontrado)
+                 Alert.alert("Error", data.message || "El correo ingresado no está registrado.");
+@@ -174,7 +175,7 @@ const RecuperarContrasenaScreen: React.FC = () => {
+             // Error de conexión física (servidor apagado, IP mal escrita, WiFi distinto)
+             Alert.alert(
+                 "Error de Conexión", 
+-                "No se pudo contactar al servidor. Revisa si el backend está encendido en la IP 10.0.0.135 y puerto 3000."
++                "No se pudo contactar al servidor. Revisa si el backend está encendido y la URL configurada."
+             );
+         } finally {
+             setIsLoading(false); 
+@@ -235,4 +236,4 @@ const RecuperarContrasenaScreen: React.FC = () => {
+     );
+ };
+ 
+-export default RecuperarContrasenaScreen;
+\ No newline at end of file
++export default RecuperarContrasenaScreen;
+diff --git a/RegistroCredencialesScreen.tsx b/RegistroCredencialesScreen.tsx
+index e332051..fd94fa7 100644
+--- a/RegistroCredencialesScreen.tsx
++++ b/RegistroCredencialesScreen.tsx
+@@ -13,9 +13,10 @@ import {
+   View,
+   ActivityIndicator,
+   Image,
+-  Platform,
+ } from 'react-native';
+-import { RootStackParamList } from './App';
++import { RootStackParamList } from './navigation/types';
++import { BACKEND_URL, apiUrl } from './config/backend';
++import { isStrongPassword, isValidEmail } from './utils/validation';
+ 
+ type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'RegistroCredenciales'>;
+ type RegistroRouteProp = RouteProp<RootStackParamList, 'RegistroCredenciales'>;
+@@ -35,20 +36,6 @@ const colors = {
+   slate50: '#f8fafc',
+ };
+ 
+-// ===============================
+-// 🔌 BACKEND_URL (MUY IMPORTANTE)
+-// ===============================
+-// 👉 Si pruebas en PC (Expo Web): usa http://localhost:3000
+-// 👉 Si pruebas en Android Emulator: usa http://10.0.2.2:3000
+-// 👉 Si pruebas en celular físico (misma wifi): usa http://TU_IP_PC:3000 (ej: http://10.0.0.135:3000)
+-//
+-// NOTA: como tú dices que estás en PC, lo normal es localhost.
+-// ===============================
+-const BACKEND_URL =
+-  Platform.OS === 'web'
+-    ? 'http://localhost:3000'
+-    : 'http://10.0.0.135:3000'; // cámbialo según el dispositivo (si es celular)
+-
+ const RegistroCredencialesScreen: React.FC = () => {
+   const navigation = useNavigation<NavigationProps>();
+   const route = useRoute<RegistroRouteProp>();
+@@ -59,16 +46,12 @@ const RegistroCredencialesScreen: React.FC = () => {
+   const [secureText, setSecureText] = useState(true);
+   const [isLoading, setIsLoading] = useState(false);
+ 
+-  // ===============================
+-  // ✅ Validación simple de email
+-  // (para evitar emails raros)
+-  // ===============================
+-  const isEmailValido = (e: string) => {
+-    const v = e.toLowerCase().trim();
+-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+-  };
+-
+   const handleFinish = async () => {
++    if (!route.params?.datosPersonales) {
++      Alert.alert('Error', 'Faltan datos personales para completar el registro.');
++      return;
++    }
++
+     // ---------------------------
+     // VALIDACIONES FRONTEND
+     // ---------------------------
+@@ -77,13 +60,16 @@ const RegistroCredencialesScreen: React.FC = () => {
+       return;
+     }
+ 
+-    if (!isEmailValido(email)) {
++    if (!isValidEmail(email)) {
+       Alert.alert('Error', 'El correo no tiene un formato válido.');
+       return;
+     }
+ 
+-    if (password.length < 6) {
+-      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres.');
++    if (!isStrongPassword(password)) {
++      Alert.alert(
++        'Seguridad',
++        'La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.'
++      );
+       return;
+     }
+ 
+@@ -109,7 +95,7 @@ const RegistroCredencialesScreen: React.FC = () => {
+         password: password,
+       };
+ 
+-      const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
++      const response = await fetch(apiUrl('/api/auth/register'), {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify(bodyCompleto),
+diff --git a/RegistroMedicoScreen.tsx b/RegistroMedicoScreen.tsx
+index faaace7..9296ac8 100644
+--- a/RegistroMedicoScreen.tsx
++++ b/RegistroMedicoScreen.tsx
+@@ -1,4 +1,4 @@
+-import React, { useMemo, useState } from "react";
++import React, { useMemo, useState } from 'react';
+ import {
+   ActivityIndicator,
+   Alert,
+@@ -12,15 +12,16 @@ import {
+   TextInput,
+   TouchableOpacity,
+   View,
+-} from "react-native";
+-import { MaterialIcons } from "@expo/vector-icons";
+-import * as ImagePicker from "expo-image-picker";
+-import { useNavigation } from "@react-navigation/native";
+-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+-import { RootStackParamList } from "./App";
++} from 'react-native';
++import { MaterialIcons } from '@expo/vector-icons';
++import * as ImagePicker from 'expo-image-picker';
++import { useNavigation } from '@react-navigation/native';
++import { NativeStackNavigationProp } from '@react-navigation/native-stack';
++import { RootStackParamList } from './navigation/types';
++import { apiUrl } from './config/backend';
+ 
+ // ✅ Tipado navegación
+-type NavigationProps = NativeStackNavigationProp<RootStackParamList, "RegistroMedico">;
++type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'RegistroMedico'>;
+ 
+ interface CountryCodeType {
+   code: string;
+@@ -28,49 +29,44 @@ interface CountryCodeType {
+   mask: string;
+ }
+ 
+-const { width } = Dimensions.get("window");
++const { width } = Dimensions.get('window');
+ 
+ // ✅ Logo (si lo usas)
+-const ViremLogo = require("./assets/imagenes/descarga.png");
++const ViremLogo = require('./assets/imagenes/descarga.png');
+ 
+ // ✅ Prefijos + máscara (igual que en paciente)
+ const countryCodes: CountryCodeType[] = [
+-  { code: "+1", name: "República Dominicana", mask: "XXX XXX XXXX" },
+-  { code: "+593", name: "Ecuador", mask: "XX XXX XXXX" },
+-  { code: "+1", name: "USA/CAN", mask: "XXX XXX XXXX" },
+-  { code: "+506", name: "Costa Rica", mask: "XXXX XXXX" },
+-  { code: "+34", name: "España", mask: "XXX XX XX XX" },
++  { code: '+1', name: 'República Dominicana', mask: 'XXX XXX XXXX' },
++  { code: '+593', name: 'Ecuador', mask: 'XX XXX XXXX' },
++  { code: '+1', name: 'USA/CAN', mask: 'XXX XXX XXXX' },
++  { code: '+506', name: 'Costa Rica', mask: 'XXXX XXXX' },
++  { code: '+34', name: 'España', mask: 'XXX XX XX XX' },
+ ];
+ 
+ // ✅ Especialidades
+ const ESPECIALIDADES = [
+-  "Medicina General",
+-  "Psicología",
+-  "Psiquiatría",
+-  "Ginecología",
+-  "Pediatría",
+-  "Cardiología",
+-  "Dermatología",
+-  "Odontología",
+-  "Nutrición",
+-  "Neurología",
+-  "Neumología",
+-  "Infectología",
+-  "Endocrinología",
+-  "Reumatología",
+-  "Medicina Familiar",
++  'Medicina General',
++  'Psicología',
++  'Psiquiatría',
++  'Ginecología',
++  'Pediatría',
++  'Cardiología',
++  'Dermatología',
++  'Odontología',
++  'Nutrición',
++  'Neurología',
++  'Neumología',
++  'Infectología',
++  'Endocrinología',
++  'Reumatología',
++  'Medicina Familiar',
+ ];
+ 
+-// ===============================
+-// 🔌 BACKEND_URL
+-// ===============================
+-const BACKEND_URL = "http://localhost:3000";
+-
+ // =========================================
+ // VALIDACIÓN: Cédula Dominicana (igual que paciente)
+ // =========================================
+ const validarCedulaDominicana = (cedula: string) => {
+-  const c = cedula.replace(/\D/g, "");
++  const c = cedula.replace(/\D/g, '');
+   if (c.length !== 11) return false;
+ 
+   let suma = 0;
+@@ -88,7 +84,7 @@ const validarCedulaDominicana = (cedula: string) => {
+ // FORMATO: Cédula RD XXX-XXXXXXX-X (igual)
+ // =========================================
+ const formatCedulaRD = (text: string) => {
+-  const digits = text.replace(/\D/g, "").slice(0, 11);
++  const digits = text.replace(/\D/g, '').slice(0, 11);
+   const p1 = digits.slice(0, 3);
+   const p2 = digits.slice(3, 10);
+   const p3 = digits.slice(10, 11);
+@@ -102,12 +98,12 @@ const formatCedulaRD = (text: string) => {
+ // MÁSCARA TELÉFONO (igual que paciente)
+ // =========================================
+ const applyPhoneMask = (text: string, mask: string) => {
+-  const digits = text.replace(/\D/g, "");
+-  let formatted = "";
++  const digits = text.replace(/\D/g, '');
++  let formatted = '';
+   let digitIndex = 0;
+ 
+   for (let i = 0; i < mask.length && digitIndex < digits.length; i++) {
+-    if (mask[i] === "X") {
++    if (mask[i] === 'X') {
+       formatted += digits[digitIndex];
+       digitIndex++;
+     } else {
+@@ -130,11 +126,11 @@ const validarTelefonoBackend = async (
+   phoneFormatted: string
+ ): Promise<ValidacionTelefonoBackendResult> => {
+   try {
+-    const digits = phoneFormatted.replace(/\D/g, "");
++    const digits = phoneFormatted.replace(/\D/g, '');
+ 
+-    const res = await fetch(`${BACKEND_URL}/validar-telefono`, {
+-      method: "POST",
+-      headers: { "Content-Type": "application/json" },
++    const res = await fetch(apiUrl('/api/phone/validar-telefono'), {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ countryCode, phone: digits }),
+     });
+ 
+@@ -145,48 +141,49 @@ const validarTelefonoBackend = async (
+     }
+ 
+     if (!data.valid) {
+-      return { ok: false, reason: "El número no es válido según Veriphone." };
++      return { ok: false, reason: 'El número no es válido según Veriphone.' };
+     }
+ 
+     return { ok: true, meta: data };
+   } catch {
+-    return { ok: false, reason: "Error de red: no se pudo conectar con el backend." };
++    return { ok: false, reason: 'Error de red: no se pudo conectar con el backend.' };
+   }
+ };
+ 
+ const colors = {
+-  primary: "#137fec",
+-  disabled: "#cbd5e1",
+-  backgroundLight: "#F6FAFD",
+-  navyDark: "#0A1931",
+-  navyMedium: "#1A3D63",
+-  blueGray: "#4A7FA7",
+-  white: "#FFFFFF",
+-  slate50: "#f8fafc",
+-  soft: "#B3CFE5",
+-  error: "#FF0000",
++  primary: '#137fec',
++  disabled: '#cbd5e1',
++  backgroundLight: '#F6FAFD',
++  navyDark: '#0A1931',
++  navyMedium: '#1A3D63',
++  blueGray: '#4A7FA7',
++  white: '#FFFFFF',
++  slate50: '#f8fafc',
++  soft: '#B3CFE5',
++  error: '#FF0000',
+ };
+ 
+ export default function RegistroMedicoScreen() {
++
+   const navigation = useNavigation<NavigationProps>();
+ 
+   const [fotoUri, setFotoUri] = useState<string | null>(null);
+ 
+-  const [nombres, setNombres] = useState("");
+-  const [apellidos, setApellidos] = useState("");
++  const [nombres, setNombres] = useState('');
++  const [apellidos, setApellidos] = useState('');
+ 
+-  const [especialidad, setEspecialidad] = useState("");
+-  const [espQuery, setEspQuery] = useState("");
++  const [especialidad, setEspecialidad] = useState('');
++  const [espQuery, setEspQuery] = useState('');
+   const [showEspModal, setShowEspModal] = useState(false);
+ 
+   // ✅ Cedula + validación
+-  const [cedula, setCedula] = useState("");
++  const [cedula, setCedula] = useState('');
+   const [cedulaError, setCedulaError] = useState(false);
+ 
+   // ✅ Teléfono con prefijo + validación
+   const [selectedCountryCode, setSelectedCountryCode] = useState<CountryCodeType>(countryCodes[0]);
+-  const [telefono, setTelefono] = useState("");
+-  const [telefonoError, setTelefonoError] = useState<string>("");
++  const [telefono, setTelefono] = useState('');
++  const [telefonoError, setTelefonoError] = useState<string>('');
+ 
+   const [showPrefixModal, setShowPrefixModal] = useState(false);
+   const [isLoading, setIsLoading] = useState(false);
+@@ -200,10 +197,10 @@ export default function RegistroMedicoScreen() {
+ 
+   const pickImage = async () => {
+     try {
+-      if (Platform.OS !== "web") {
++      if (Platform.OS !== 'web') {
+         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+-        if (status !== "granted") {
+-          Alert.alert("Permiso requerido", "Necesitamos permiso para acceder a tus fotos.");
++        if (status !== 'granted') {
++          Alert.alert('Permiso requerido', 'Necesitamos permiso para acceder a tus fotos.');
+           return;
+         }
+       }
+@@ -218,29 +215,29 @@ export default function RegistroMedicoScreen() {
+         setFotoUri(result.assets[0].uri);
+       }
+     } catch {
+-      Alert.alert("Error", "No se pudo abrir el selector de imágenes.");
++      Alert.alert('Error', 'No se pudo abrir el selector de imágenes.');
+     }
+   };
+ 
+   const isFormComplete =
+-    nombres.trim() !== "" &&
+-    apellidos.trim() !== "" &&
+-    especialidad.trim() !== "" &&
+-    cedula.trim() !== "" &&
+-    telefono.trim() !== "";
++    nombres.trim() !== '' &&
++    apellidos.trim() !== '' &&
++    especialidad.trim() !== '' &&
++    cedula.trim() !== '' &&
++    telefono.trim() !== '';
+ 
+   const handleContinue = async () => {
+     setShowErrors(true);
+     setCedulaError(false);
+-    setTelefonoError("");
++    setTelefonoError('');
+ 
+     if (!isFormComplete) {
+-      Alert.alert("Acción Requerida", "Debe completar todos los campos.");
++      Alert.alert('Acción Requerida', 'Debe completar todos los campos.');
+       return;
+     }
+ 
+     // ✅ Validar cédula dominicana SOLO si el país es RD
+-    if (selectedCountryCode.name === "República Dominicana") {
++    if (selectedCountryCode.name === 'República Dominicana') {
+       setIsLoading(true);
+       await new Promise((r) => setTimeout(r, 250));
+       const ok = validarCedulaDominicana(cedula);
+@@ -248,7 +245,7 @@ export default function RegistroMedicoScreen() {
+ 
+       if (!ok) {
+         setCedulaError(true);
+-        Alert.alert("Cédula Inválida", "El número de cédula no es válido.");
++        Alert.alert('Cédula Inválida', 'El número de cédula no es válido.');
+         return;
+       }
+     }
+@@ -260,12 +257,12 @@ export default function RegistroMedicoScreen() {
+ 
+     if (!tel.ok) {
+       setTelefonoError(tel.reason);
+-      Alert.alert("Teléfono inválido", tel.reason);
++      Alert.alert('Teléfono inválido', tel.reason);
+       return;
+     }
+ 
+     // ✅ Ok → pasar a credenciales
+-    navigation.navigate("RegistroCredenciales", {
++    navigation.navigate('RegistroCredenciales', {
+       datosPersonales: {
+         nombres: nombres.trim(),
+         apellidos: apellidos.trim(),
+@@ -288,7 +285,7 @@ export default function RegistroMedicoScreen() {
+         </View>
+       </View>
+ 
+-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
++      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps='handled'>
+         <View style={styles.contentWrapper}>
+           <Text style={styles.title}>Registro de Médico</Text>
+           <Text style={styles.subtitle}>Datos Profesionales</Text>
+@@ -296,8 +293,8 @@ export default function RegistroMedicoScreen() {
+           <View style={styles.card}>
+             {/* Foto */}
+             <TouchableOpacity style={styles.photoBtn} onPress={pickImage} activeOpacity={0.85}>
+-              <MaterialIcons name="photo-camera" size={18} color={colors.blueGray} />
+-              <Text style={styles.photoBtnText}>{fotoUri ? "Cambiar Foto" : "Subir Foto"}</Text>
++              <MaterialIcons name='photo-camera' size={18} color={colors.blueGray} />
++              <Text style={styles.photoBtnText}>{fotoUri ? 'Cambiar Foto' : 'Subir Foto'}</Text>
+             </TouchableOpacity>
+ 
+             {/* Nombres */}
+@@ -305,8 +302,8 @@ export default function RegistroMedicoScreen() {
+               <Text style={styles.label}>Nombres</Text>
+               <TextInput
+                 style={[styles.input, showErrors && !nombres && styles.inputError]}
+-                placeholder="Ej. Juan Manuel"
+-                placeholderTextColor="#94a3b8"
++                placeholder='Ej. Juan Manuel'
++                placeholderTextColor='#94a3b8'
+                 value={nombres}
+                 onChangeText={setNombres}
+               />
+@@ -317,8 +314,8 @@ export default function RegistroMedicoScreen() {
+               <Text style={styles.label}>Apellidos</Text>
+               <TextInput
+                 style={[styles.input, showErrors && !apellidos && styles.inputError]}
+-                placeholder="Ej. Pérez García"
+-                placeholderTextColor="#94a3b8"
++                placeholder='Ej. Pérez García'
++                placeholderTextColor='#94a3b8'
+                 value={apellidos}
+                 onChangeText={setApellidos}
+               />
+@@ -333,11 +330,11 @@ export default function RegistroMedicoScreen() {
+                 onPress={() => setShowEspModal(true)}
+                 activeOpacity={0.85}
+               >
+-                <MaterialIcons name="local-hospital" size={18} color={colors.blueGray} />
+-                <Text style={[styles.selectText, !especialidad && { color: "#94a3b8" }]}>
+-                  {especialidad || "Selecciona tu especialidad"}
++                <MaterialIcons name='local-hospital' size={18} color={colors.blueGray} />
++                <Text style={[styles.selectText, !especialidad && { color: '#94a3b8' }]}>
++                  {especialidad || 'Selecciona tu especialidad'}
+                 </Text>
+-                <MaterialIcons name="expand-more" size={22} color={colors.blueGray} />
++                <MaterialIcons name='expand-more' size={22} color={colors.blueGray} />
+               </TouchableOpacity>
+             </View>
+ 
+@@ -346,9 +343,9 @@ export default function RegistroMedicoScreen() {
+               <Text style={styles.label}>Cédula</Text>
+               <TextInput
+                 style={[styles.input, ((showErrors && !cedula) || cedulaError) && styles.inputError]}
+-                placeholder="XXX-XXXXXXX-X"
+-                placeholderTextColor="#94a3b8"
+-                keyboardType="numeric"
++                placeholder='XXX-XXXXXXX-X'
++                placeholderTextColor='#94a3b8'
++                keyboardType='numeric'
+                 value={cedula}
+                 onChangeText={(t) => {
+                   setCedula(formatCedulaRD(t));
+@@ -371,13 +368,13 @@ export default function RegistroMedicoScreen() {
+                 <TextInput
+                   style={styles.numberInput}
+                   placeholder={selectedCountryCode.mask}
+-                  placeholderTextColor="#94a3b8"
+-                  keyboardType="phone-pad"
++                  placeholderTextColor='#94a3b8'
++                  keyboardType='phone-pad'
+                   value={telefono}
+                   maxLength={selectedCountryCode.mask.length}
+                   onChangeText={(text) => {
+                     setTelefono(applyPhoneMask(text, selectedCountryCode.mask));
+-                    setTelefonoError("");
++                    setTelefonoError('');
+                   }}
+                 />
+               </View>
+@@ -392,11 +389,11 @@ export default function RegistroMedicoScreen() {
+               activeOpacity={0.85}
+             >
+               {isLoading ? (
+-                <ActivityIndicator color="white" />
++                <ActivityIndicator color='white' />
+               ) : (
+                 <>
+                   <Text style={styles.btnPrimaryText}>Continuar Registro</Text>
+-                  <MaterialIcons name="arrow-forward" size={20} color="white" />
++                  <MaterialIcons name='arrow-forward' size={20} color='white' />
+                 </>
+               )}
+             </TouchableOpacity>
+@@ -405,34 +402,34 @@ export default function RegistroMedicoScreen() {
+       </ScrollView>
+ 
+       {/* MODAL ESPECIALIDADES */}
+-      <Modal visible={showEspModal} transparent animationType="fade">
++      <Modal visible={showEspModal} transparent animationType='fade'>
+         <TouchableOpacity
+           style={styles.modalOverlay}
+           onPress={() => {
+             setShowEspModal(false);
+-            setEspQuery("");
++            setEspQuery('');
+           }}
+           activeOpacity={1}
+         >
+           <View style={styles.modalContent}>
+             <View style={styles.searchBox}>
+-              <MaterialIcons name="search" size={18} color={colors.blueGray} />
++              <MaterialIcons name='search' size={18} color={colors.blueGray} />
+               <TextInput
+                 style={styles.searchInput}
+-                placeholder="Buscar especialidad..."
+-                placeholderTextColor="#94a3b8"
++                placeholder='Buscar especialidad...'
++                placeholderTextColor='#94a3b8'
+                 value={espQuery}
+                 onChangeText={setEspQuery}
+                 autoFocus
+               />
+               {espQuery.length > 0 ? (
+-                <TouchableOpacity onPress={() => setEspQuery("")} hitSlop={10}>
+-                  <MaterialIcons name="close" size={18} color={colors.blueGray} />
++                <TouchableOpacity onPress={() => setEspQuery('')} hitSlop={10}>
++                  <MaterialIcons name='close' size={18} color={colors.blueGray} />
+                 </TouchableOpacity>
+               ) : null}
+             </View>
+ 
+-            <ScrollView style={{ maxHeight: 260 }} keyboardShouldPersistTaps="handled">
++            <ScrollView style={{ maxHeight: 260 }} keyboardShouldPersistTaps='handled'>
+               {especialidadesFiltradas.map((esp) => (
+                 <TouchableOpacity
+                   key={esp}
+@@ -440,17 +437,17 @@ export default function RegistroMedicoScreen() {
+                   onPress={() => {
+                     setEspecialidad(esp);
+                     setShowEspModal(false);
+-                    setEspQuery("");
++                    setEspQuery('');
+                   }}
+                 >
+                   <Text style={styles.modalOptionText2}>{esp}</Text>
+-                  {especialidad === esp ? <MaterialIcons name="check" size={18} color={colors.primary} /> : null}
++                  {especialidad === esp ? <MaterialIcons name='check' size={18} color={colors.primary} /> : null}
+                 </TouchableOpacity>
+               ))}
+ 
+               {especialidadesFiltradas.length === 0 ? (
+                 <View style={{ padding: 14 }}>
+-                  <Text style={{ color: colors.blueGray, fontWeight: "600" }}>No hay resultados.</Text>
++                  <Text style={{ color: colors.blueGray, fontWeight: '600' }}>No hay resultados.</Text>
+                 </View>
+               ) : null}
+             </ScrollView>
+@@ -459,18 +456,18 @@ export default function RegistroMedicoScreen() {
+       </Modal>
+ 
+       {/* MODAL PREFIJOS (scroll igual que paciente) */}
+-      <Modal visible={showPrefixModal} transparent animationType="fade">
++      <Modal visible={showPrefixModal} transparent animationType='fade'>
+         <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowPrefixModal(false)} activeOpacity={1}>
+           <View style={styles.modalContent}>
+-            <ScrollView keyboardShouldPersistTaps="handled">
++            <ScrollView keyboardShouldPersistTaps='handled'>
+               {countryCodes.map((c, i) => (
+                 <TouchableOpacity
+                   key={i}
+                   style={styles.modalOption}
+                   onPress={() => {
+                     setSelectedCountryCode(c);
+-                    setTelefono("");
+-                    setTelefonoError("");
++                    setTelefono('');
++                    setTelefonoError('');
+                     setShowPrefixModal(false);
+                   }}
+                 >
+@@ -490,123 +487,123 @@ const styles = StyleSheet.create({
+ 
+   header: {
+     height: 70,
+-    backgroundColor: "white",
++    backgroundColor: 'white',
+     borderBottomWidth: 1,
+-    borderBottomColor: "#eee",
+-    justifyContent: "center",
++    borderBottomColor: '#eee',
++    justifyContent: 'center',
+     paddingHorizontal: 20,
+   },
+-  headerContent: { flexDirection: "row", alignItems: "center" },
+-  logoGroup: { flexDirection: "row", alignItems: "center", gap: 10 },
+-  logoImage: { width: 42, height: 42, resizeMode: "contain", borderRadius: 10 },
+-  logoText: { fontSize: 22, fontWeight: "bold", color: colors.navyDark },
++  headerContent: { flexDirection: 'row', alignItems: 'center' },
++  logoGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
++  logoImage: { width: 42, height: 42, resizeMode: 'contain', borderRadius: 10 },
++  logoText: { fontSize: 22, fontWeight: 'bold', color: colors.navyDark },
+ 
+-  contentWrapper: { padding: 20, maxWidth: 520, alignSelf: "center", width: "100%" },
++  contentWrapper: { padding: 20, maxWidth: 520, alignSelf: 'center', width: '100%' },
+ 
+-  title: { fontSize: 26, fontWeight: "900", color: colors.navyDark, textAlign: "center", marginTop: 10 },
+-  subtitle: { fontSize: 16, fontWeight: "600", color: colors.blueGray, textAlign: "center", marginTop: 6, marginBottom: 18 },
++  title: { fontSize: 26, fontWeight: '900', color: colors.navyDark, textAlign: 'center', marginTop: 10 },
++  subtitle: { fontSize: 16, fontWeight: '600', color: colors.blueGray, textAlign: 'center', marginTop: 6, marginBottom: 18 },
+ 
+   card: {
+-    backgroundColor: "white",
++    backgroundColor: 'white',
+     borderRadius: 20,
+     padding: 22,
+     elevation: 5,
+     borderWidth: 1,
+-    borderColor: colors.soft + "44",
++    borderColor: colors.soft + '44',
+   },
+ 
+   photoBtn: {
+-    alignSelf: "center",
+-    flexDirection: "row",
++    alignSelf: 'center',
++    flexDirection: 'row',
+     gap: 8,
+     paddingVertical: 10,
+     paddingHorizontal: 14,
+     borderRadius: 12,
+     backgroundColor: colors.slate50,
+     borderWidth: 1,
+-    borderColor: "#e2e8f0",
++    borderColor: '#e2e8f0',
+     marginBottom: 16,
+   },
+-  photoBtnText: { fontWeight: "800", color: colors.blueGray },
++  photoBtnText: { fontWeight: '800', color: colors.blueGray },
+ 
+   inputGroup: { marginBottom: 16 },
+-  label: { fontSize: 13, fontWeight: "700", color: colors.navyDark, marginBottom: 8 },
++  label: { fontSize: 13, fontWeight: '700', color: colors.navyDark, marginBottom: 8 },
+ 
+   input: {
+     height: 50,
+     borderWidth: 1,
+-    borderColor: "#cbd5e1",
++    borderColor: '#cbd5e1',
+     borderRadius: 10,
+     paddingHorizontal: 12,
+     backgroundColor: colors.slate50,
+     color: colors.navyDark,
+-    fontWeight: "600",
++    fontWeight: '600',
+   },
+ 
+   inputError: { borderColor: colors.error, borderWidth: 1.5 },
+-  errorText: { color: colors.error, fontSize: 12, marginTop: 6, fontWeight: "600" },
++  errorText: { color: colors.error, fontSize: 12, marginTop: 6, fontWeight: '600' },
+ 
+   selectBox: {
+-    flexDirection: "row",
+-    alignItems: "center",
++    flexDirection: 'row',
++    alignItems: 'center',
+     borderWidth: 1,
+-    borderColor: "#cbd5e1",
++    borderColor: '#cbd5e1',
+     borderRadius: 10,
+     paddingHorizontal: 12,
+     height: 50,
+     backgroundColor: colors.slate50,
+     gap: 10,
+   },
+-  selectText: { flex: 1, color: colors.navyDark, fontWeight: "700" },
++  selectText: { flex: 1, color: colors.navyDark, fontWeight: '700' },
+ 
+   // ✅ Teléfono con prefijo (igual que paciente)
+   phoneInputGroup: {
+-    flexDirection: "row",
++    flexDirection: 'row',
+     height: 50,
+     borderRadius: 10,
+     borderWidth: 1,
+-    borderColor: "#cbd5e1",
++    borderColor: '#cbd5e1',
+     backgroundColor: colors.slate50,
+-    overflow: "hidden",
++    overflow: 'hidden',
+   },
+   prefixButton: {
+     width: width > 768 ? 90 : 70,
+-    height: "100%",
+-    justifyContent: "center",
+-    alignItems: "center",
++    height: '100%',
++    justifyContent: 'center',
++    alignItems: 'center',
+     borderRightWidth: 1,
+-    borderRightColor: "#cbd5e1",
++    borderRightColor: '#cbd5e1',
+   },
+-  prefixText: { color: colors.navyDark, fontSize: 14, fontWeight: "bold" },
+-  numberInput: { flex: 1, paddingHorizontal: 12, fontSize: 16, color: colors.navyDark, fontWeight: "600" },
++  prefixText: { color: colors.navyDark, fontSize: 14, fontWeight: 'bold' },
++  numberInput: { flex: 1, paddingHorizontal: 12, fontSize: 16, color: colors.navyDark, fontWeight: '600' },
+ 
+   btnPrimary: {
+     height: 55,
+     borderRadius: 12,
+-    justifyContent: "center",
+-    alignItems: "center",
+-    flexDirection: "row",
++    justifyContent: 'center',
++    alignItems: 'center',
++    flexDirection: 'row',
+     gap: 10,
+     marginTop: 6,
+   },
+-  btnPrimaryText: { color: "white", fontSize: 16, fontWeight: "bold" },
++  btnPrimaryText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+ 
+   // ✅ Modales
+-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 16 },
+-  modalContent: { backgroundColor: "white", borderRadius: 12, padding: 16, width: "100%", maxWidth: 420, elevation: 6 },
++  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 },
++  modalContent: { backgroundColor: 'white', borderRadius: 12, padding: 16, width: '100%', maxWidth: 420, elevation: 6 },
+ 
+   searchBox: {
+-    flexDirection: "row",
+-    alignItems: "center",
++    flexDirection: 'row',
++    alignItems: 'center',
+     gap: 8,
+     paddingHorizontal: 12,
+     height: 46,
+     borderWidth: 1,
+-    borderColor: "#e2e8f0",
++    borderColor: '#e2e8f0',
+     borderRadius: 10,
+     marginBottom: 12,
+   },
+-  searchInput: { flex: 1, color: colors.navyDark, fontWeight: "600" },
++  searchInput: { flex: 1, color: colors.navyDark, fontWeight: '600' },
+ 
+   modalOption: {
+     paddingVertical: 14,
+@@ -615,18 +612,18 @@ const styles = StyleSheet.create({
+     marginBottom: 8,
+     backgroundColor: colors.slate50,
+     borderWidth: 1,
+-    borderColor: "#e2e8f0",
++    borderColor: '#e2e8f0',
+   },
+-  modalOptionText: { fontSize: 15, color: colors.navyDark, textAlign: "center", fontWeight: "700" },
++  modalOptionText: { fontSize: 15, color: colors.navyDark, textAlign: 'center', fontWeight: '700' },
+ 
+   modalOptionRow: {
+     paddingVertical: 12,
+     paddingHorizontal: 12,
+     borderBottomWidth: 1,
+-    borderBottomColor: "#f1f5f9",
+-    flexDirection: "row",
+-    justifyContent: "space-between",
+-    alignItems: "center",
++    borderBottomColor: '#f1f5f9',
++    flexDirection: 'row',
++    justifyContent: 'space-between',
++    alignItems: 'center',
+   },
+-  modalOptionText2: { fontSize: 15, color: colors.navyDark, fontWeight: "700" },
++  modalOptionText2: { fontSize: 15, color: colors.navyDark, fontWeight: '700' },
+ });
+diff --git a/RegistroPacienteScreen.tsx b/RegistroPacienteScreen.tsx
+index 998a654..8329014 100644
+--- a/RegistroPacienteScreen.tsx
++++ b/RegistroPacienteScreen.tsx
+@@ -15,7 +15,8 @@ import {
+   TouchableOpacity,
+   View,
+ } from 'react-native';
+-import { RootStackParamList } from './App';
++import { RootStackParamList } from './navigation/types';
++import { apiUrl } from './config/backend';
+ 
+ // Tipado navegación
+ type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'RegistroPaciente'>;
+@@ -144,11 +145,6 @@ const formatCedulaRD = (text: string) => {
+   return `${p1}-${p2}-${p3}`;
+ };
+ 
+-// =========================================
+-// API para validar teléfono (FRONTEND -> BACKEND)
+-// =========================================
+-const BACKEND_URL = 'http://localhost:3000';
+-
+ type ValidacionTelefonoBackendResult =
+   | { ok: true; meta?: any }
+   | { ok: false; reason: string };
+@@ -162,7 +158,7 @@ const validarTelefonoBackend = async (
+ 
+     // ✅ FIX: tu backend monta phoneRoutes en /api/phone
+     // Por eso el endpoint correcto es /api/phone/validar-telefono
+-    const res = await fetch(`${BACKEND_URL}/api/phone/validar-telefono`, {
++    const res = await fetch(apiUrl('/api/phone/validar-telefono'), {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ countryCode, phone: digits }),
+@@ -239,7 +235,7 @@ const styles = StyleSheet.create({
+ });
+ 
+ const RegistroPacienteScreen: React.FC = () => {
+-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'RegistroPaciente'>>();
++  const navigation = useNavigation<NavigationProps>();
+ 
+   const [names, setNames] = useState('');
+   const [lastNames, setLastNames] = useState('');
+diff --git a/VerificarIdentidadScreen.tsx b/VerificarIdentidadScreen.tsx
+index 555391e..83edfa1 100644
+--- a/VerificarIdentidadScreen.tsx
++++ b/VerificarIdentidadScreen.tsx
+@@ -3,14 +3,8 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+ import React, { createRef, useRef, useState } from 'react';
+ import { Dimensions, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
+-
+-type RootStackParamList = {
+-    SeleccionPerfil: undefined; 
+-    Login: undefined;
+-    RecuperarContrasena: undefined;
+-    VerificarIdentidad: { email: string };
+-    EstablecerNuevaContrasena: undefined;
+-};
++import { apiUrl } from './config/backend';
++import { RootStackParamList } from './navigation/types';
+ 
+ type VerificarIdentidadRouteProp = RouteProp<RootStackParamList, 'VerificarIdentidad'>;
+ type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'VerificarIdentidad'>;
+@@ -81,14 +75,14 @@ const VerificarIdentidadScreen: React.FC = () => {
+ 
+         setIsLoading(true);
+         try {
+-            const response = await fetch('http://10.0.0.135:3000/validar-codigo', {
++            const response = await fetch(apiUrl('/validar-codigo'), {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ email: recipient, codigo: code }),
+             });
+ 
+             if (response.ok) {
+-                navigation.navigate('EstablecerNuevaContrasena'); 
++                navigation.navigate('EstablecerNuevaContrasena', { email: recipient }); 
+             } else {
+                 Alert.alert("Error", "Código incorrecto o expirado.");
+             }
+@@ -121,4 +115,4 @@ const VerificarIdentidadScreen: React.FC = () => {
+     );
+ };
+ 
+-export default VerificarIdentidadScreen;
+\ No newline at end of file
++export default VerificarIdentidadScreen;
+diff --git a/config/backend.ts b/config/backend.ts
+new file mode 100644
+index 0000000..875990c
+--- /dev/null
++++ b/config/backend.ts
+@@ -0,0 +1,9 @@
++import { Platform } from 'react-native';
++
++const DEFAULT_BACKEND_URL =
++  Platform.OS === 'web' ? 'http://localhost:3000' : 'http://10.0.2.2:3000';
++
++export const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? DEFAULT_BACKEND_URL;
++
++export const apiUrl = (path: string) =>
++  `${BACKEND_URL}${path.startsWith('/') ? path : `/${path}`}`;
