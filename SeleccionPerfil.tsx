@@ -5,9 +5,6 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { RootStackParamList } from './navigation/types';
-// ✅ IMPORTA el RootStackParamList REAL del App.tsx
-// Si SeleccionPerfil.tsx está en /screens, cambia a:  import { RootStackParamList } from '../App';
-import { RootStackParamList } from './App';
 
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'SeleccionPerfil'>;
 
@@ -123,20 +120,6 @@ const styles = StyleSheet.create({
 const SeleccionPerfil: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
 
-
-    const handleRegister = (profile: 'Medico' | 'Paciente') => {
-        if (profile === 'Paciente') {
-            // Navega a la pantalla de registro de paciente
-            navigation.navigate('RegistroPaciente');
-        } else {
-            navigation.navigate('RegistroMedico');
-        }
-    };
-
-    const handleLogin = () => {
-        navigation.navigate('Login'); 
-    };
-
   const handleRegister = (profile: 'Medico' | 'Paciente') => {
     const route = profile === 'Paciente' ? 'RegistroPaciente' : 'RegistroMedico';
     navigation.navigate(route);
@@ -197,7 +180,4 @@ const SeleccionPerfil: React.FC = () => {
   );
 };
 
-
 export default SeleccionPerfil;
-
-

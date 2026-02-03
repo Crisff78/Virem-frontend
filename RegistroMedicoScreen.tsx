@@ -19,14 +19,10 @@ import {
 } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
-
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from './navigation/types';
-import { apiUrl } from './config/backend';
 import * as FaceDetector from "expo-face-detector";
 
-import { RootStackParamList } from "./App";
+import { RootStackParamList } from "./navigation/types";
+import { apiUrl } from "./config/backend";
 
 // Tipado navegación
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, "RegistroMedico">;
@@ -68,7 +64,7 @@ const ESPECIALIDADES = [
 ];
 
 // =========================================
-// VALIDACIÓN: Fecha real (no futura / no imposible / no >120 años)  (MISMA QUE PACIENTE)
+// VALIDACIÓN: Fecha real (no futura / no imposible / no >120 años)
 // =========================================
 const esFechaValida = (fechaStr: string) => {
   if (fechaStr.length !== 10) return false;
@@ -92,7 +88,7 @@ const esFechaValida = (fechaStr: string) => {
 };
 
 // =========================================
-// VALIDACIÓN: Solo mayores de 18  (MISMA QUE PACIENTE)
+// VALIDACIÓN: Solo mayores de 18
 // =========================================
 const esMayorDe18 = (fechaStr: string) => {
   if (!esFechaValida(fechaStr)) return false;
@@ -129,7 +125,7 @@ const validarCedulaDominicana = (cedula: string) => {
 };
 
 // =========================================
-// HELPERS (MISMO QUE PACIENTE)
+// HELPERS
 // =========================================
 const filterOnlyLetters = (text: string) =>
   text.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, "");
@@ -183,10 +179,8 @@ const formatCedulaRD = (text: string) => {
 };
 
 // =========================================
-// API para validar teléfono (IGUAL QUE PACIENTE)
+// API para validar teléfono (USANDO TU apiUrl)
 // =========================================
-const BACKEND_URL = "http://localhost:3000";
-
 type ValidacionTelefonoBackendResult =
   | { ok: true; meta?: any }
   | { ok: false; reason: string };
@@ -197,14 +191,13 @@ const validarTelefonoBackend = async (
 ): Promise<ValidacionTelefonoBackendResult> => {
   try {
     const digits = phoneFormatted.replace(/\D/g, "");
-    
-    const res = await fetch(apiUrl('/api/phone/validar-telefono'), {
-      const res = await fetch(`${BACKEND_URL}/api/phone/validar-telefono`, {
+
+    const res = await fetch(apiUrl("/api/phone/validar-telefono"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ countryCode, phone: digits }),
     });
-    
+
     const data = await res.json().catch(() => null);
 
     if (!res.ok || !data?.success) {
@@ -228,7 +221,7 @@ const validarTelefonoBackend = async (
 };
 
 // =========================================
-// Colores + Estilos (MISMO QUE PACIENTE)
+// Colores + Estilos
 // =========================================
 const colors = {
   primary: "#137fec",
@@ -255,7 +248,7 @@ const styles = StyleSheet.create({
   headerContent: {
     maxWidth: 1200,
     width: "100%",
-    marginHorizontal: "auto",
+    marginHorizontal: "auto" as any,
     paddingHorizontal: width > 768 ? 24 : 16,
     height: 64,
     flexDirection: "row",
@@ -264,18 +257,47 @@ const styles = StyleSheet.create({
   },
   logoGroup: { flexDirection: "row", alignItems: "center", gap: 12 },
   logoImage: { width: 40, height: 40, resizeMode: "contain" },
-  logoText: { color: colors.navyDark, fontSize: 18, fontWeight: "bold", lineHeight: 20 },
+  logoText: {
+    color: colors.navyDark,
+    fontSize: 18,
+    fontWeight: "bold",
+    lineHeight: 20,
+  },
   logoSubtitle: { color: colors.blueGray, fontSize: 10, fontWeight: "500" },
 
-  mainContent: { flex: 1, paddingVertical: 32, paddingHorizontal: width > 768 ? 24 : 16 },
-  contentWrapper: { maxWidth: 960, marginHorizontal: "auto", width: "100%", gap: 24 },
+  mainContent: {
+    flex: 1,
+    paddingVertical: 32,
+    paddingHorizontal: width > 768 ? 24 : 16,
+  },
+  contentWrapper: {
+    maxWidth: 960,
+    marginHorizontal: "auto" as any,
+    width: "100%",
+    gap: 24,
+  },
 
-  breadcrumbs: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  breadcrumbs: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
   breadcrumbLink: { color: colors.blueGray, fontSize: 14, fontWeight: "500" },
   breadcrumbSeparator: { color: colors.blueGray, fontSize: 12 },
-  breadcrumbCurrent: { color: colors.navyDark, fontSize: 14, fontWeight: "bold" },
+  breadcrumbCurrent: {
+    color: colors.navyDark,
+    fontSize: 14,
+    fontWeight: "bold",
+  },
 
-  pageTitle: { color: colors.navyDark, fontSize: 28, fontWeight: "800", lineHeight: 36, textAlign: "center" },
+  pageTitle: {
+    color: colors.navyDark,
+    fontSize: 28,
+    fontWeight: "800",
+    lineHeight: 36,
+    textAlign: "center",
+  },
 
   formCard: {
     backgroundColor: colors.white,
@@ -290,67 +312,200 @@ const styles = StyleSheet.create({
     borderColor: "rgba(26, 61, 99, 0.3)",
   },
 
-  progressHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 8 },
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: 8,
+  },
   progressTitle: { color: colors.navyDark, fontSize: 16, fontWeight: "bold" },
   progressPercent: { color: colors.blueGray, fontSize: 14, fontWeight: "500" },
-  progressBarOuter: { height: 8, width: "100%", borderRadius: 4, backgroundColor: colors.slate50, overflow: "hidden", marginBottom: 24 },
-  progressBarInner: { height: "100%", borderRadius: 4, backgroundColor: colors.primary },
+  progressBarOuter: {
+    height: 8,
+    width: "100%",
+    borderRadius: 4,
+    backgroundColor: colors.slate50,
+    overflow: "hidden",
+    marginBottom: 24,
+  },
+  progressBarInner: {
+    height: "100%",
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+  },
 
-  formRow: { flexDirection: width > 768 ? "row" : "column", gap: 24, marginBottom: 16 },
-  inputLabel: { color: colors.navyDark, fontSize: 14, fontWeight: "600", marginBottom: 8 },
+  formRow: {
+    flexDirection: width > 768 ? "row" : "column",
+    gap: 24,
+    marginBottom: 16,
+  },
+  inputLabel: {
+    color: colors.navyDark,
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
   inputWrapper: { flex: 1 },
 
-  selectInput: { height: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.navyMedium, backgroundColor: colors.slate50, paddingHorizontal: 16, justifyContent: "center" },
-  inputField: { height: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.navyMedium, backgroundColor: colors.slate50, paddingHorizontal: 16, fontSize: 16, color: colors.navyDark },
+  selectInput: {
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.navyMedium,
+    backgroundColor: colors.slate50,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+  },
+  inputField: {
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.navyMedium,
+    backgroundColor: colors.slate50,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: colors.navyDark,
+  },
 
-  phoneInputGroup: { flexDirection: "row", height: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.navyMedium, backgroundColor: colors.slate50 },
-  prefixButton: { width: width > 768 ? 90 : 70, height: "100%", justifyContent: "center", alignItems: "center", borderRightWidth: 1, borderRightColor: colors.navyMedium, borderTopLeftRadius: 8, borderBottomLeftRadius: 8, paddingLeft: 4 },
+  phoneInputGroup: {
+    flexDirection: "row",
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.navyMedium,
+    backgroundColor: colors.slate50,
+  },
+  prefixButton: {
+    width: width > 768 ? 90 : 70,
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRightWidth: 1,
+    borderRightColor: colors.navyMedium,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+    paddingLeft: 4,
+  },
   prefixText: { color: colors.navyDark, fontSize: 14, fontWeight: "bold" },
-  numberInput: { flex: 1, paddingHorizontal: 16, fontSize: 16, color: colors.navyDark, borderTopRightRadius: 8, borderBottomRightRadius: 8 },
+  numberInput: {
+    flex: 1,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: colors.navyDark,
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
 
-  cancelButtonText: { color: colors.blueGray, fontWeight: "bold", paddingHorizontal: 0 },
-  continueButton: { width: width > 640 ? "auto" : "100%", height: 48, paddingHorizontal: 32, borderRadius: 8, backgroundColor: colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  cancelButtonText: { color: colors.blueGray, fontWeight: "bold" },
+  continueButton: {
+    width: width > 640 ? "auto" : "100%",
+    height: 48,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
 
-  footerActions: { flexDirection: width > 640 ? "row" : "column-reverse", alignItems: "center", justifyContent: "flex-end", gap: 16, marginTop: 16, paddingTop: 24, borderTopWidth: 1, borderTopColor: "rgba(26, 61, 99, 0.3)" },
+  footerActions: {
+    flexDirection: width > 640 ? "row" : "column-reverse",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 16,
+    marginTop: 16,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(26, 61, 99, 0.3)",
+  },
 
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 16 },
-  modalContent: { backgroundColor: colors.white, borderRadius: 12, padding: 24, width: "100%", maxWidth: 400, elevation: 5 },
-  modalOption: { paddingVertical: 16, paddingHorizontal: 20, borderRadius: 8, marginBottom: 8, backgroundColor: colors.slate50, borderWidth: 1, borderColor: colors.navyMedium },
-  modalOptionText: { fontSize: 16, color: colors.navyDark, textAlign: "center", fontWeight: "500" },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    elevation: 5,
+  },
+  modalOption: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: colors.slate50,
+    borderWidth: 1,
+    borderColor: colors.navyMedium,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: colors.navyDark,
+    textAlign: "center",
+    fontWeight: "500",
+  },
 
   inputError: { borderColor: colors.error, borderWidth: 1.5 },
   errorText: { color: colors.error, fontSize: 12, marginTop: 4, fontWeight: "500" },
 
-  // ✅ Foto
   photoWrap: { alignItems: "center", marginBottom: 24 },
-  photoCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: colors.slate50, borderWidth: 2, borderStyle: "dashed", borderColor: "rgba(26, 61, 99, 0.3)", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  photoCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.slate50,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "rgba(26, 61, 99, 0.3)",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
   photoImg: { width: "100%", height: "100%" },
-  photoBtn: { marginTop: 12, height: 44, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: "rgba(26, 61, 99, 0.3)", backgroundColor: colors.white, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  photoBtn: {
+    marginTop: 12,
+    height: 44,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(26, 61, 99, 0.3)",
+    backgroundColor: colors.white,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
   photoBtnText: { color: colors.blueGray, fontWeight: "bold" },
 });
 
 const RegistroMedicoScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
 
-  // Campos (igual que paciente + extras)
+  // Campos
   const [names, setNames] = useState("");
   const [lastNames, setLastNames] = useState("");
-  const [birthDate, setBirthDate] = useState(""); // DD/MM/YYYY
+  const [birthDate, setBirthDate] = useState("");
   const [gender, setGender] = useState("");
   const [cedula, setCedula] = useState("");
   const [phone, setPhone] = useState("");
   const [selectedCountryCode, setSelectedCountryCode] = useState<CountryCodeType>(countryCodes[0]);
 
-  // Médico extra
+  // Médico
   const [especialidad, setEspecialidad] = useState("");
   const [showEspModal, setShowEspModal] = useState(false);
   const [espQuery, setEspQuery] = useState("");
 
-  // Foto (obligatoria + persona)
+  // Foto
   const [fotoUri, setFotoUri] = useState<string>("");
   const [fotoError, setFotoError] = useState(false);
 
-  // UI/Estados
+  // UI
   const [isLoading, setIsLoading] = useState(false);
   const [showGenderModal, setShowGenderModal] = useState(false);
   const [showPrefixModal, setShowPrefixModal] = useState(false);
@@ -372,9 +527,10 @@ const RegistroMedicoScreen: React.FC = () => {
     especialidad.trim() !== "" &&
     !!fotoUri;
 
-  const completedFields = [names, lastNames, birthDate, gender, cedula, phone, especialidad, fotoUri].filter(
-    (x) => (typeof x === "string" ? x.trim() !== "" : !!x)
+  const completedFields = [names, lastNames, birthDate, gender, cedula, phone, especialidad, fotoUri].filter((x) =>
+    typeof x === "string" ? x.trim() !== "" : !!x
   ).length;
+
   const progressPercent = Math.round((completedFields / 8) * 100);
 
   const especialidadesFiltradas = useMemo(() => {
@@ -383,7 +539,6 @@ const RegistroMedicoScreen: React.FC = () => {
     return ESPECIALIDADES.filter((e) => e.toLowerCase().includes(q));
   }, [espQuery]);
 
-  // ✅ ARREGLO: ahora si falla FaceDetector, NO dejamos continuar
   const validarQueSeaPersona = async (uri: string) => {
     try {
       const result = await FaceDetector.detectFacesAsync(uri, {
@@ -392,8 +547,7 @@ const RegistroMedicoScreen: React.FC = () => {
         runClassifications: FaceDetector.FaceDetectorClassifications.none,
       });
       return (result?.faces?.length ?? 0) > 0;
-    } catch (e) {
-      console.log("FaceDetector error:", e);
+    } catch {
       return false;
     }
   };
@@ -471,7 +625,7 @@ const RegistroMedicoScreen: React.FC = () => {
 
     if (selectedCountryCode.name === "República Dominicana") {
       setIsLoading(true);
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 250));
       const ok = validarCedulaDominicana(cedula);
       setIsLoading(false);
 
@@ -553,7 +707,11 @@ const RegistroMedicoScreen: React.FC = () => {
                 )}
               </View>
 
-              <TouchableOpacity style={[styles.photoBtn, showErrors && !fotoUri && styles.inputError]} onPress={pickImage}>
+              <TouchableOpacity
+                style={[styles.photoBtn, (showErrors && !fotoUri) && styles.inputError]}
+                onPress={pickImage}
+                activeOpacity={0.85}
+              >
                 <MaterialIcons name="add-a-photo" size={18} color={colors.blueGray} />
                 <Text style={styles.photoBtnText}>{fotoUri ? "Cambiar foto" : "Subir foto"}</Text>
               </TouchableOpacity>
@@ -569,7 +727,7 @@ const RegistroMedicoScreen: React.FC = () => {
                 <View style={styles.inputWrapper}>
                   <Text style={styles.inputLabel}>Nombres</Text>
                   <TextInput
-                    style={[styles.inputField, showErrors && !names && styles.inputError]}
+                    style={[styles.inputField, (showErrors && !names) && styles.inputError]}
                     placeholder="Ej. Juan Alberto"
                     value={names}
                     onChangeText={(t) => setNames(filterOnlyLetters(t))}
@@ -579,7 +737,7 @@ const RegistroMedicoScreen: React.FC = () => {
                 <View style={styles.inputWrapper}>
                   <Text style={styles.inputLabel}>Apellidos</Text>
                   <TextInput
-                    style={[styles.inputField, showErrors && !lastNames && styles.inputError]}
+                    style={[styles.inputField, (showErrors && !lastNames) && styles.inputError]}
                     placeholder="Ej. Pérez Gomez"
                     value={lastNames}
                     onChangeText={(t) => setLastNames(filterOnlyLetters(t))}
@@ -591,7 +749,7 @@ const RegistroMedicoScreen: React.FC = () => {
                 <View style={styles.inputWrapper}>
                   <Text style={styles.inputLabel}>Cédula (Identificación)</Text>
                   <TextInput
-                    style={[styles.inputField, ((showErrors && !cedula) || cedulaError) && styles.inputError]}
+                    style={[styles.inputField, (((showErrors && !cedula) || cedulaError) && styles.inputError) as any]}
                     placeholder="XXX-XXXXXXX-X"
                     keyboardType="numeric"
                     value={cedula}
@@ -607,8 +765,9 @@ const RegistroMedicoScreen: React.FC = () => {
                 <View style={styles.inputWrapper}>
                   <Text style={styles.inputLabel}>Género</Text>
                   <TouchableOpacity
-                    style={[styles.selectInput, showErrors && !gender && styles.inputError]}
+                    style={[styles.selectInput, (showErrors && !gender) && styles.inputError]}
                     onPress={() => setShowGenderModal(true)}
+                    activeOpacity={0.85}
                   >
                     <Text style={{ color: gender ? colors.navyDark : colors.blueGray }}>
                       {gender || "Seleccionar"}
@@ -645,7 +804,7 @@ const RegistroMedicoScreen: React.FC = () => {
                   <TextInput
                     style={[
                       styles.inputField,
-                      ((showErrors && !birthDate) || fechaError || fechaMayor18Error) && styles.inputError,
+                      (((showErrors && !birthDate) || fechaError || fechaMayor18Error) && styles.inputError) as any,
                     ]}
                     placeholder="DD/MM/YYYY"
                     value={birthDate}
@@ -662,13 +821,16 @@ const RegistroMedicoScreen: React.FC = () => {
                 </View>
               </View>
 
-              {/* ESPECIALIDAD */}
               <View style={styles.formRow}>
                 <View style={styles.inputWrapper}>
                   <Text style={styles.inputLabel}>Especialidad</Text>
                   <TouchableOpacity
-                    style={[styles.selectInput, ((showErrors && !especialidad) || especialidadError) && styles.inputError]}
+                    style={[
+                      styles.selectInput,
+                      (((showErrors && !especialidad) || especialidadError) && styles.inputError) as any,
+                    ]}
                     onPress={() => setShowEspModal(true)}
+                    activeOpacity={0.85}
                   >
                     <Text style={{ color: especialidad ? colors.navyDark : colors.blueGray }}>
                       {especialidad || "Seleccionar"}
@@ -685,7 +847,11 @@ const RegistroMedicoScreen: React.FC = () => {
             </View>
 
             <View style={styles.footerActions}>
-              <TouchableOpacity style={[styles.continueButton, { backgroundColor: "transparent" }]} onPress={handleCancel}>
+              <TouchableOpacity
+                style={[styles.continueButton, { backgroundColor: "transparent" }]}
+                onPress={handleCancel}
+                activeOpacity={0.85}
+              >
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
 
@@ -693,6 +859,7 @@ const RegistroMedicoScreen: React.FC = () => {
                 style={[styles.continueButton, { backgroundColor: isFormComplete ? colors.primary : colors.disabled }]}
                 onPress={handleContinue}
                 disabled={isLoading}
+                activeOpacity={0.85}
               >
                 {isLoading ? (
                   <ActivityIndicator color="white" />
@@ -717,6 +884,7 @@ const RegistroMedicoScreen: React.FC = () => {
                   setGender(g);
                   setShowGenderModal(false);
                 }}
+                activeOpacity={0.85}
               >
                 <Text style={styles.modalOptionText}>{g}</Text>
               </TouchableOpacity>
@@ -740,6 +908,7 @@ const RegistroMedicoScreen: React.FC = () => {
                     setTelefonoError("");
                     setShowPrefixModal(false);
                   }}
+                  activeOpacity={0.85}
                 >
                   <Text style={styles.modalOptionText}>
                     {c.code} ({c.name})
@@ -751,7 +920,7 @@ const RegistroMedicoScreen: React.FC = () => {
         </TouchableOpacity>
       </Modal>
 
-      {/* MODAL ESPECIALIDADES (FIX) */}
+      {/* MODAL ESPECIALIDADES */}
       <Modal visible={showEspModal} transparent animationType="fade">
         <Pressable
           style={styles.modalOverlay}
@@ -786,6 +955,7 @@ const RegistroMedicoScreen: React.FC = () => {
                     setShowEspModal(false);
                     setEspQuery("");
                   }}
+                  activeOpacity={0.85}
                 >
                   <Text style={styles.modalOptionText}>{esp}</Text>
                 </TouchableOpacity>
