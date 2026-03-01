@@ -15,6 +15,7 @@ import VerificarIdentidadScreen from "./VerificarIdentidadScreen";
 import DashboardPacienteScreen from "./DashboardPacienteScreen";
 import DashboardMedico from "./DashboardMedico";
 import NuevaConsultaPacienteScreen from "./NuevaConsultaPacienteScreen";
+import SalaEsperaVirtualPacienteScreen from "./SalaEsperaVirtualPacienteScreen";
 import EspecialistasPorEspecialidadScreen from "./EspecialistasPorEspecialidadScreen";
 import PerfilEspecialistaAgendarScreen from "./PerfilEspecialistaAgendarScreen";
 import PacienteRecetasDocumentosScreen from "./PacienteRecetasDocumentosScreen";
@@ -64,6 +65,10 @@ const App: React.FC = () => {
         <Stack.Screen
           name="NuevaConsultaPaciente"
           component={NuevaConsultaPacienteScreen}
+        />
+        <Stack.Screen
+          name="SalaEsperaVirtualPaciente"
+          component={SalaEsperaVirtualPacienteScreen}
         />
         <Stack.Screen
           name="EspecialistasPorEspecialidad"

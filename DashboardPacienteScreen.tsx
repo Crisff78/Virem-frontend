@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  Modal,
   View,
   Text,
   StyleSheet,
@@ -164,6 +165,8 @@ const DashboardPacienteScreen: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
+  const [prepOpen, setPrepOpen] = useState(false);
+  const [prepItems, setPrepItems] = useState([false, false, false, false]);
   const [chatReply, setChatReply] = useState('');
   const chatAnim = useRef(new Animated.Value(0)).current;
 
@@ -250,11 +253,13 @@ const DashboardPacienteScreen: React.FC = () => {
   };
 
   const handleSeePreparations = () => {
-    Alert.alert(
-      'Preparativos de consulta',
-      '• Ten tu documento de identidad cerca.\n• Verifica cámara y micrófono.\n• Mantén a mano tus exámenes recientes.'
-    );
+    setPrepOpen(true);
   };
+
+  const togglePrepItem = (index: number) => {
+    setPrepItems((prev) => prev.map((item, i) => (i === index ? !item : item)));
+  };
+  const allPrepItemsSelected = prepItems.every(Boolean);
 
   const handleSendMessage = () => {
     if (!chatReply.trim()) return;
@@ -569,6 +574,113 @@ const DashboardPacienteScreen: React.FC = () => {
         </Animated.View>
       ) : null}
 
+      <Modal visible={prepOpen} transparent animationType="fade" onRequestClose={() => setPrepOpen(false)}>
+        <View style={styles.prepOverlay}>
+          <View style={styles.prepModal}>
+            <View style={styles.prepHead}>
+              <Text style={styles.prepBreadcrumb}>Preparativos</Text>
+              <TouchableOpacity onPress={() => setPrepOpen(false)}>
+                <MaterialIcons name="close" size={22} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.prepTitle}>Prepárate para tu videollamada</Text>
+            <Text style={styles.prepSub}>Con el Dr. Alejandro García • Cardiología</Text>
+
+            <View style={styles.prepGrid}>
+              <View style={styles.prepCard}>
+                <Text style={styles.prepCardTitle}>Lista de verificación</Text>
+
+                <TouchableOpacity style={styles.prepItem} onPress={() => togglePrepItem(0)}>
+                  <MaterialIcons
+                    name={prepItems[0] ? 'check-circle' : 'radio-button-unchecked'}
+                    size={20}
+                    color={prepItems[0] ? colors.primary : colors.light}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.prepItemTitle}>Conexión a internet estable</Text>
+                    <Text style={styles.prepItemSub}>Asegúrate de tener buena señal Wi-Fi o datos móviles.</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.prepItem} onPress={() => togglePrepItem(1)}>
+                  <MaterialIcons
+                    name={prepItems[1] ? 'check-circle' : 'radio-button-unchecked'}
+                    size={20}
+                    color={prepItems[1] ? colors.primary : colors.light}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.prepItemTitle}>Cámara y micrófono funcionando</Text>
+                    <Text style={styles.prepItemSub}>El navegador te pedirá permisos para acceder a ellos.</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.prepItem} onPress={() => togglePrepItem(2)}>
+                  <MaterialIcons
+                    name={prepItems[2] ? 'check-circle' : 'radio-button-unchecked'}
+                    size={20}
+                    color={prepItems[2] ? colors.primary : colors.light}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.prepItemTitle}>Lugar tranquilo y privado</Text>
+                    <Text style={styles.prepItemSub}>Busca un espacio iluminado y sin ruidos externos.</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.prepItem} onPress={() => togglePrepItem(3)}>
+                  <MaterialIcons
+                    name={prepItems[3] ? 'check-circle' : 'radio-button-unchecked'}
+                    size={20}
+                    color={prepItems[3] ? colors.primary : colors.light}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.prepItemTitle}>Ten a mano tus exámenes o recetas</Text>
+                    <Text style={styles.prepItemSub}>Facilitará la consulta si el doctor necesita revisarlos.</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.prepCard}>
+                <Text style={styles.prepCardTitle}>Prueba técnica</Text>
+                <View style={styles.testBox}>
+                  <MaterialIcons name="camera-alt" size={44} color={colors.muted} />
+                  <View style={styles.testBar}>
+                    <View style={styles.testBarFill} />
+                  </View>
+                </View>
+
+                <TouchableOpacity style={styles.testBtn}>
+                  <MaterialIcons name="settings" size={16} color={colors.blue} />
+                  <Text style={styles.testBtnText}>Hacer prueba de equipo</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.readyBtn, !allPrepItemsSelected && styles.readyBtnDisabled]}
+                  disabled={!allPrepItemsSelected}
+                  onPress={() => {
+                    setPrepOpen(false);
+                    navigation.navigate('SalaEsperaVirtualPaciente');
+                  }}
+                >
+                  <Text style={[styles.readyBtnText, !allPrepItemsSelected && styles.readyBtnTextDisabled]}>
+                    Listo, ir a sala de espera
+                  </Text>
+                  <MaterialIcons
+                    name="arrow-forward"
+                    size={18}
+                    color={allPrepItemsSelected ? '#fff' : '#94a3b8'}
+                  />
+                </TouchableOpacity>
+
+                <Text style={styles.readySub}>
+                  Serás redirigido a la sala de espera privada hasta que el doctor inicie la sesión.
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <TouchableOpacity style={styles.chatFab} onPress={toggleChat}>
         <MaterialIcons name={chatOpen ? 'close' : 'chat'} size={26} color="#fff" />
       </TouchableOpacity>
@@ -846,6 +958,168 @@ const styles = StyleSheet.create({
   summaryDiag: { color: '#fff', fontWeight: '900', fontSize: 16, marginTop: 4 },
   summaryDate: { color: '#fff', opacity: 0.8, fontWeight: '800', fontSize: 11, backgroundColor: 'rgba(255,255,255,0.10)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   summaryText: { color: colors.light, fontWeight: '600', fontSize: 12, marginTop: 10, lineHeight: 18 },
+
+  prepOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(10, 25, 49, 0.42)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  prepModal: {
+    width: '100%',
+    maxWidth: 980,
+    backgroundColor: colors.bg,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#d9e6f2',
+    padding: 22,
+    maxHeight: '90%',
+  },
+  prepHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  prepBreadcrumb: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  prepTitle: {
+    marginTop: 8,
+    fontSize: 34,
+    fontWeight: '900',
+    color: colors.dark,
+    lineHeight: 40,
+  },
+  prepSub: {
+    marginTop: 6,
+    marginBottom: 16,
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.muted,
+  },
+  prepGrid: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  prepCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#cfe0ee',
+    borderRadius: 16,
+    padding: 16,
+  },
+  prepCardTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.dark,
+    marginBottom: 11,
+  },
+  prepItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#f8fbff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e6eef6',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  prepItemTitle: {
+    color: colors.dark,
+    fontWeight: '900',
+    fontSize: 14,
+  },
+  prepItemSub: {
+    marginTop: 2,
+    color: colors.muted,
+    fontWeight: '600',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  testBox: {
+    backgroundColor: '#edf3fa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#d8e4f0',
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  testBar: {
+    marginTop: 10,
+    width: '78%',
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: '#d7e3ef',
+    overflow: 'hidden',
+  },
+  testBarFill: {
+    width: '62%',
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#22c55e',
+  },
+  testBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 2,
+    borderColor: colors.blue,
+    borderRadius: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    backgroundColor: '#fff',
+  },
+  testBtnText: {
+    color: colors.blue,
+    fontWeight: '900',
+    fontSize: 15,
+  },
+  readyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  readyBtnDisabled: {
+    backgroundColor: '#e2e8f0',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  readyBtnText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 18,
+  },
+  readyBtnTextDisabled: {
+    color: '#94a3b8',
+  },
+  readySub: {
+    marginTop: 10,
+    textAlign: 'center',
+    color: colors.muted,
+    fontWeight: '600',
+    fontSize: 11,
+    lineHeight: 15,
+  },
 });
 
 export default DashboardPacienteScreen;

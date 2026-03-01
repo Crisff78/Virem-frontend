@@ -42,6 +42,7 @@ export type RootStackParamList = {
   PacienteRecetasDocumentos: undefined;
   PacientePerfil: undefined;
   NuevaConsultaPaciente: undefined;
+  SalaEsperaVirtualPaciente: undefined;
   EspecialistasPorEspecialidad: { specialty: string };
   PerfilEspecialistaAgendar: { specialty: string; doctorId: string };
   DashboardMedico: undefined;
