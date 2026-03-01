@@ -8,6 +8,7 @@ web-build/
 # Expo environment types
 expo-env.d.ts
 
+
 # Metro cache / health check
 .metro-health-check*
 
@@ -35,6 +36,8 @@ yarn-error.*
 # LOCAL ENV FILES (frontend only)
 # ============================
 .env*.local
+.env.mobile
+.env.web
 
 # ============================
 # TYPESCRIPT CACHE

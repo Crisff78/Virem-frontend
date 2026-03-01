@@ -26,11 +26,11 @@ import type { RootStackParamList } from './navigation/types';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const ViremLogo = require('../frontend/assets/imagenes/descarga.png');
+const ViremLogo = require('./assets/imagenes/descarga.png');
 
 // Avatar default (local) -> crea una imagen en tu proyecto:
 // ./assets/imagenes/avatar-default.png
-const DefaultAvatar = require('../frontend/assets/imagenes/avatar-default.jpg');
+const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
 const STORAGE_KEY = 'user';
 const LEGACY_USER_STORAGE_KEY = 'userProfile';
@@ -64,6 +64,7 @@ type QuickActionProps = {
   label: string;
   color: string;
   bg: string;
+  onPress?: () => void;
 };
 
 type AppointmentCardProps = {
@@ -86,8 +87,8 @@ type DoctorCardProps = {
 };
 
 /* ===================== COMPONENTES ===================== */
-const QuickAction: React.FC<QuickActionProps> = ({ icon, label, color, bg }) => (
-  <TouchableOpacity style={styles.quickCard}>
+const QuickAction: React.FC<QuickActionProps> = ({ icon, label, color, bg, onPress }) => (
+  <TouchableOpacity style={styles.quickCard} onPress={onPress} activeOpacity={0.88}>
     <View style={[styles.quickIconBox, { backgroundColor: bg }]}>
       <MaterialIcons name={icon} size={26} color={color} />
     </View>
@@ -327,12 +328,18 @@ const DashboardPacienteScreen: React.FC = () => {
               <Text style={styles.menuText}>Chat</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
+            >
               <MaterialIcons name="description" size={20} color={colors.muted} />
               <Text style={styles.menuText}>Recetas / Documentos</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacientePerfil')}
+            >
               <MaterialIcons name="account-circle" size={20} color={colors.muted} />
               <Text style={styles.menuText}>Perfil</Text>
             </TouchableOpacity>
@@ -409,6 +416,7 @@ const DashboardPacienteScreen: React.FC = () => {
             label="Nueva consulta"
             color={colors.primary}
             bg="rgba(19,127,236,0.12)"
+            onPress={() => navigation.navigate('NuevaConsultaPaciente')}
           />
           <QuickAction
             icon="calendar-month"
@@ -422,6 +430,7 @@ const DashboardPacienteScreen: React.FC = () => {
             label="Mis recetas"
             color="#a855f7"
             bg="#faf5ff"
+            onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
           />
         </View>
 
