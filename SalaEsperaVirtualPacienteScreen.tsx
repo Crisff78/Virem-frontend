@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Platform,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Image,
+  ScrollView,
+  Switch,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -15,19 +18,37 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
-const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
 const DoctorAvatar: ImageSourcePropType = { uri: 'https://i.pravatar.cc/220?img=13' };
 const CameraPreview: ImageSourcePropType = { uri: 'https://i.pravatar.cc/420?img=50' };
+
+type DeviceOption = {
+  id: string;
+  label: string;
+};
 
 const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [blurBackground, setBlurBackground] = useState(false);
+  const [noiseCancellation, setNoiseCancellation] = useState(true);
+  const [deviceLoading, setDeviceLoading] = useState(false);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
+  const [openSelect, setOpenSelect] = useState<'camera' | 'mic' | 'speaker' | null>(null);
+  const [cameras, setCameras] = useState<DeviceOption[]>([]);
+  const [microphones, setMicrophones] = useState<DeviceOption[]>([]);
+  const [speakers, setSpeakers] = useState<DeviceOption[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState('');
+  const [selectedMicId, setSelectedMicId] = useState('');
+  const [selectedSpeakerId, setSelectedSpeakerId] = useState('');
   const dot1 = useRef(new Animated.Value(0.25)).current;
   const dot2 = useRef(new Animated.Value(0.25)).current;
   const dot3 = useRef(new Animated.Value(0.25)).current;
   const signalPulse = useRef(new Animated.Value(0.35)).current;
+  const panelTranslateX = useRef(new Animated.Value(430)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const makePulse = (value: Animated.Value, delay: number) =>
@@ -58,6 +79,123 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     animation.start();
     return () => animation.stop();
   }, [dot1, dot2, dot3, signalPulse]);
+
+  const openSettings = () => {
+    setSettingsOpen(true);
+    Animated.parallel([
+      Animated.timing(panelTranslateX, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const closeSettings = () => {
+    setOpenSelect(null);
+    Animated.parallel([
+      Animated.timing(panelTranslateX, {
+        toValue: 430,
+        duration: 230,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) setSettingsOpen(false);
+    });
+  };
+
+  const getSelectedLabel = (items: DeviceOption[], selectedId: string, fallback: string) => {
+    return items.find((item) => item.id === selectedId)?.label || fallback;
+  };
+
+  const loadWebDevices = async () => {
+    if (Platform.OS !== 'web') {
+      const fallbackCams = [{ id: 'mobile-cam-1', label: 'Cámara del dispositivo' }];
+      const fallbackMics = [{ id: 'mobile-mic-1', label: 'Micrófono del dispositivo' }];
+      const fallbackSpeakers = [{ id: 'mobile-spk-1', label: 'Altavoz del dispositivo' }];
+      setCameras(fallbackCams);
+      setMicrophones(fallbackMics);
+      setSpeakers(fallbackSpeakers);
+      setSelectedCameraId((prev) => prev || fallbackCams[0].id);
+      setSelectedMicId((prev) => prev || fallbackMics[0].id);
+      setSelectedSpeakerId((prev) => prev || fallbackSpeakers[0].id);
+      return;
+    }
+
+    setDeviceLoading(true);
+    setDeviceError(null);
+    let tempStream: MediaStream | null = null;
+
+    try {
+      const mediaDevices = (globalThis as any).navigator?.mediaDevices;
+      if (!mediaDevices?.enumerateDevices) {
+        throw new Error('Tu navegador no soporta enumeración de dispositivos.');
+      }
+
+      try {
+        tempStream = await mediaDevices.getUserMedia({ audio: true, video: true });
+      } catch {
+        // Si el usuario bloquea permisos, igual intentamos listar (pueden venir sin labels).
+      }
+
+      const rawDevices = await mediaDevices.enumerateDevices();
+      const camList: DeviceOption[] = rawDevices
+        .filter((d: any) => d.kind === 'videoinput')
+        .map((d: any, i: number) => ({
+          id: d.deviceId || `cam-${i + 1}`,
+          label: d.label || `Cámara ${i + 1}`,
+        }));
+
+      const micList: DeviceOption[] = rawDevices
+        .filter((d: any) => d.kind === 'audioinput')
+        .map((d: any, i: number) => ({
+          id: d.deviceId || `mic-${i + 1}`,
+          label: d.label || `Micrófono ${i + 1}`,
+        }));
+
+      const speakerList: DeviceOption[] = rawDevices
+        .filter((d: any) => d.kind === 'audiooutput')
+        .map((d: any, i: number) => ({
+          id: d.deviceId || `spk-${i + 1}`,
+          label: d.label || `Salida ${i + 1}`,
+        }));
+
+      if (!camList.length && !micList.length && !speakerList.length) {
+        setDeviceError('No se detectaron dispositivos. Revisa permisos del navegador.');
+      }
+
+      setCameras(camList);
+      setMicrophones(micList);
+      setSpeakers(speakerList);
+      setSelectedCameraId((prev) => prev || camList[0]?.id || '');
+      setSelectedMicId((prev) => prev || micList[0]?.id || '');
+      setSelectedSpeakerId((prev) => prev || speakerList[0]?.id || '');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudieron cargar los dispositivos.';
+      setDeviceError(message);
+    } finally {
+      if (tempStream) {
+        tempStream.getTracks().forEach((track) => track.stop());
+      }
+      setDeviceLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (settingsOpen) {
+      loadWebDevices();
+    }
+  }, [settingsOpen]);
 
   return (
     <View style={styles.container}>
@@ -90,6 +228,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
             <TouchableOpacity style={[styles.menuItem, styles.menuItemActive]}>
               <MaterialIcons name="videocam" size={20} color={colors.primary} />
               <Text style={[styles.menuText, styles.menuTextActive]}>Videollamada activa</Text>
+              <View style={styles.menuLiveDot} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -196,7 +335,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
             </View>
 
             <View style={styles.bottomActions}>
-              <TouchableOpacity style={styles.settingsBtn}>
+              <TouchableOpacity style={styles.settingsBtn} onPress={openSettings}>
                 <MaterialIcons name="settings" size={15} color={colors.primary} />
                 <Text style={styles.settingsBtnText}>Ajustes</Text>
               </TouchableOpacity>
@@ -214,6 +353,200 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
           <Text style={styles.footerText}>Soporte: 0-800-VIREM</Text>
         </View>
       </View>
+
+      {settingsOpen ? (
+        <View style={styles.settingsLayer}>
+          <Animated.View style={[styles.settingsOverlay, { opacity: overlayOpacity }]}>
+            <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={closeSettings} />
+          </Animated.View>
+
+          <Animated.View style={[styles.settingsPanel, { transform: [{ translateX: panelTranslateX }] }]}>
+            <View style={styles.settingsHeader}>
+              <View style={styles.settingsHeadLeft}>
+                <View style={styles.settingsHeadIcon}>
+                  <MaterialIcons name="tune" size={18} color={colors.primary} />
+                </View>
+                <View>
+                  <Text style={styles.settingsTitle}>Ajustes de Videollamada</Text>
+                  <Text style={styles.settingsSubtitle}>Configura tus dispositivos antes de entrar</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity style={styles.settingsCloseBtn} onPress={closeSettings}>
+                <MaterialIcons name="close" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.settingsBody} contentContainerStyle={{ paddingBottom: 20 }}>
+              <View style={styles.settingsPreviewBox}>
+                <Image source={CameraPreview} style={styles.settingsPreviewImage} />
+                <View style={styles.audioOkTag}>
+                  <View style={styles.audioBars}>
+                    <View style={styles.audioBar} />
+                    <View style={[styles.audioBar, { height: 11 }]} />
+                    <View style={[styles.audioBar, { height: 9 }]} />
+                  </View>
+                  <Text style={styles.audioOkText}>AUDIO OK</Text>
+                </View>
+              </View>
+              <Text style={styles.settingsPreviewCaption}>Previsualización de cámara e iluminación</Text>
+
+              <View style={styles.settingBlock}>
+                <Text style={styles.settingLabel}>CÁMARA</Text>
+                <TouchableOpacity style={styles.selectLike} onPress={() => setOpenSelect((prev) => (prev === 'camera' ? null : 'camera'))}>
+                  <Text style={styles.selectLikeText}>
+                    {getSelectedLabel(cameras, selectedCameraId, 'Sin cámara detectada')}
+                  </Text>
+                  <MaterialIcons name="keyboard-arrow-down" size={18} color={colors.muted} />
+                </TouchableOpacity>
+                {openSelect === 'camera' ? (
+                  <View style={styles.selectMenu}>
+                    {cameras.length ? (
+                      cameras.map((camera) => (
+                        <TouchableOpacity
+                          key={camera.id}
+                          style={[styles.selectOption, selectedCameraId === camera.id && styles.selectOptionActive]}
+                          onPress={() => {
+                            setSelectedCameraId(camera.id);
+                            setOpenSelect(null);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.selectOptionText,
+                              selectedCameraId === camera.id && styles.selectOptionTextActive,
+                            ]}
+                          >
+                            {camera.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <Text style={styles.selectEmpty}>No hay cámaras disponibles</Text>
+                    )}
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.settingBlock}>
+                <Text style={styles.settingLabel}>MICRÓFONO</Text>
+                <TouchableOpacity style={styles.selectLike} onPress={() => setOpenSelect((prev) => (prev === 'mic' ? null : 'mic'))}>
+                  <Text style={styles.selectLikeText}>
+                    {getSelectedLabel(microphones, selectedMicId, 'Sin micrófono detectado')}
+                  </Text>
+                  <MaterialIcons name="keyboard-arrow-down" size={18} color={colors.muted} />
+                </TouchableOpacity>
+                {openSelect === 'mic' ? (
+                  <View style={styles.selectMenu}>
+                    {microphones.length ? (
+                      microphones.map((mic) => (
+                        <TouchableOpacity
+                          key={mic.id}
+                          style={[styles.selectOption, selectedMicId === mic.id && styles.selectOptionActive]}
+                          onPress={() => {
+                            setSelectedMicId(mic.id);
+                            setOpenSelect(null);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.selectOptionText,
+                              selectedMicId === mic.id && styles.selectOptionTextActive,
+                            ]}
+                          >
+                            {mic.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <Text style={styles.selectEmpty}>No hay micrófonos disponibles</Text>
+                    )}
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.settingBlock}>
+                <Text style={styles.settingLabel}>SALIDA DE AUDIO</Text>
+                <TouchableOpacity style={styles.selectLike} onPress={() => setOpenSelect((prev) => (prev === 'speaker' ? null : 'speaker'))}>
+                  <Text style={styles.selectLikeText}>
+                    {getSelectedLabel(speakers, selectedSpeakerId, 'Sin salida detectada')}
+                  </Text>
+                  <MaterialIcons name="keyboard-arrow-down" size={18} color={colors.muted} />
+                </TouchableOpacity>
+                {openSelect === 'speaker' ? (
+                  <View style={styles.selectMenu}>
+                    {speakers.length ? (
+                      speakers.map((speaker) => (
+                        <TouchableOpacity
+                          key={speaker.id}
+                          style={[styles.selectOption, selectedSpeakerId === speaker.id && styles.selectOptionActive]}
+                          onPress={() => {
+                            setSelectedSpeakerId(speaker.id);
+                            setOpenSelect(null);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.selectOptionText,
+                              selectedSpeakerId === speaker.id && styles.selectOptionTextActive,
+                            ]}
+                          >
+                            {speaker.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <Text style={styles.selectEmpty}>No hay salidas de audio disponibles</Text>
+                    )}
+                  </View>
+                ) : null}
+              </View>
+
+              {deviceLoading ? <Text style={styles.deviceInfo}>Detectando dispositivos...</Text> : null}
+              {deviceError ? <Text style={styles.deviceError}>{deviceError}</Text> : null}
+
+              <View style={styles.toggleCard}>
+                <View style={styles.toggleLeft}>
+                  <MaterialIcons name="blur-on" size={18} color={colors.muted} />
+                  <View>
+                    <Text style={styles.toggleTitle}>Desenfoque de fondo</Text>
+                    <Text style={styles.toggleSubtitle}>Oculta tu entorno</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={blurBackground}
+                  onValueChange={setBlurBackground}
+                  trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                  thumbColor={blurBackground ? colors.primary : '#f8fafc'}
+                />
+              </View>
+
+              <View style={styles.toggleCard}>
+                <View style={styles.toggleLeft}>
+                  <MaterialIcons name="surround-sound" size={18} color={colors.muted} />
+                  <View>
+                    <Text style={styles.toggleTitle}>Cancelación de ruido</Text>
+                    <Text style={styles.toggleSubtitle}>Mejora la calidad de voz</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={noiseCancellation}
+                  onValueChange={setNoiseCancellation}
+                  trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                  thumbColor={noiseCancellation ? colors.primary : '#f8fafc'}
+                />
+              </View>
+            </ScrollView>
+
+            <View style={styles.settingsFooter}>
+              <TouchableOpacity style={styles.applyBtn} onPress={closeSettings}>
+                <MaterialIcons name="check-circle" size={18} color="#fff" />
+                <Text style={styles.applyBtnText}>Listo, aplicar cambios</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -258,6 +591,13 @@ const styles = StyleSheet.create({
   },
   menuText: { fontSize: 14, fontWeight: '700', color: colors.muted },
   menuTextActive: { color: colors.primary },
+  menuLiveDot: {
+    marginLeft: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 8,
+    backgroundColor: '#22c55e',
+  },
   exitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -450,6 +790,160 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   footerText: { color: colors.muted, fontSize: 11, fontWeight: '700' },
+  settingsLayer: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    pointerEvents: 'box-none',
+  },
+  settingsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(10, 25, 49, 0.26)',
+  },
+  settingsPanel: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: 420,
+    maxWidth: '92%',
+    backgroundColor: '#fff',
+    borderLeftWidth: 1,
+    borderLeftColor: '#e5edf6',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.24,
+    shadowRadius: 18,
+    shadowOffset: { width: -4, height: 0 },
+    elevation: 12,
+  },
+  settingsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef2f7',
+  },
+  settingsHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  settingsHeadIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(19,127,236,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsTitle: { color: colors.dark, fontSize: 20, fontWeight: '900' },
+  settingsSubtitle: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 2 },
+  settingsCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsBody: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  settingsPreviewBox: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#d9e5f2',
+    position: 'relative',
+  },
+  settingsPreviewImage: { width: '100%', height: 170 },
+  audioOkTag: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    backgroundColor: 'rgba(10,25,49,0.62)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  audioBars: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
+  audioBar: { width: 2, height: 8, borderRadius: 1, backgroundColor: '#22c55e' },
+  audioOkText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  settingsPreviewCaption: {
+    marginTop: 8,
+    marginBottom: 14,
+    textAlign: 'center',
+    color: colors.muted,
+    fontSize: 11,
+    fontStyle: 'italic',
+    fontWeight: '600',
+  },
+  settingBlock: { marginBottom: 12 },
+  settingLabel: { color: '#94a3b8', fontSize: 11, fontWeight: '900', marginBottom: 6 },
+  selectLike: {
+    borderWidth: 1,
+    borderColor: '#dbe7f2',
+    borderRadius: 10,
+    backgroundColor: '#f8fbff',
+    paddingHorizontal: 10,
+    paddingVertical: 11,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectLikeText: { color: '#475569', fontSize: 12, fontWeight: '600' },
+  selectMenu: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#dbe7f2',
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    overflow: 'hidden',
+  },
+  selectOption: {
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: '#edf2f8',
+  },
+  selectOptionActive: { backgroundColor: 'rgba(19,127,236,0.10)' },
+  selectOptionText: { color: '#334155', fontSize: 12, fontWeight: '600' },
+  selectOptionTextActive: { color: colors.primary, fontWeight: '800' },
+  selectEmpty: { color: '#64748b', fontSize: 12, paddingHorizontal: 10, paddingVertical: 10, fontWeight: '600' },
+  deviceInfo: { marginTop: 2, color: '#64748b', fontSize: 12, fontWeight: '600' },
+  deviceError: { marginTop: 2, color: '#dc2626', fontSize: 12, fontWeight: '700' },
+  toggleCard: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#e5edf6',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f9fbfe',
+  },
+  toggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, paddingRight: 8 },
+  toggleTitle: { color: colors.dark, fontSize: 14, fontWeight: '800' },
+  toggleSubtitle: { color: colors.muted, fontSize: 11, fontWeight: '600', marginTop: 2 },
+  settingsFooter: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#eef2f7',
+  },
+  applyBtn: {
+    borderRadius: 12,
+    backgroundColor: '#24418a',
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  applyBtnText: { color: '#fff', fontSize: 15, fontWeight: '900' },
 });
 
 export default SalaEsperaVirtualPacienteScreen;

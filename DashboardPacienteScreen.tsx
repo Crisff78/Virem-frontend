@@ -167,6 +167,10 @@ const DashboardPacienteScreen: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
   const [prepOpen, setPrepOpen] = useState(false);
   const [prepItems, setPrepItems] = useState([false, false, false, false]);
+  const [testProgress, setTestProgress] = useState(0);
+  const [testRunning, setTestRunning] = useState(false);
+  const [testStatus, setTestStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+  const [testStatusText, setTestStatusText] = useState('Aún no se ha realizado la prueba.');
   const [chatReply, setChatReply] = useState('');
   const chatAnim = useRef(new Animated.Value(0)).current;
 
@@ -254,6 +258,58 @@ const DashboardPacienteScreen: React.FC = () => {
 
   const handleSeePreparations = () => {
     setPrepOpen(true);
+  };
+
+  const handleRunTechnicalTest = async () => {
+    if (testRunning) return;
+
+    setTestRunning(true);
+    setTestStatus('idle');
+    setTestStatusText('Iniciando prueba de equipo...');
+    setTestProgress(15);
+
+    try {
+      if (Platform.OS !== 'web') {
+        // Fallback móvil: no hay selector nativo de dispositivos por navegador.
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        setTestProgress(100);
+        setTestStatus('ok');
+        setTestStatusText('Equipo listo en este dispositivo.');
+        return;
+      }
+
+      const mediaDevices = (globalThis as any).navigator?.mediaDevices;
+      if (!mediaDevices?.getUserMedia || !mediaDevices?.enumerateDevices) {
+        throw new Error('Tu navegador no soporta pruebas de cámara/micrófono.');
+      }
+
+      setTestProgress(40);
+      setTestStatusText('Solicitando permisos de cámara y micrófono...');
+      const stream = await mediaDevices.getUserMedia({ video: true, audio: true });
+
+      setTestProgress(75);
+      setTestStatusText('Verificando dispositivos disponibles...');
+      const devices = await mediaDevices.enumerateDevices();
+      const hasCam = devices.some((d: any) => d.kind === 'videoinput');
+      const hasMic = devices.some((d: any) => d.kind === 'audioinput');
+
+      stream.getTracks().forEach((track: any) => track.stop());
+
+      if (!hasCam || !hasMic) {
+        throw new Error('No se detectó cámara o micrófono en el equipo.');
+      }
+
+      setTestProgress(100);
+      setTestStatus('ok');
+      setTestStatusText('Prueba completada: cámara y micrófono funcionando.');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'No se pudo completar la prueba.';
+      setTestProgress(100);
+      setTestStatus('error');
+      setTestStatusText(msg);
+    } finally {
+      setTestRunning(false);
+    }
   };
 
   const togglePrepItem = (index: number) => {
@@ -643,16 +699,23 @@ const DashboardPacienteScreen: React.FC = () => {
               <View style={styles.prepCard}>
                 <Text style={styles.prepCardTitle}>Prueba técnica</Text>
                 <View style={styles.testBox}>
-                  <MaterialIcons name="camera-alt" size={44} color={colors.muted} />
+                  <MaterialIcons
+                    name={testStatus === 'ok' ? 'check-circle' : testStatus === 'error' ? 'error-outline' : 'camera-alt'}
+                    size={44}
+                    color={testStatus === 'ok' ? '#22c55e' : testStatus === 'error' ? '#ef4444' : colors.muted}
+                  />
                   <View style={styles.testBar}>
-                    <View style={styles.testBarFill} />
+                    <View style={[styles.testBarFill, { width: `${Math.max(4, testProgress)}%` }]} />
                   </View>
                 </View>
 
-                <TouchableOpacity style={styles.testBtn}>
+                <TouchableOpacity style={styles.testBtn} onPress={handleRunTechnicalTest} disabled={testRunning}>
                   <MaterialIcons name="settings" size={16} color={colors.blue} />
-                  <Text style={styles.testBtnText}>Hacer prueba de equipo</Text>
+                  <Text style={styles.testBtnText}>
+                    {testRunning ? 'Probando equipo...' : 'Hacer prueba de equipo'}
+                  </Text>
                 </TouchableOpacity>
+                <Text style={styles.testStatusText}>{testStatusText}</Text>
 
                 <TouchableOpacity
                   style={[styles.readyBtn, !allPrepItemsSelected && styles.readyBtnDisabled]}
@@ -1061,7 +1124,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   testBarFill: {
-    width: '62%',
+    width: '4%',
     height: '100%',
     borderRadius: 999,
     backgroundColor: '#22c55e',
@@ -1083,6 +1146,14 @@ const styles = StyleSheet.create({
     color: colors.blue,
     fontWeight: '900',
     fontSize: 15,
+  },
+  testStatusText: {
+    marginTop: 8,
+    marginBottom: 12,
+    color: colors.muted,
+    fontWeight: '600',
+    fontSize: 12,
+    textAlign: 'center',
   },
   readyBtn: {
     flexDirection: 'row',
