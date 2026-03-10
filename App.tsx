@@ -20,6 +20,11 @@ import EspecialistasPorEspecialidadScreen from "./EspecialistasPorEspecialidadSc
 import PerfilEspecialistaAgendarScreen from "./PerfilEspecialistaAgendarScreen";
 import PacienteRecetasDocumentosScreen from "./PacienteRecetasDocumentosScreen";
 import PacientePerfilScreen from "./PacientePerfilScreen";
+import PacienteNotificacionesScreen from "./PacienteNotificacionesScreen";
+import PacienteConfiguracionScreen from "./PacienteConfiguracionScreen";
+import PacienteCambiarContrasenaScreen from "./PacienteCambiarContrasenaScreen";
+import PacienteHistorialSesionesScreen from "./PacienteHistorialSesionesScreen";
+import { LanguageProvider } from "./localization/LanguageContext";
 
 import { RootStackParamList } from "./navigation/types";
 
@@ -27,17 +32,18 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const App: React.FC = () => {
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        id="RootStack"
-        initialRouteName="SeleccionPerfil"
-        screenOptions={{
-          headerShown: false,
-          gestureEnabled: false,
-        }}
-      >
-        <Stack.Screen name="SeleccionPerfil" component={SeleccionPerfil} />
-        <Stack.Screen name="Login" component={LoginScreen} />
+    <LanguageProvider>
+      <NavigationContainer>
+        <Stack.Navigator
+          id="RootStack"
+          initialRouteName="SeleccionPerfil"
+          screenOptions={{
+            headerShown: false,
+            gestureEnabled: false,
+          }}
+        >
+          <Stack.Screen name="SeleccionPerfil" component={SeleccionPerfil} />
+          <Stack.Screen name="Login" component={LoginScreen} />
 
         <Stack.Screen name="RegistroPaciente" component={RegistroPacienteScreen} />
         <Stack.Screen name="RegistroMedico" component={RegistroMedicoScreen} />
@@ -55,12 +61,28 @@ const App: React.FC = () => {
         {/* ✅ Dashboard Paciente */}
         <Stack.Screen name="DashboardPaciente" component={DashboardPacienteScreen} />
         <Stack.Screen
+          name="PacienteNotificaciones"
+          component={PacienteNotificacionesScreen}
+        />
+        <Stack.Screen
           name="PacienteRecetasDocumentos"
           component={PacienteRecetasDocumentosScreen}
         />
         <Stack.Screen
           name="PacientePerfil"
           component={PacientePerfilScreen}
+        />
+        <Stack.Screen
+          name="PacienteConfiguracion"
+          component={PacienteConfiguracionScreen}
+        />
+        <Stack.Screen
+          name="PacienteCambiarContrasena"
+          component={PacienteCambiarContrasenaScreen}
+        />
+        <Stack.Screen
+          name="PacienteHistorialSesiones"
+          component={PacienteHistorialSesionesScreen}
         />
         <Stack.Screen
           name="NuevaConsultaPaciente"
@@ -78,9 +100,10 @@ const App: React.FC = () => {
           name="PerfilEspecialistaAgendar"
           component={PerfilEspecialistaAgendarScreen}
         />
-        <Stack.Screen name="DashboardMedico" component={DashboardMedico} />
-      </Stack.Navigator>
-    </NavigationContainer>
+          <Stack.Screen name="DashboardMedico" component={DashboardMedico} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </LanguageProvider>
   );
 };
 

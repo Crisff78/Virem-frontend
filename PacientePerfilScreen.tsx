@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,7 +19,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import type { RootStackParamList } from './navigation/types';
+
+import { useLanguage } from './localization/LanguageContext';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -122,7 +123,8 @@ const ProfileCard: React.FC<{ title: string; children: React.ReactNode }> = ({ t
   </View>
 );
 
-const PacientePerfilScreen: React.FC = () => {
+
+  const { t, tx } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -257,7 +259,7 @@ const PacientePerfilScreen: React.FC = () => {
       if (Platform.OS !== 'web') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permiso requerido', 'Debes permitir acceso a la galería para subir tu foto.');
+          Alert.alert('Permiso requerido', 'Debes permitir acceso a la galerÃ­a para subir tu foto.');
           return;
         }
       }
@@ -324,27 +326,27 @@ const PacientePerfilScreen: React.FC = () => {
           <View style={styles.menu}>
             <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('DashboardPaciente')}>
               <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Inicio</Text>
+              <Text style={styles.menuText}>{t('menu.home')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('NuevaConsultaPaciente')}>
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Buscar Médico</Text>
+              <Text style={styles.menuText}>Buscar MÃ©dico</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Mis Citas</Text>
+              <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Videollamada</Text>
+              <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Chat</Text>
+              <Text style={styles.menuText}>{t('menu.chat')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -352,19 +354,19 @@ const PacientePerfilScreen: React.FC = () => {
               onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
             >
               <MaterialIcons name="description" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Recetas / Documentos</Text>
+              <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]}>
               <MaterialIcons name="account-circle" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>Perfil</Text>
+              <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.profile')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Cerrar Sesión</Text>
+          <Text style={styles.logoutText}>{t('menu.logout')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -385,9 +387,11 @@ const PacientePerfilScreen: React.FC = () => {
         </View>
 
         <View style={styles.titleWrap}>
-          <Text style={styles.pageTitle}>Perfil del Paciente</Text>
+          <Text style={styles.pageTitle}>
+            {tx({ es: 'Perfil del Paciente', en: 'Patient Profile', pt: 'Perfil do Paciente' })}
+          </Text>
           <Text style={styles.pageSubtitle}>
-            Mantén tus datos personales, médicos y de contacto siempre actualizados.
+            MantÃ©n tus datos personales, mÃ©dicos y de contacto siempre actualizados.
           </Text>
         </View>
 
@@ -418,7 +422,7 @@ const PacientePerfilScreen: React.FC = () => {
               placeholder="Apellidos"
             />
             <ProfileField
-              label="Cédula"
+              label="CÃ©dula"
               value={form.cedula}
               onChangeText={(v) => updateField('cedula', v)}
               placeholder="001-0000000-0"
@@ -430,7 +434,7 @@ const PacientePerfilScreen: React.FC = () => {
               placeholder="DD/MM/AAAA"
             />
             <ProfileField
-              label="Género"
+              label="GÃ©nero"
               value={form.genero}
               onChangeText={(v) => updateField('genero', v)}
               placeholder="Hombre / Mujer / Otro"
@@ -501,16 +505,16 @@ const PacientePerfilScreen: React.FC = () => {
           </View>
         </ProfileCard>
 
-        <ProfileCard title="Contacto y dirección">
+        <ProfileCard title="Contacto y direcciÃ³n">
           <View style={styles.grid2}>
             <ProfileField
-              label="Correo electrónico"
+              label="Correo electrÃ³nico"
               value={form.email}
               onChangeText={(v) => updateField('email', v)}
               placeholder="correo@ejemplo.com"
             />
             <ProfileField
-              label="Teléfono"
+              label="TelÃ©fono"
               value={form.telefono}
               onChangeText={(v) => updateField('telefono', v)}
               placeholder="+1 809 000 0000"
@@ -518,10 +522,10 @@ const PacientePerfilScreen: React.FC = () => {
           </View>
           <View style={styles.blockSpacingTop}>
             <ProfileField
-              label="Dirección"
+              label="DirecciÃ³n"
               value={form.direccion}
               onChangeText={(v) => updateField('direccion', v)}
-              placeholder="Calle, número, sector, ciudad"
+              placeholder="Calle, nÃºmero, sector, ciudad"
             />
           </View>
         </ProfileCard>
@@ -532,7 +536,7 @@ const PacientePerfilScreen: React.FC = () => {
             onPress={() => setMedicalOpen((prev) => !prev)}
             activeOpacity={0.85}
           >
-            <Text style={styles.cardTitle}>Información médica relevante</Text>
+            <Text style={styles.cardTitle}>InformaciÃ³n mÃ©dica relevante</Text>
             <MaterialIcons
               name={medicalOpen ? 'expand-less' : 'expand-more'}
               size={22}
@@ -557,10 +561,10 @@ const PacientePerfilScreen: React.FC = () => {
                 multiline
               />
               <ProfileField
-                label="Antecedentes médicos"
+                label="Antecedentes mÃ©dicos"
                 value={form.antecedentes}
                 onChangeText={(v) => updateField('antecedentes', v)}
-                placeholder="Hipertensión, asma, cirugías previas..."
+                placeholder="HipertensiÃ³n, asma, cirugÃ­as previas..."
                 multiline
               />
             </>
@@ -603,7 +607,7 @@ const PacientePerfilScreen: React.FC = () => {
               <View style={styles.switchRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.switchTitle}>Recibir recordatorios por SMS</Text>
-                  <Text style={styles.switchSubtitle}>Avisos rápidos de próximas consultas.</Text>
+                  <Text style={styles.switchSubtitle}>Avisos rÃ¡pidos de prÃ³ximas consultas.</Text>
                 </View>
                 <Switch
                   value={form.recibirSMS}
@@ -615,8 +619,8 @@ const PacientePerfilScreen: React.FC = () => {
 
               <View style={styles.switchRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.switchTitle}>Compartir historial con médicos de VIREM</Text>
-                  <Text style={styles.switchSubtitle}>Permite una atención más completa y segura.</Text>
+                  <Text style={styles.switchTitle}>Compartir historial con mÃ©dicos de VIREM</Text>
+                  <Text style={styles.switchSubtitle}>Permite una atenciÃ³n mÃ¡s completa y segura.</Text>
                 </View>
                 <Switch
                   value={form.compartirHistorial}
@@ -647,7 +651,7 @@ const PacientePerfilScreen: React.FC = () => {
         <View style={styles.successBanner}>
           <MaterialIcons name="verified-user" size={18} color={colors.success} />
           <Text style={styles.successText}>
-            Tus datos son privados y están protegidos con cifrado de nivel médico.
+            Tus datos son privados y estÃ¡n protegidos con cifrado de nivel mÃ©dico.
           </Text>
         </View>
       </ScrollView>
@@ -899,3 +903,5 @@ const styles = StyleSheet.create({
 });
 
 export default PacientePerfilScreen;
+
+

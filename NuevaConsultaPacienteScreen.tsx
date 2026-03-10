@@ -19,7 +19,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import type { RootStackParamList } from './navigation/types';
+
+import { useLanguage } from './localization/LanguageContext';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -90,7 +91,8 @@ const SpecialtyCardInner: React.FC<SpecialtyCardProps> = ({
   );
 };
 
-const NuevaConsultaPacienteScreen: React.FC = () => {
+
+  const { t, tx } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -201,32 +203,32 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
               onPress={() => navigation.navigate('DashboardPaciente')}
             >
               <MaterialIcons name="grid-view" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>Inicio</Text>
+              <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.home')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Buscar Medico</Text>
+              <Text style={styles.menuText}>{t('menu.searchDoctor')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Mis Citas</Text>
+              <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Videollamada</Text>
+              <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Chat</Text>
+              <Text style={styles.menuText}>{t('menu.chat')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="description" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Recetas / Documentos</Text>
+              <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -234,14 +236,14 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
               onPress={() => navigation.navigate('PacientePerfil')}
             >
               <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Perfil</Text>
+              <Text style={styles.menuText}>{t('menu.profile')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Cerrar Sesion</Text>
+          <Text style={styles.logoutText}>{t('menu.logout')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -263,7 +265,13 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
         </View>
 
         <View style={styles.centerHeader}>
-          <Text style={styles.pageTitle}>Solicitar Nueva Consulta</Text>
+          <Text style={styles.pageTitle}>
+            {tx({
+              es: 'Solicitar Nueva Consulta',
+              en: 'Request New Consultation',
+              pt: 'Solicitar Nova Consulta',
+            })}
+          </Text>
           <Text style={styles.pageSubtitle}>
             En que podemos ayudarte hoy? Selecciona una especialidad para comenzar.
           </Text>
@@ -630,4 +638,6 @@ const styles = StyleSheet.create({
 });
 
 export default NuevaConsultaPacienteScreen;
+
+
 

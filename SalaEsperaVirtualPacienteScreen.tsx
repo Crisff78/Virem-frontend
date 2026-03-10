@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Platform,
@@ -13,7 +13,8 @@ import {
 import type { ImageSourcePropType } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from './navigation/types';
+
+import { useLanguage } from './localization/LanguageContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -27,7 +28,8 @@ type DeviceOption = {
   label: string;
 };
 
-const SalaEsperaVirtualPacienteScreen: React.FC = () => {
+
+  const { t, tx } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
@@ -120,8 +122,8 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
   const loadWebDevices = async () => {
     if (Platform.OS !== 'web') {
-      const fallbackCams = [{ id: 'mobile-cam-1', label: 'Cámara del dispositivo' }];
-      const fallbackMics = [{ id: 'mobile-mic-1', label: 'Micrófono del dispositivo' }];
+      const fallbackCams = [{ id: 'mobile-cam-1', label: 'CÃ¡mara del dispositivo' }];
+      const fallbackMics = [{ id: 'mobile-mic-1', label: 'MicrÃ³fono del dispositivo' }];
       const fallbackSpeakers = [{ id: 'mobile-spk-1', label: 'Altavoz del dispositivo' }];
       setCameras(fallbackCams);
       setMicrophones(fallbackMics);
@@ -139,7 +141,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     try {
       const mediaDevices = (globalThis as any).navigator?.mediaDevices;
       if (!mediaDevices?.enumerateDevices) {
-        throw new Error('Tu navegador no soporta enumeración de dispositivos.');
+        throw new Error('Tu navegador no soporta enumeraciÃ³n de dispositivos.');
       }
 
       try {
@@ -153,14 +155,14 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
         .filter((d: any) => d.kind === 'videoinput')
         .map((d: any, i: number) => ({
           id: d.deviceId || `cam-${i + 1}`,
-          label: d.label || `Cámara ${i + 1}`,
+          label: d.label || `CÃ¡mara ${i + 1}`,
         }));
 
       const micList: DeviceOption[] = rawDevices
         .filter((d: any) => d.kind === 'audioinput')
         .map((d: any, i: number) => ({
           id: d.deviceId || `mic-${i + 1}`,
-          label: d.label || `Micrófono ${i + 1}`,
+          label: d.label || `MicrÃ³fono ${i + 1}`,
         }));
 
       const speakerList: DeviceOption[] = rawDevices
@@ -212,22 +214,24 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
           <View style={styles.menu}>
             <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('DashboardPaciente')}>
               <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Inicio</Text>
+              <Text style={styles.menuText}>{t('menu.home')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem}>
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Buscar Médico</Text>
+              <Text style={styles.menuText}>Buscar MÃ©dico</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem}>
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Mis Citas</Text>
+              <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.menuItem, styles.menuItemActive]}>
               <MaterialIcons name="videocam" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>Videollamada activa</Text>
+              <Text style={[styles.menuText, styles.menuTextActive]}>
+                {tx({ es: 'Videollamada activa', en: 'Active Video Call', pt: 'Videochamada ativa' })}
+              </Text>
               <View style={styles.menuLiveDot} />
             </TouchableOpacity>
 
@@ -236,12 +240,12 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
               onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
             >
               <MaterialIcons name="description" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Recetas / Documentos</Text>
+              <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('PacientePerfil')}>
               <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Perfil</Text>
+              <Text style={styles.menuText}>{t('menu.profile')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -276,16 +280,16 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
               </View>
             </View>
 
-            <Text style={styles.waitTitle}>El Dr. Alejandro García se unirá pronto a la sesión</Text>
+            <Text style={styles.waitTitle}>El Dr. Alejandro GarcÃ­a se unirÃ¡ pronto a la sesiÃ³n</Text>
             <View style={styles.waitDotsRow}>
-              <Animated.Text style={[styles.waitDot, { opacity: dot1 }]}>•</Animated.Text>
-              <Animated.Text style={[styles.waitDot, { opacity: dot2 }]}>•</Animated.Text>
-              <Animated.Text style={[styles.waitDot, { opacity: dot3 }]}>•</Animated.Text>
+              <Animated.Text style={[styles.waitDot, { opacity: dot1 }]}>â€¢</Animated.Text>
+              <Animated.Text style={[styles.waitDot, { opacity: dot2 }]}>â€¢</Animated.Text>
+              <Animated.Text style={[styles.waitDot, { opacity: dot3 }]}>â€¢</Animated.Text>
             </View>
             <Text style={styles.waitSub}>En espera...</Text>
 
             <Text style={styles.waitHint}>
-              Por favor, no cierres esta ventana. Se te notificará con un sonido cuando el doctor esté listo.
+              Por favor, no cierres esta ventana. Se te notificarÃ¡ con un sonido cuando el doctor estÃ© listo.
             </Text>
           </View>
 
@@ -297,7 +301,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 <MaterialIcons name="medical-services" size={16} color={colors.primary} />
                 <View>
                   <Text style={styles.summaryLabel}>Doctor</Text>
-                  <Text style={styles.summaryValue}>Dr. Alejandro García</Text>
+                  <Text style={styles.summaryValue}>Dr. Alejandro GarcÃ­a</Text>
                 </View>
               </View>
 
@@ -305,7 +309,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 <MaterialCommunityIcons name="heart-pulse" size={16} color={colors.primary} />
                 <View>
                   <Text style={styles.summaryLabel}>Especialidad</Text>
-                  <Text style={styles.summaryValue}>Cardiología Clínica</Text>
+                  <Text style={styles.summaryValue}>CardiologÃ­a ClÃ­nica</Text>
                 </View>
               </View>
 
@@ -321,7 +325,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
             <View style={styles.cameraCard}>
               <Image source={CameraPreview} style={styles.cameraImage} />
               <View style={styles.cameraTag}>
-                <Text style={styles.cameraTagText}>TU CÁMARA</Text>
+                <Text style={styles.cameraTagText}>TU CÃMARA</Text>
               </View>
 
               <View style={styles.cameraControls}>
@@ -349,7 +353,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Sesión Privada y Encriptada</Text>
+          <Text style={styles.footerText}>SesiÃ³n Privada y Encriptada</Text>
           <Text style={styles.footerText}>Soporte: 0-800-VIREM</Text>
         </View>
       </View>
@@ -368,7 +372,13 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 </View>
                 <View>
                   <Text style={styles.settingsTitle}>Ajustes de Videollamada</Text>
-                  <Text style={styles.settingsSubtitle}>Configura tus dispositivos antes de entrar</Text>
+                  <Text style={styles.settingsSubtitle}>
+                    {tx({
+                      es: 'Configura tus dispositivos antes de entrar',
+                      en: 'Set up your devices before entering',
+                      pt: 'Configure seus dispositivos antes de entrar',
+                    })}
+                  </Text>
                 </View>
               </View>
 
@@ -389,13 +399,13 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                   <Text style={styles.audioOkText}>AUDIO OK</Text>
                 </View>
               </View>
-              <Text style={styles.settingsPreviewCaption}>Previsualización de cámara e iluminación</Text>
+              <Text style={styles.settingsPreviewCaption}>PrevisualizaciÃ³n de cÃ¡mara e iluminaciÃ³n</Text>
 
               <View style={styles.settingBlock}>
-                <Text style={styles.settingLabel}>CÁMARA</Text>
+                <Text style={styles.settingLabel}>CÃMARA</Text>
                 <TouchableOpacity style={styles.selectLike} onPress={() => setOpenSelect((prev) => (prev === 'camera' ? null : 'camera'))}>
                   <Text style={styles.selectLikeText}>
-                    {getSelectedLabel(cameras, selectedCameraId, 'Sin cámara detectada')}
+                    {getSelectedLabel(cameras, selectedCameraId, 'Sin cÃ¡mara detectada')}
                   </Text>
                   <MaterialIcons name="keyboard-arrow-down" size={18} color={colors.muted} />
                 </TouchableOpacity>
@@ -422,17 +432,17 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                         </TouchableOpacity>
                       ))
                     ) : (
-                      <Text style={styles.selectEmpty}>No hay cámaras disponibles</Text>
+                      <Text style={styles.selectEmpty}>No hay cÃ¡maras disponibles</Text>
                     )}
                   </View>
                 ) : null}
               </View>
 
               <View style={styles.settingBlock}>
-                <Text style={styles.settingLabel}>MICRÓFONO</Text>
+                <Text style={styles.settingLabel}>MICRÃ“FONO</Text>
                 <TouchableOpacity style={styles.selectLike} onPress={() => setOpenSelect((prev) => (prev === 'mic' ? null : 'mic'))}>
                   <Text style={styles.selectLikeText}>
-                    {getSelectedLabel(microphones, selectedMicId, 'Sin micrófono detectado')}
+                    {getSelectedLabel(microphones, selectedMicId, 'Sin micrÃ³fono detectado')}
                   </Text>
                   <MaterialIcons name="keyboard-arrow-down" size={18} color={colors.muted} />
                 </TouchableOpacity>
@@ -459,7 +469,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                         </TouchableOpacity>
                       ))
                     ) : (
-                      <Text style={styles.selectEmpty}>No hay micrófonos disponibles</Text>
+                      <Text style={styles.selectEmpty}>No hay micrÃ³fonos disponibles</Text>
                     )}
                   </View>
                 ) : null}
@@ -525,7 +535,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 <View style={styles.toggleLeft}>
                   <MaterialIcons name="surround-sound" size={18} color={colors.muted} />
                   <View>
-                    <Text style={styles.toggleTitle}>Cancelación de ruido</Text>
+                    <Text style={styles.toggleTitle}>CancelaciÃ³n de ruido</Text>
                     <Text style={styles.toggleSubtitle}>Mejora la calidad de voz</Text>
                   </View>
                 </View>
@@ -960,3 +970,5 @@ const styles = StyleSheet.create({
 });
 
 export default SalaEsperaVirtualPacienteScreen;
+
+

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -21,11 +21,12 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './navigation/types';
 
-// ✅ Si usas Expo, comenta los imports de abajo y usa:
+// âœ… Si usas Expo, comenta los imports de abajo y usa:
 // import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useLanguage } from './localization/LanguageContext';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 
@@ -56,8 +57,8 @@ type User = {
   firstName?: string;
   lastName?: string;
   email?: string;
-  plan?: string;        // "Premium" / "Básico"
-  fotoUrl?: string;     // URL de la foto si la subió
+  plan?: string;        // "Premium" / "BÃ¡sico"
+  fotoUrl?: string;     // URL de la foto si la subiÃ³
 };
 
 type QuickActionProps = {
@@ -85,6 +86,16 @@ type DoctorCardProps = {
   name: string;
   spec: string;
   avatar: ImageSourcePropType;
+};
+
+type NotificationItem = {
+  id: string;
+  title: string;
+  text: string;
+  time: string;
+  icon: string;
+  color: string;
+  unread: boolean;
 };
 
 /* ===================== COMPONENTES ===================== */
@@ -162,19 +173,59 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ name, spec, avatar }) => (
 /* ===================== PANTALLA ===================== */
 const DashboardPacienteScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { t, tx } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([
+    {
+      id: 'n1',
+      title: 'Tu consulta empieza en 15 min',
+      text: 'PrepÃ¡rate para la videollamada programada con el especialista.',
+      time: '15m',
+      icon: 'videocam',
+      color: '#137fec',
+      unread: true,
+    },
+    {
+      id: 'n2',
+      title: 'Nueva receta disponible',
+      text: 'El Dr. GÃ³mez ha emitido tu receta digital para el tratamiento.',
+      time: '1h',
+      icon: 'description',
+      color: '#22c55e',
+      unread: true,
+    },
+    {
+      id: 'n3',
+      title: 'Mensaje del Dr. Ruiz',
+      text: '"Hola, he revisado tus Ãºltimos anÃ¡lisis. Todo parece estar en orden..."',
+      time: '3h',
+      icon: 'chat-bubble-outline',
+      color: '#4A7FA7',
+      unread: true,
+    },
+    {
+      id: 'n4',
+      title: 'Cita confirmada',
+      text: 'Tu cita con DermatologÃ­a ha sido confirmada para el 25 de Octubre.',
+      time: 'Ayer',
+      icon: 'calendar-today',
+      color: '#94a3b8',
+      unread: false,
+    },
+  ]);
   const [prepOpen, setPrepOpen] = useState(false);
   const [prepItems, setPrepItems] = useState([false, false, false, false]);
   const [testProgress, setTestProgress] = useState(0);
   const [testRunning, setTestRunning] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'ok' | 'error'>('idle');
-  const [testStatusText, setTestStatusText] = useState('Aún no se ha realizado la prueba.');
+  const [testStatusText, setTestStatusText] = useState('AÃºn no se ha realizado la prueba.');
   const [chatReply, setChatReply] = useState('');
   const chatAnim = useRef(new Animated.Value(0)).current;
 
-  // ✅ Cargar usuario real desde storage (guardado al loguearse)
+  // âœ… Cargar usuario real desde storage (guardado al loguearse)
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -219,7 +270,7 @@ const DashboardPacienteScreen: React.FC = () => {
     return plan ? `Paciente ${plan}` : 'Paciente';
   }, [user]);
 
-  // ✅ Foto: si no hay fotoUrl, usar avatar default
+  // âœ… Foto: si no hay fotoUrl, usar avatar default
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
     if (user?.fotoUrl && user.fotoUrl.trim().length > 0) {
       return { uri: user.fotoUrl.trim() };
@@ -227,7 +278,7 @@ const DashboardPacienteScreen: React.FC = () => {
     return DefaultAvatar;
   }, [user]);
 
-  // ✅ Doctores placeholder (esto no depende del usuario)
+  // âœ… Doctores placeholder (esto no depende del usuario)
   const Doctor1: ImageSourcePropType = { uri: 'https://i.pravatar.cc/150?img=12' };
   const Doctor2: ImageSourcePropType = { uri: 'https://i.pravatar.cc/150?img=32' };
 
@@ -252,7 +303,7 @@ const DashboardPacienteScreen: React.FC = () => {
   const handleJoinVideoCall = () => {
     Alert.alert(
       'Videollamada',
-      'Conectándote a la videollamada con el Dr. Alejandro García...'
+      'ConectÃ¡ndote a la videollamada con el Dr. Alejandro GarcÃ­a...'
     );
   };
 
@@ -270,7 +321,7 @@ const DashboardPacienteScreen: React.FC = () => {
 
     try {
       if (Platform.OS !== 'web') {
-        // Fallback móvil: no hay selector nativo de dispositivos por navegador.
+        // Fallback mÃ³vil: no hay selector nativo de dispositivos por navegador.
         await new Promise((resolve) => setTimeout(resolve, 700));
         setTestProgress(100);
         setTestStatus('ok');
@@ -280,11 +331,11 @@ const DashboardPacienteScreen: React.FC = () => {
 
       const mediaDevices = (globalThis as any).navigator?.mediaDevices;
       if (!mediaDevices?.getUserMedia || !mediaDevices?.enumerateDevices) {
-        throw new Error('Tu navegador no soporta pruebas de cámara/micrófono.');
+        throw new Error('Tu navegador no soporta pruebas de cÃ¡mara/micrÃ³fono.');
       }
 
       setTestProgress(40);
-      setTestStatusText('Solicitando permisos de cámara y micrófono...');
+      setTestStatusText('Solicitando permisos de cÃ¡mara y micrÃ³fono...');
       const stream = await mediaDevices.getUserMedia({ video: true, audio: true });
 
       setTestProgress(75);
@@ -296,12 +347,12 @@ const DashboardPacienteScreen: React.FC = () => {
       stream.getTracks().forEach((track: any) => track.stop());
 
       if (!hasCam || !hasMic) {
-        throw new Error('No se detectó cámara o micrófono en el equipo.');
+        throw new Error('No se detectÃ³ cÃ¡mara o micrÃ³fono en el equipo.');
       }
 
       setTestProgress(100);
       setTestStatus('ok');
-      setTestStatusText('Prueba completada: cámara y micrófono funcionando.');
+      setTestStatusText('Prueba completada: cÃ¡mara y micrÃ³fono funcionando.');
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'No se pudo completar la prueba.';
       setTestProgress(100);
@@ -323,12 +374,18 @@ const DashboardPacienteScreen: React.FC = () => {
     setChatReply('');
   };
 
+  const unreadNotifications = notifications.filter((n) => n.unread).length;
+
+  const markAllNotificationsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  };
+
   if (loadingUser) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={{ marginTop: 10, color: colors.muted, fontWeight: '700' }}>
-          Cargando tu información...
+          Cargando tu informaciÃ³n...
         </Text>
       </View>
     );
@@ -354,7 +411,7 @@ const DashboardPacienteScreen: React.FC = () => {
             <Text style={styles.userName}>{fullName}</Text>
             <Text style={styles.userPlan}>{planLabel}</Text>
 
-            {/* ✅ Si no tiene foto, le sugieres subirla (sin inventar) */}
+            {/* âœ… Si no tiene foto, le sugieres subirla (sin inventar) */}
             {!user?.fotoUrl ? (
               <Text style={styles.hintText}>
                 No tienes foto. Ve a Perfil para agregarla.
@@ -362,31 +419,31 @@ const DashboardPacienteScreen: React.FC = () => {
             ) : null}
           </View>
 
-          {/* Menú */}
+          {/* MenÃº */}
           <View style={styles.menu}>
             <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]}>
               <MaterialIcons name="grid-view" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>Inicio</Text>
+              <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.home')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Buscar Médico</Text>
+              <Text style={styles.menuText}>{t('menu.searchDoctor')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Mis Citas</Text>
+              <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Videollamada</Text>
+              <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Chat</Text>
+              <Text style={styles.menuText}>{t('menu.chat')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -394,7 +451,7 @@ const DashboardPacienteScreen: React.FC = () => {
               onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
             >
               <MaterialIcons name="description" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Recetas / Documentos</Text>
+              <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -402,15 +459,23 @@ const DashboardPacienteScreen: React.FC = () => {
               onPress={() => navigation.navigate('PacientePerfil')}
             >
               <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Perfil</Text>
+              <Text style={styles.menuText}>{t('menu.profile')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteConfiguracion')}
+            >
+              <MaterialIcons name="settings" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>{t('menu.settings')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Cerrar sesión */}
+        {/* Cerrar sesiÃ³n */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Cerrar Sesión</Text>
+          <Text style={styles.logoutText}>{t('menu.logout')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -420,21 +485,21 @@ const DashboardPacienteScreen: React.FC = () => {
           <View style={styles.searchBox}>
             <MaterialIcons name="search" size={20} color={colors.muted} />
             <TextInput
-              placeholder="Busca un médico para consulta online"
+              placeholder="Busca un mÃ©dico para consulta online"
               placeholderTextColor="#8aa7bf"
               style={styles.searchInput}
             />
           </View>
 
-          <TouchableOpacity style={styles.notifBtn}>
+          <TouchableOpacity style={styles.notifBtn} onPress={() => setNotificationsOpen(true)}>
             <MaterialIcons name="notifications" size={22} color={colors.dark} />
-            <View style={styles.notifDot} />
+            {unreadNotifications > 0 ? <View style={styles.notifDot} /> : null}
           </TouchableOpacity>
         </View>
 
         <Text style={styles.title}>Hola, {fullName.split(' ')[0] || 'Paciente'}</Text>
         <Text style={styles.subtitle}>
-          Hoy tienes una cita programada con el equipo de cardiología.
+          Hoy tienes una cita programada con el equipo de cardiologÃ­a.
         </Text>
 
         {/* Card grande */}
@@ -446,11 +511,11 @@ const DashboardPacienteScreen: React.FC = () => {
             </View>
 
             <Text style={styles.bigCardTitle}>
-              Próxima Videoconsulta: Dr. Alejandro García
+              PrÃ³xima Videoconsulta: Dr. Alejandro GarcÃ­a
             </Text>
 
             <Text style={styles.bigCardSub}>
-              Cardiología · Hoy, 16:30 PM (en 15 minutos)
+              CardiologÃ­a Â· Hoy, 16:30 PM (en 15 minutos)
             </Text>
 
             <View style={styles.bigCardActions}>
@@ -470,7 +535,7 @@ const DashboardPacienteScreen: React.FC = () => {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Acciones rápidas</Text>
+        <Text style={styles.sectionTitle}>Acciones rÃ¡pidas</Text>
         <View style={styles.quickGrid}>
           <QuickAction
             icon="add-circle"
@@ -505,13 +570,13 @@ const DashboardPacienteScreen: React.FC = () => {
             </View>
 
             <AppointmentCard
-              doctor="Dra. Marta Sánchez"
-              detail="Dermatología · 24 Oct, 10:00 AM"
+              doctor="Dra. Marta SÃ¡nchez"
+              detail="DermatologÃ­a Â· 24 Oct, 10:00 AM"
               avatar={Doctor2}
             />
             <AppointmentCard
               doctor="Dr. Ricardo Ruiz"
-              detail="Medicina General · 28 Oct, 09:15 AM"
+              detail="Medicina General Â· 28 Oct, 09:15 AM"
               avatar={Doctor1}
               simple
             />
@@ -527,12 +592,12 @@ const DashboardPacienteScreen: React.FC = () => {
               <DocRow
                 icon="picture-as-pdf"
                 title="Receta_Medica_Oct2023.pdf"
-                sub="Dra. Marta Sánchez · 24 Oct 2023"
+                sub="Dra. Marta SÃ¡nchez Â· 24 Oct 2023"
               />
               <DocRow
                 icon="analytics"
                 title="Analisis_Sangre_Sept.pdf"
-                sub="Laboratorio Central · 15 Sep 2023"
+                sub="Laboratorio Central Â· 15 Sep 2023"
               />
             </View>
           </View>
@@ -540,7 +605,7 @@ const DashboardPacienteScreen: React.FC = () => {
           <View style={styles.colRight}>
             <Text style={styles.sectionTitle}>Doctores frecuentes</Text>
             <View style={styles.doctorsGrid}>
-              <DoctorCard name="Dr. Alejandro García" spec="Cardiología" avatar={Doctor1} />
+              <DoctorCard name="Dr. Alejandro GarcÃ­a" spec="CardiologÃ­a" avatar={Doctor1} />
               <DoctorCard name="Dr. Ricardo Ruiz" spec="Med. General" avatar={Doctor2} />
             </View>
           </View>
@@ -551,21 +616,21 @@ const DashboardPacienteScreen: React.FC = () => {
             <View style={styles.summaryIconBox}>
               <MaterialCommunityIcons name="history" size={18} color="#fff" />
             </View>
-            <Text style={styles.summaryTitle}>Resumen de última consulta</Text>
+            <Text style={styles.summaryTitle}>Resumen de Ãºltima consulta</Text>
           </View>
 
           <View style={styles.summaryInner}>
             <View style={styles.rowBetween}>
               <View>
-                <Text style={styles.summaryLabel}>Diagnóstico Principal</Text>
-                <Text style={styles.summaryDiag}>Gripe común estacional</Text>
+                <Text style={styles.summaryLabel}>DiagnÃ³stico Principal</Text>
+                <Text style={styles.summaryDiag}>Gripe comÃºn estacional</Text>
               </View>
               <Text style={styles.summaryDate}>12 Oct 2023</Text>
             </View>
 
             <Text style={styles.summaryText}>
-              Paciente presenta síntomas de resfriado leve. Se recomienda descanso, hidratación constante
-              y el uso de analgésicos según receta adjunta. Revisión en 5 días si los síntomas persisten.
+              Paciente presenta sÃ­ntomas de resfriado leve. Se recomienda descanso, hidrataciÃ³n constante
+              y el uso de analgÃ©sicos segÃºn receta adjunta. RevisiÃ³n en 5 dÃ­as si los sÃ­ntomas persisten.
             </Text>
           </View>
         </View>
@@ -606,12 +671,12 @@ const DashboardPacienteScreen: React.FC = () => {
           <View style={styles.chatBody}>
             <View style={styles.msgLeft}>
               <Text style={styles.msgLeftText}>
-                Hola {fullName.split(' ')[0] || 'Paciente'}, ¿has podido completar los análisis?
+                Hola {fullName.split(' ')[0] || 'Paciente'}, Â¿has podido completar los anÃ¡lisis?
               </Text>
             </View>
 
             <View style={styles.msgRight}>
-              <Text style={styles.msgRightText}>Sí Doctor, se los envié por el portal esta mañana.</Text>
+              <Text style={styles.msgRightText}>SÃ­ Doctor, se los enviÃ© por el portal esta maÃ±ana.</Text>
             </View>
           </View>
 
@@ -630,6 +695,69 @@ const DashboardPacienteScreen: React.FC = () => {
         </Animated.View>
       ) : null}
 
+      {notificationsOpen ? (
+        <>
+          <TouchableOpacity style={styles.notificationsOverlay} onPress={() => setNotificationsOpen(false)} />
+          <View style={styles.notificationsPanel}>
+            <View style={styles.notificationsHead}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialIcons name="notifications" size={20} color={colors.dark} />
+                <Text style={styles.notificationsTitle}>Notificaciones</Text>
+              </View>
+              <TouchableOpacity onPress={() => setNotificationsOpen(false)}>
+                <MaterialIcons name="close" size={22} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.notificationsBody}>
+              <View style={styles.notificationsSubhead}>
+                <Text style={styles.notificationsSubheadText}>Recientes</Text>
+                <TouchableOpacity onPress={markAllNotificationsRead}>
+                  <Text style={styles.markReadText}>Marcar como leÃ­das</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {notifications.map((item) => (
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.notificationCard,
+                      !item.unread && styles.notificationCardMuted,
+                    ]}
+                  >
+                    <View style={[styles.notificationAccent, { backgroundColor: item.color }]} />
+                    <View style={[styles.notificationIconBox, { backgroundColor: `${item.color}20` }]}>
+                      <MaterialIcons name={item.icon as any} size={20} color={item.color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.notificationTitleRow}>
+                        <Text style={styles.notificationTitle}>{item.title}</Text>
+                        <Text style={styles.notificationTime}>{item.time}</Text>
+                      </View>
+                      <Text style={styles.notificationText}>{item.text}</Text>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.notificationsFooter}>
+              <TouchableOpacity
+                style={styles.notificationsButton}
+                onPress={() => {
+                  setNotificationsOpen(false);
+                  navigation.navigate('PacienteNotificaciones');
+                }}
+              >
+                <Text style={styles.notificationsButtonText}>Ver todas las notificaciones</Text>
+                <MaterialIcons name="arrow-forward" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </>
+      ) : null}
+
       <Modal visible={prepOpen} transparent animationType="fade" onRequestClose={() => setPrepOpen(false)}>
         <View style={styles.prepOverlay}>
           <View style={styles.prepModal}>
@@ -640,12 +768,12 @@ const DashboardPacienteScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.prepTitle}>Prepárate para tu videollamada</Text>
-            <Text style={styles.prepSub}>Con el Dr. Alejandro García • Cardiología</Text>
+            <Text style={styles.prepTitle}>PrepÃ¡rate para tu videollamada</Text>
+            <Text style={styles.prepSub}>Con el Dr. Alejandro GarcÃ­a â€¢ CardiologÃ­a</Text>
 
             <View style={styles.prepGrid}>
               <View style={styles.prepCard}>
-                <Text style={styles.prepCardTitle}>Lista de verificación</Text>
+                <Text style={styles.prepCardTitle}>Lista de verificaciÃ³n</Text>
 
                 <TouchableOpacity style={styles.prepItem} onPress={() => togglePrepItem(0)}>
                   <MaterialIcons
@@ -654,8 +782,8 @@ const DashboardPacienteScreen: React.FC = () => {
                     color={prepItems[0] ? colors.primary : colors.light}
                   />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.prepItemTitle}>Conexión a internet estable</Text>
-                    <Text style={styles.prepItemSub}>Asegúrate de tener buena señal Wi-Fi o datos móviles.</Text>
+                    <Text style={styles.prepItemTitle}>ConexiÃ³n a internet estable</Text>
+                    <Text style={styles.prepItemSub}>AsegÃºrate de tener buena seÃ±al Wi-Fi o datos mÃ³viles.</Text>
                   </View>
                 </TouchableOpacity>
 
@@ -666,8 +794,8 @@ const DashboardPacienteScreen: React.FC = () => {
                     color={prepItems[1] ? colors.primary : colors.light}
                   />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.prepItemTitle}>Cámara y micrófono funcionando</Text>
-                    <Text style={styles.prepItemSub}>El navegador te pedirá permisos para acceder a ellos.</Text>
+                    <Text style={styles.prepItemTitle}>CÃ¡mara y micrÃ³fono funcionando</Text>
+                    <Text style={styles.prepItemSub}>El navegador te pedirÃ¡ permisos para acceder a ellos.</Text>
                   </View>
                 </TouchableOpacity>
 
@@ -690,14 +818,14 @@ const DashboardPacienteScreen: React.FC = () => {
                     color={prepItems[3] ? colors.primary : colors.light}
                   />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.prepItemTitle}>Ten a mano tus exámenes o recetas</Text>
-                    <Text style={styles.prepItemSub}>Facilitará la consulta si el doctor necesita revisarlos.</Text>
+                    <Text style={styles.prepItemTitle}>Ten a mano tus exÃ¡menes o recetas</Text>
+                    <Text style={styles.prepItemSub}>FacilitarÃ¡ la consulta si el doctor necesita revisarlos.</Text>
                   </View>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.prepCard}>
-                <Text style={styles.prepCardTitle}>Prueba técnica</Text>
+                <Text style={styles.prepCardTitle}>Prueba tÃ©cnica</Text>
                 <View style={styles.testBox}>
                   <MaterialIcons
                     name={testStatus === 'ok' ? 'check-circle' : testStatus === 'error' ? 'error-outline' : 'camera-alt'}
@@ -736,7 +864,7 @@ const DashboardPacienteScreen: React.FC = () => {
                 </TouchableOpacity>
 
                 <Text style={styles.readySub}>
-                  Serás redirigido a la sala de espera privada hasta que el doctor inicie la sesión.
+                  SerÃ¡s redirigido a la sala de espera privada hasta que el doctor inicie la sesiÃ³n.
                 </Text>
               </View>
             </View>
@@ -1028,6 +1156,92 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
   },
+  notificationsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    zIndex: 60,
+  },
+  notificationsPanel: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 380,
+    maxWidth: '94%',
+    backgroundColor: colors.bg,
+    borderLeftWidth: 1,
+    borderLeftColor: '#d9e5f2',
+    zIndex: 70,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: -6, height: 0 },
+    elevation: 12,
+  },
+  notificationsHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e7eff8',
+  },
+  notificationsTitle: { color: colors.dark, fontSize: 20, fontWeight: '900' },
+  notificationsBody: { flex: 1, paddingHorizontal: 14, paddingTop: 12 },
+  notificationsSubhead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  notificationsSubheadText: { color: '#8aa7bf', fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  markReadText: { color: colors.primary, fontSize: 12, fontWeight: '800' },
+  notificationCard: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e4edf7',
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 10,
+    position: 'relative',
+  },
+  notificationCardMuted: { opacity: 0.7 },
+  notificationAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 14,
+    width: 3,
+    height: 26,
+    borderTopRightRadius: 3,
+    borderBottomRightRadius: 3,
+  },
+  notificationIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationTitleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 },
+  notificationTitle: { flex: 1, color: colors.dark, fontSize: 14, fontWeight: '900' },
+  notificationTime: { color: '#9bb1c7', fontSize: 11, fontWeight: '700' },
+  notificationText: { color: colors.muted, fontSize: 12, fontWeight: '600', lineHeight: 17, marginTop: 3 },
+  notificationsFooter: {
+    padding: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#e7eff8',
+    backgroundColor: '#fff',
+  },
+  notificationsButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  notificationsButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
 
   listCard: { backgroundColor: '#fff', borderRadius: 22, overflow: 'hidden', marginTop: 10, shadowColor: colors.dark, shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   docRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
@@ -1237,3 +1451,5 @@ const styles = StyleSheet.create({
 });
 
 export default DashboardPacienteScreen;
+
+

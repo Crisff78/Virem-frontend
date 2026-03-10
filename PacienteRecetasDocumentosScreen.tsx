@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,7 +18,8 @@ import * as SecureStore from 'expo-secure-store';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import type { RootStackParamList } from './navigation/types';
+
+import { useLanguage } from './localization/LanguageContext';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -66,8 +67,8 @@ const parseUser = (raw: string | null): User | null => {
 
 const recetas: DocumentItem[] = [
   {
-    title: 'Tratamiento Hipertensión',
-    doctor: 'Dr. Alejandro García',
+    title: 'Tratamiento HipertensiÃ³n',
+    doctor: 'Dr. Alejandro GarcÃ­a',
     date: 'Emitido el 15 Oct, 2023',
     icon: 'picture-as-pdf',
     tint: '#ef4444',
@@ -75,14 +76,14 @@ const recetas: DocumentItem[] = [
   },
   {
     title: 'Receta_Gripe_Estacional',
-    doctor: 'Dra. Marta Sánchez',
+    doctor: 'Dra. Marta SÃ¡nchez',
     date: 'Emitido el 12 Oct, 2023',
     icon: 'picture-as-pdf',
     tint: '#ef4444',
     bg: '#fef2f2',
   },
   {
-    title: 'Antibióticos_Amoxicilina',
+    title: 'AntibiÃ³ticos_Amoxicilina',
     doctor: 'Dr. Ricardo Ruiz',
     date: 'Emitido el 05 Sep, 2023',
     icon: 'picture-as-pdf',
@@ -93,7 +94,7 @@ const recetas: DocumentItem[] = [
 
 const certificados: DocumentItem[] = [
   {
-    title: 'Certificado de Aptitud Física',
+    title: 'Certificado de Aptitud FÃ­sica',
     doctor: 'Dr. Ricardo Ruiz',
     date: 'Emitido el 01 Ago, 2023',
     icon: 'description',
@@ -109,7 +110,7 @@ const sanitizeFileName = (raw: string) =>
     .replace(/[^\w\-]/g, '');
 
 const buildDocumentContent = (item: DocumentItem) =>
-  `VIREM - Documento de ejemplo\n\nTítulo: ${item.title}\nEmitido por: ${item.doctor}\nFecha: ${item.date}\n\nNota: Este archivo es una demostración de descarga para pruebas de interfaz.`;
+  `VIREM - Documento de ejemplo\n\nTÃ­tulo: ${item.title}\nEmitido por: ${item.doctor}\nFecha: ${item.date}\n\nNota: Este archivo es una demostraciÃ³n de descarga para pruebas de interfaz.`;
 
 const downloadExampleDocument = (item: DocumentItem) => {
   if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
@@ -179,7 +180,8 @@ const SectionBlock: React.FC<{
   </View>
 );
 
-const PacienteRecetasDocumentosScreen: React.FC = () => {
+
+  const { t, tx } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -237,7 +239,7 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
     return (
       <View style={styles.loaderWrap}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loaderText}>Cargando información...</Text>
+        <Text style={styles.loaderText}>Cargando informaciÃ³n...</Text>
       </View>
     );
   }
@@ -263,41 +265,41 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
           <View style={styles.menu}>
             <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('DashboardPaciente')}>
               <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Inicio</Text>
+              <Text style={styles.menuText}>{t('menu.home')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Buscar Médico</Text>
+              <Text style={styles.menuText}>Buscar MÃ©dico</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Mis Citas</Text>
+              <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Videollamada</Text>
+              <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Chat</Text>
+              <Text style={styles.menuText}>{t('menu.chat')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]}>
               <MaterialIcons name="description" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>Recetas / Documentos</Text>
+              <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuItemRow}
               onPress={() => navigation.navigate('PacientePerfil')}
             >
               <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Perfil</Text>
+              <Text style={styles.menuText}>{t('menu.profile')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Cerrar Sesión</Text>
+          <Text style={styles.logoutText}>{t('menu.logout')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -317,12 +319,18 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.pageTitle}>Mis Recetas y Documentos</Text>
+          <Text style={styles.pageTitle}>
+            {tx({
+              es: 'Mis Recetas y Documentos',
+              en: 'My Prescriptions and Documents',
+              pt: 'Minhas Receitas e Documentos',
+            })}
+          </Text>
         <Text style={styles.pageSubtitle}>
-          Accede y descarga tu historial médico organizado por categorías.
+          Accede y descarga tu historial mÃ©dico organizado por categorÃ­as.
         </Text>
 
-        <SectionBlock icon="description" title="Recetas Médicas" count="3 ARCHIVOS" items={recetas} />
+        <SectionBlock icon="description" title="Recetas MÃ©dicas" count="3 ARCHIVOS" items={recetas} />
         <SectionBlock
           icon="verified"
           title="Certificados y Otros"
@@ -335,8 +343,8 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
           <View style={{ flex: 1 }}>
             <Text style={styles.noticeTitle}>Nota sobre la privacidad</Text>
             <Text style={styles.noticeText}>
-              Tus documentos médicos están encriptados y protegidos. Solo tú y tus médicos
-              autorizados tienen acceso a esta información.
+              Tus documentos mÃ©dicos estÃ¡n encriptados y protegidos. Solo tÃº y tus mÃ©dicos
+              autorizados tienen acceso a esta informaciÃ³n.
             </Text>
           </View>
         </View>
@@ -446,4 +454,6 @@ const styles = StyleSheet.create({
 });
 
 export default PacienteRecetasDocumentosScreen;
+
+
 

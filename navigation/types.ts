@@ -39,8 +39,12 @@ export type RootStackParamList = {
 
   // ✅ NUEVA PANTALLA
   DashboardPaciente: undefined;
+  PacienteNotificaciones: undefined;
   PacienteRecetasDocumentos: undefined;
   PacientePerfil: undefined;
+  PacienteConfiguracion: undefined;
+  PacienteCambiarContrasena: undefined;
+  PacienteHistorialSesiones: undefined;
   NuevaConsultaPaciente: undefined;
   SalaEsperaVirtualPaciente: undefined;
   EspecialistasPorEspecialidad: { specialty: string };

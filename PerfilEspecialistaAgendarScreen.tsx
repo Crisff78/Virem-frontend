@@ -18,7 +18,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import type { RootStackParamList } from './navigation/types';
+
+import { useLanguage } from './localization/LanguageContext';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -123,7 +124,8 @@ const doctorProfiles: DoctorProfile[] = [
   },
 ];
 
-const PerfilEspecialistaAgendarScreen: React.FC = () => {
+
+  const { t, tx } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'PerfilEspecialistaAgendar'>>();
   const [user, setUser] = useState<User | null>(null);
@@ -221,7 +223,9 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
               onPress={() => navigation.navigate('DashboardPaciente')}
             >
               <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Dashboard</Text>
+              <Text style={styles.menuText}>
+                {tx({ es: 'Dashboard', en: 'Dashboard', pt: 'Painel' })}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -229,27 +233,33 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
               onPress={() => navigation.navigate('NuevaConsultaPaciente')}
             >
               <MaterialIcons name="person-search" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>Buscar Especialista</Text>
+              <Text style={[styles.menuText, styles.menuTextActive]}>
+                {tx({ es: 'Buscar Especialista', en: 'Find Specialist', pt: 'Buscar Especialista' })}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="calendar-month" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Mis Citas</Text>
+              <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Telemedicina</Text>
+              <Text style={styles.menuText}>
+                {tx({ es: 'Telemedicina', en: 'Telemedicine', pt: 'Telemedicina' })}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="description" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Recetas</Text>
+              <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItemRow}>
               <MaterialIcons name="folder-shared" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Historial Clinico</Text>
+              <Text style={styles.menuText}>
+                {tx({ es: 'Historial Clinico', en: 'Clinical History', pt: 'Historico Clinico' })}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -264,7 +274,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
           </View>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <MaterialIcons name="logout" size={18} color="#fff" />
-            <Text style={styles.logoutText}>Cerrar Sesion</Text>
+            <Text style={styles.logoutText}>{t('menu.logout')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -658,4 +668,6 @@ const styles = StyleSheet.create({
 });
 
 export default PerfilEspecialistaAgendarScreen;
+
+
 
