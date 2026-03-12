@@ -231,7 +231,7 @@ const validarTelefonoBackend = async (
 // Endpoint: POST /api/validar-exequatur
 // Body: { nombreCompleto: "..." }
 // =========================================
-type ValidacionExequaturOk = { ok: true; meta?: any };
+type ValidacionExequaturOk = { ok: true; meta?: any; warning?: string };
 type ValidacionExequaturFail = { ok: false; reason: string };
 type ValidacionExequaturResult = ValidacionExequaturOk | ValidacionExequaturFail;
 
@@ -250,6 +250,19 @@ const validarExequaturPorNombre = async (
     const data = await res.json().catch(() => null);
 
     if (!res.ok || !data?.success) {
+      const serviceUnavailable =
+        res.status === 503 || Boolean(data?.serviceUnavailable);
+
+      if (serviceUnavailable) {
+        return {
+          ok: true as const,
+          warning:
+            data?.message ||
+            "No fue posible validar el Exequatur con el SNS en este momento. Se continuara con validacion pendiente.",
+          meta: data,
+        };
+      }
+
       return {
         ok: false as const,
         reason: data?.message || `No se pudo validar Exequátur (HTTP ${res.status}).`,
@@ -723,6 +736,10 @@ const RegistroMedicoScreen: React.FC = () => {
       setExequaturError(exq.reason);
       Alert.alert("Médico no verificado", exq.reason);
       return;
+    }
+
+    if (exq.warning) {
+      Alert.alert("Validacion pendiente", exq.warning);
     }
 
     navigation.navigate("RegistroCredencialesMedico", {
