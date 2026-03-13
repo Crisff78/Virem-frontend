@@ -198,15 +198,6 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
-  if (loadingUser) {
-    return (
-      <View style={styles.loaderWrap}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loaderText}>Cargando informacion...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <View style={styles.sidebar}>
@@ -670,6 +661,7 @@ const styles = StyleSheet.create({
 });
 
 export default PerfilEspecialistaAgendarScreen;
+
 
 
 

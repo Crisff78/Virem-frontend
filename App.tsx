@@ -25,6 +25,7 @@ import PacienteNotificacionesScreen from "./PacienteNotificacionesScreen";
 import PacienteConfiguracionScreen from "./PacienteConfiguracionScreen";
 import PacienteCambiarContrasenaScreen from "./PacienteCambiarContrasenaScreen";
 import PacienteHistorialSesionesScreen from "./PacienteHistorialSesionesScreen";
+import PacienteChatScreen from "./PacienteChatScreen";
 import { LanguageProvider } from "./localization/LanguageContext";
 
 import { RootStackParamList } from "./navigation/types";
@@ -44,6 +45,7 @@ const linking = {
       RegistroCredenciales: "registro-credenciales",
       RegistroCredencialesMedico: "registro-credenciales-medico",
       DashboardPaciente: "dashboard-paciente",
+      PacienteChat: "paciente-chat",
       PacienteRecetasDocumentos: "paciente-recetas-documentos",
       PacientePerfil: "paciente-perfil",
       NuevaConsultaPaciente: "nueva-consulta",
@@ -65,6 +67,7 @@ const App: React.FC = () => {
           screenOptions={{
             headerShown: false,
             gestureEnabled: false,
+            animation: "none",
           }}
         >
           <Stack.Screen name="SeleccionPerfil" component={SeleccionPerfil} />
@@ -85,6 +88,7 @@ const App: React.FC = () => {
 
         {/* ✅ Dashboard Paciente */}
         <Stack.Screen name="DashboardPaciente" component={DashboardPacienteScreen} />
+        <Stack.Screen name="PacienteChat" component={PacienteChatScreen} />
         <Stack.Screen
           name="PacienteNotificaciones"
           component={PacienteNotificacionesScreen}

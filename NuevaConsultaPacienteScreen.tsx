@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -150,7 +150,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
 
   const specialtyList = [
     { icon: 'heart-outline', label: 'Cardiologia', description: 'Corazon y sistema circulatorio' },
-    { icon: 'baby-face-outline', label: 'Pediatria', description: 'Atencion integral para ni�os' },
+    { icon: 'baby-face-outline', label: 'Pediatria', description: 'Atencion integral para niños' },
     { icon: 'brain', label: 'Neurologia', description: 'Cerebro y sistema nervioso' },
     { icon: 'face-man-outline', label: 'Dermatologia', description: 'Cuidado de la piel y cabello' },
     { icon: 'stethoscope', label: 'Medicina General', description: 'Atencion primaria inicial' },
@@ -168,15 +168,6 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
   const onSelectSpecialty = (label: string) => {
     navigation.navigate('EspecialistasPorEspecialidad', { specialty: label });
   };
-
-  if (loadingUser) {
-    return (
-      <View style={styles.loaderWrap}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loaderText}>Cargando informacion...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -223,7 +214,10 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
               <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteChat')}
+            >
               <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.chat')}</Text>
             </TouchableOpacity>
@@ -640,6 +634,7 @@ const styles = StyleSheet.create({
 });
 
 export default NuevaConsultaPacienteScreen;
+
 
 
 

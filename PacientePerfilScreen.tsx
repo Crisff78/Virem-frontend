@@ -298,15 +298,6 @@ const PacientePerfilScreen: React.FC = () => {
     Alert.alert('Perfil actualizado', 'Tus datos de paciente fueron guardados correctamente.');
   };
 
-  if (loadingUser) {
-    return (
-      <View style={styles.loaderWrap}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loaderText}>Cargando perfil...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <View style={styles.sidebar}>
@@ -346,7 +337,10 @@ const PacientePerfilScreen: React.FC = () => {
               <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteChat')}
+            >
               <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.chat')}</Text>
             </TouchableOpacity>
@@ -905,5 +899,6 @@ const styles = StyleSheet.create({
 });
 
 export default PacientePerfilScreen;
+
 
 
