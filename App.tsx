@@ -21,6 +21,7 @@ import EspecialistasPorEspecialidadScreen from "./EspecialistasPorEspecialidadSc
 import PerfilEspecialistaAgendarScreen from "./PerfilEspecialistaAgendarScreen";
 import PacienteRecetasDocumentosScreen from "./PacienteRecetasDocumentosScreen";
 import PacientePerfilScreen from "./PacientePerfilScreen";
+import MedicoPerfilScreen from "./MedicoPerfilScreen";
 import PacienteNotificacionesScreen from "./PacienteNotificacionesScreen";
 import PacienteConfiguracionScreen from "./PacienteConfiguracionScreen";
 import PacienteCambiarContrasenaScreen from "./PacienteCambiarContrasenaScreen";
@@ -51,6 +52,7 @@ const linking = {
       EspecialistasPorEspecialidad: "especialistas/:specialty",
       PerfilEspecialistaAgendar: "perfil-especialista/:specialty/:doctorId",
       DashboardMedico: "dashboard-medico",
+      MedicoPerfil: "medico-perfil",
     },
   },
 };
@@ -126,6 +128,7 @@ const App: React.FC = () => {
           component={PerfilEspecialistaAgendarScreen}
         />
           <Stack.Screen name="DashboardMedico" component={DashboardMedico} />
+          <Stack.Screen name="MedicoPerfil" component={MedicoPerfilScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </LanguageProvider>

@@ -231,7 +231,7 @@ const validarTelefonoBackend = async (
 // Endpoint: POST /api/validar-exequatur
 // Body: { nombreCompleto: "..." }
 // =========================================
-type ValidacionExequaturOk = { ok: true; meta?: any; warning?: string };
+type ValidacionExequaturOk = { ok: true; meta?: any };
 type ValidacionExequaturFail = { ok: false; reason: string };
 type ValidacionExequaturResult = ValidacionExequaturOk | ValidacionExequaturFail;
 
@@ -255,11 +255,10 @@ const validarExequaturPorNombre = async (
 
       if (serviceUnavailable) {
         return {
-          ok: true as const,
-          warning:
+          ok: false as const,
+          reason:
             data?.message ||
-            "No fue posible validar el Exequatur con el SNS en este momento. Se continuara con validacion pendiente.",
-          meta: data,
+            "No fue posible validar el Exequatur con el SNS en este momento. Intenta nuevamente.",
         };
       }
 
@@ -738,9 +737,8 @@ const RegistroMedicoScreen: React.FC = () => {
       return;
     }
 
-    if (exq.warning) {
-      Alert.alert("Validacion pendiente", exq.warning);
-    }
+    const exequaturValidationToken =
+      typeof exq.meta?.validationToken === "string" ? exq.meta.validationToken : undefined;
 
     navigation.navigate("RegistroCredencialesMedico", {
       datosPersonales: {
@@ -750,6 +748,8 @@ const RegistroMedicoScreen: React.FC = () => {
         especialidad,
         cedula,
         telefono: `${selectedCountryCode.code} ${phone}`,
+        fotoUrl: String(fotoUri || "").trim() || undefined,
+        exequaturValidationToken,
       },
     });
   };
