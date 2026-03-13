@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   View,
   Text,
@@ -79,6 +80,13 @@ type CachedMedicoProfile = {
   fotoUrl?: string;
 };
 
+type InitialMedicoUi = {
+  doctorName: string;
+  doctorSpec: string;
+  doctorAvatar: ImageSourcePropType;
+  hasSeed: boolean;
+};
+
 type DashboardStats = {
   citasCompletadas: number;
   citasHoy: number;
@@ -141,6 +149,61 @@ const addDoctorPrefix = (rawName: string): string => {
   const normalized = clean.toLowerCase();
   if (normalized.startsWith('dr ') || normalized.startsWith('dr.')) return clean;
   return `Dr. ${clean}`;
+};
+
+const sanitizeFotoUrl = (value: unknown): string => {
+  const clean = String(value || '').trim();
+  if (!clean) return '';
+  if (clean.toLowerCase().startsWith('blob:')) return '';
+  return clean;
+};
+
+const getInitialMedicoUiFromWeb = (): InitialMedicoUi => {
+  if (Platform.OS !== 'web') {
+    return {
+      doctorName: 'Doctor',
+      doctorSpec: 'Especialidad no definida',
+      doctorAvatar: DefaultAvatar,
+      hasSeed: false,
+    };
+  }
+
+  try {
+    const rawUser = localStorage.getItem(LEGACY_USER_STORAGE_KEY);
+    const sessionUser = parseJson<SessionUser>(rawUser);
+    const email = String(sessionUser?.email || '').trim().toLowerCase();
+    const rawCache = localStorage.getItem(MEDICO_CACHE_BY_EMAIL_KEY);
+    const cacheMap = parseJson<Record<string, CachedMedicoProfile>>(rawCache) || {};
+    const cached = email ? cacheMap[email] || null : null;
+
+    const nameBase = String(
+      sessionUser?.nombreCompleto || sessionUser?.medico?.nombreCompleto || cached?.nombreCompleto || ''
+    )
+      .replace(/\s+/g, ' ')
+      .trim();
+    const specBase = String(
+      sessionUser?.especialidad || sessionUser?.medico?.especialidad || cached?.especialidad || ''
+    )
+      .replace(/\s+/g, ' ')
+      .trim();
+    const fotoBase = sanitizeFotoUrl(
+      sessionUser?.fotoUrl || sessionUser?.medico?.fotoUrl || cached?.fotoUrl || ''
+    );
+
+    return {
+      doctorName: nameBase ? addDoctorPrefix(nameBase) : 'Doctor',
+      doctorSpec: specBase || 'Especialidad no definida',
+      doctorAvatar: fotoBase ? { uri: fotoBase } : DefaultAvatar,
+      hasSeed: Boolean(nameBase || specBase || fotoBase),
+    };
+  } catch {
+    return {
+      doctorName: 'Doctor',
+      doctorSpec: 'Especialidad no definida',
+      doctorAvatar: DefaultAvatar,
+      hasSeed: false,
+    };
+  }
 };
 
 const colors = {
@@ -241,11 +304,13 @@ const FileCard: React.FC<FileCardProps> = ({ name, id, lastSeen }) => (
 
 const DashboardMedico: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [doctorName, setDoctorName] = useState('Doctor');
-  const [doctorSpec, setDoctorSpec] = useState('Especialidad no definida');
-  const [doctorAvatar, setDoctorAvatar] = useState<ImageSourcePropType>(DefaultAvatar);
+  const initialMedicoUi = useMemo(() => getInitialMedicoUiFromWeb(), []);
+  const [doctorName, setDoctorName] = useState(initialMedicoUi.doctorName);
+  const [doctorSpec, setDoctorSpec] = useState(initialMedicoUi.doctorSpec);
+  const [doctorAvatar, setDoctorAvatar] = useState<ImageSourcePropType>(initialMedicoUi.doctorAvatar);
   const [dashboardData, setDashboardData] = useState<DashboardPayload>(EMPTY_DASHBOARD);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
+  const [profileReady, setProfileReady] = useState(initialMedicoUi.hasSeed);
 
   const loadDashboardData = useCallback(async (authToken: string) => {
     if (!authToken) {
@@ -307,7 +372,7 @@ const DashboardMedico: React.FC = () => {
 
       const backendName = String(profile?.nombreCompleto || '').replace(/\s+/g, ' ').trim();
       const backendSpec = String(profile?.especialidad || '').replace(/\s+/g, ' ').trim();
-      const backendFoto = String(profile?.fotoUrl || '').trim();
+      const backendFoto = sanitizeFotoUrl(profile?.fotoUrl);
 
       if (backendName) setDoctorName(addDoctorPrefix(backendName));
       if (backendSpec) setDoctorSpec(backendSpec);
@@ -402,9 +467,9 @@ const DashboardMedico: React.FC = () => {
           )
             .replace(/\s+/g, ' ')
             .trim(),
-          fotoUrl: String(
+          fotoUrl: sanitizeFotoUrl(
             sessionUser.fotoUrl || sessionUser.medico?.fotoUrl || previous.fotoUrl || ''
-          ).trim(),
+          ),
         };
 
         const rawNextCache = JSON.stringify(cacheMap);
@@ -429,9 +494,9 @@ const DashboardMedico: React.FC = () => {
       )
         .replace(/\s+/g, ' ')
         .trim();
-      const fotoBase = String(
+      const fotoBase = sanitizeFotoUrl(
         sessionUser.fotoUrl || sessionUser.medico?.fotoUrl || cached?.fotoUrl || ''
-      ).trim();
+      );
 
       setDoctorName(nombreBase ? addDoctorPrefix(nombreBase) : 'Doctor');
       setDoctorSpec(especialidadBase || 'Especialidad no definida');
@@ -442,6 +507,8 @@ const DashboardMedico: React.FC = () => {
       setDoctorSpec('Especialidad no definida');
       setDoctorAvatar(DefaultAvatar);
       setDashboardData(EMPTY_DASHBOARD);
+    } finally {
+      setProfileReady(true);
     }
   }, [loadDashboardData]);
 
@@ -512,6 +579,15 @@ const DashboardMedico: React.FC = () => {
     if (item.route === 'DashboardMedico') return;
     navigation.navigate(item.route);
   };
+
+  if (!profileReady) {
+    return (
+      <View style={styles.initialLoaderWrap}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.initialLoaderText}>Cargando perfil medico...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -710,6 +786,18 @@ export default DashboardMedico;
 
 /* ===================== STYLES ===================== */
 const styles = StyleSheet.create({
+  initialLoaderWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bgLight,
+    gap: 10,
+  },
+  initialLoaderText: {
+    color: colors.viremMuted,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   container: {
     flex: 1,
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',

@@ -114,6 +114,52 @@ const normalizeValue = (value: unknown) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const sanitizeFotoUrl = (value: unknown) => {
+  const clean = normalizeValue(value);
+  if (!clean) return '';
+  if (clean.toLowerCase().startsWith('blob:')) return '';
+  return clean;
+};
+
+const buildPersistentPhotoUri = (asset: ImagePicker.ImagePickerAsset | undefined): string => {
+  if (!asset) return '';
+
+  const base64 = normalizeValue((asset as any)?.base64);
+  if (base64) {
+    const mimeRaw = normalizeValue((asset as any)?.mimeType).toLowerCase();
+    const mimeType = mimeRaw.startsWith('image/') ? mimeRaw : 'image/jpeg';
+    return `data:${mimeType};base64,${base64}`;
+  }
+
+  return normalizeValue(asset.uri);
+};
+
+const toWebDataUrl = async (uri: string): Promise<string> => {
+  if (Platform.OS !== 'web') return uri;
+  const cleanUri = normalizeValue(uri);
+  if (!cleanUri || cleanUri.startsWith('data:image/')) return cleanUri;
+
+  try {
+    const response = await fetch(cleanUri);
+    const blob = await response.blob();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string' && reader.result.startsWith('data:image/')) {
+          resolve(reader.result);
+          return;
+        }
+        resolve(cleanUri);
+      };
+      reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+      reader.readAsDataURL(blob);
+    });
+    return normalizeValue(dataUrl);
+  } catch {
+    return cleanUri;
+  }
+};
+
 const prettyValue = (value: string) => (value ? value : 'No disponible');
 
 const formatCedula = (value: string) => {
@@ -174,7 +220,7 @@ const buildProfile = (
   genero: normalizeValue(user?.genero || user?.medico?.genero || cached?.genero),
   cedula: normalizeValue(user?.cedula || user?.medico?.cedula || cached?.cedula),
   telefono: normalizeValue(user?.telefono || user?.medico?.telefono || cached?.telefono),
-  fotoUrl: normalizeValue(user?.fotoUrl || user?.medico?.fotoUrl || cached?.fotoUrl),
+  fotoUrl: sanitizeFotoUrl(user?.fotoUrl || user?.medico?.fotoUrl || cached?.fotoUrl),
 });
 
 const VerifiedField: React.FC<{
@@ -240,10 +286,13 @@ const MedicoPerfilScreen: React.FC = () => {
           const payload = await response.json().catch(() => null);
           if (response.ok && payload?.success && payload?.user) {
             const apiUser = payload.user as SessionUser;
+            const apiHasFotoUrl = Object.prototype.hasOwnProperty.call(apiUser || {}, 'fotoUrl');
             sessionUser = {
               ...(sessionUser || {}),
               ...apiUser,
-              fotoUrl: normalizeValue(apiUser?.fotoUrl || sessionUser?.fotoUrl),
+              fotoUrl: apiHasFotoUrl
+                ? sanitizeFotoUrl((apiUser as any)?.fotoUrl)
+                : sanitizeFotoUrl(sessionUser?.fotoUrl),
             };
             email = normalizeValue(sessionUser?.email).toLowerCase();
 
@@ -282,7 +331,9 @@ const MedicoPerfilScreen: React.FC = () => {
                   sessionUser?.telefono || sessionUser?.medico?.telefono || cacheMap[email]?.telefono
                 ),
                 fotoUrl: normalizeValue(
+                  sanitizeFotoUrl(
                   sessionUser?.fotoUrl || sessionUser?.medico?.fotoUrl || cacheMap[email]?.fotoUrl
+                  )
                 ),
               };
               cacheMap[email] = mergedCache;
@@ -332,7 +383,7 @@ const MedicoPerfilScreen: React.FC = () => {
       const cleanUri = normalizeValue(uri);
       const token = await getAuthToken();
       let savedOnServer = false;
-      let finalUri = cleanUri;
+      let finalUri = sanitizeFotoUrl(cleanUri);
 
       if (token) {
         try {
@@ -347,7 +398,7 @@ const MedicoPerfilScreen: React.FC = () => {
           const payload = await response.json().catch(() => null);
           if (response.ok && payload?.success) {
             savedOnServer = true;
-            finalUri = normalizeValue(payload?.profile?.fotoUrl || cleanUri);
+            finalUri = sanitizeFotoUrl(payload?.profile?.fotoUrl || cleanUri);
           }
         } catch {
           // Non-blocking: keep local save as fallback
@@ -423,11 +474,13 @@ const MedicoPerfilScreen: React.FC = () => {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.85,
+        quality: 0.55,
+        base64: true,
       });
 
       if (result.canceled || !result.assets?.length) return;
-      const uri = normalizeValue(result.assets[0]?.uri);
+      const baseUri = buildPersistentPhotoUri(result.assets[0]);
+      const uri = await toWebDataUrl(baseUri);
       if (!uri) return;
 
       setSavingPhoto(true);
