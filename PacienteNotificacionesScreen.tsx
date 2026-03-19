@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -17,6 +18,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
+import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -126,25 +128,28 @@ const PacienteNotificacionesScreen: React.FC = () => {
   const { t, tx } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>('todas');
+  const [notifications, setNotifications] = useState<NotificationItem[]>(notificationsData);
 
   useEffect(() => {
     const loadUser = async () => {
       try {
         if (Platform.OS === 'web') {
-          const webUser = parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY));
+          const webUser = ensurePatientSessionUser(parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY)));
           if (webUser) {
             setUser(webUser);
             return;
           }
         }
 
-        const secureUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
+        const secureUser = ensurePatientSessionUser(
+          parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY))
+        );
         if (secureUser) {
           setUser(secureUser);
           return;
         }
 
-        const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
+        const asyncUser = ensurePatientSessionUser(parseUser(await AsyncStorage.getItem(STORAGE_KEY)));
         setUser(asyncUser);
       } catch {
         setUser(null);
@@ -154,12 +159,7 @@ const PacienteNotificacionesScreen: React.FC = () => {
     loadUser();
   }, []);
 
-  const fullName = useMemo(() => {
-    const nombres = (user?.nombres || user?.nombre || user?.firstName || '').trim();
-    const apellidos = (user?.apellidos || user?.apellido || user?.lastName || '').trim();
-    const name = `${nombres} ${apellidos}`.trim();
-    return name || 'Paciente';
-  }, [user]);
+  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
 
   const planLabel = useMemo(() => {
     const plan = (user?.plan || '').trim();
@@ -174,10 +174,10 @@ const PacienteNotificacionesScreen: React.FC = () => {
   }, [user]);
 
   const filtered = useMemo(() => {
-    if (activeFilter === 'todas') return notificationsData;
-    if (activeFilter === 'noleidas') return notificationsData.filter((n) => n.unread);
-    return notificationsData.filter((n) => n.type === activeFilter);
-  }, [activeFilter]);
+    if (activeFilter === 'todas') return notifications;
+    if (activeFilter === 'noleidas') return notifications.filter((n) => n.unread);
+    return notifications.filter((n) => n.type === activeFilter);
+  }, [activeFilter, notifications]);
 
   const grouped = useMemo(() => {
     return sectionOrder.map((section) => ({
@@ -186,7 +186,23 @@ const PacienteNotificacionesScreen: React.FC = () => {
     }));
   }, [filtered]);
 
-  const unreadCount = notificationsData.filter((n) => n.unread).length;
+  const unreadCount = notifications.filter((n) => n.unread).length;
+
+  const markAllRead = () => {
+    setNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
+  };
+
+  const handleNotificationAction = (item: NotificationItem) => {
+    if (item.type === 'mensajes') {
+      navigation.navigate('PacienteChat');
+      return;
+    }
+    if (item.type === 'citas') {
+      navigation.navigate('PacienteCitas');
+      return;
+    }
+    navigation.navigate('PacienteRecetasDocumentos');
+  };
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem('token');
@@ -218,17 +234,26 @@ const PacienteNotificacionesScreen: React.FC = () => {
               <Text style={styles.menuText}>{t('menu.home')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+            >
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.searchDoctor')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteCitas')}
+            >
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
+            >
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
@@ -241,7 +266,10 @@ const PacienteNotificacionesScreen: React.FC = () => {
               <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]}>
+            <TouchableOpacity
+              style={[styles.menuItemRow, styles.menuItemActive]}
+              onPress={() => navigation.navigate('PacienteNotificaciones')}
+            >
               <MaterialIcons name="notifications" size={20} color={colors.primary} />
               <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.notifications')}</Text>
             </TouchableOpacity>
@@ -287,12 +315,20 @@ const PacienteNotificacionesScreen: React.FC = () => {
               />
             </View>
 
-            <TouchableOpacity style={styles.markAllBtn}>
+            <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead}>
               <MaterialIcons name="done-all" size={16} color="#fff" />
               <Text style={styles.markAllBtnText}>{t('notif.markAllRead')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingsBtn}>
+            <TouchableOpacity
+              style={styles.settingsBtn}
+              onPress={() =>
+                Alert.alert(
+                  'Preferencias',
+                  'Puedes configurar tus notificaciones en la pantalla de Configuracion.'
+                )
+              }
+            >
               <MaterialIcons name="settings" size={20} color={colors.muted} />
             </TouchableOpacity>
           </View>
@@ -348,7 +384,12 @@ const PacienteNotificacionesScreen: React.FC = () => {
                   : t('notif.thisWeek')}
               </Text>
               {group.items.length === 0 ? null : group.items.map((item) => (
-                <View key={item.id} style={[styles.notificationCard, !item.unread && styles.notificationCardRead]}>
+                <TouchableOpacity
+                  key={item.id}
+                  style={[styles.notificationCard, !item.unread && styles.notificationCardRead]}
+                  activeOpacity={0.9}
+                  onPress={() => handleNotificationAction(item)}
+                >
                   <View style={[styles.notificationBar, { backgroundColor: item.color }]} />
 
                   <View style={[styles.notificationIconBox, { backgroundColor: `${item.color}18` }]}>
@@ -377,14 +418,14 @@ const PacienteNotificacionesScreen: React.FC = () => {
                       {item.action ? <Text style={styles.notificationAction}>{item.action}</Text> : null}
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           ))}
         </ScrollView>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>{t('notif.total')}: {notificationsData.length}</Text>
+          <Text style={styles.footerText}>{t('notif.total')}: {notifications.length}</Text>
           <Text style={styles.footerText}>{t('notif.unread')}: {unreadCount}</Text>
           <Text style={styles.footerText}>{t('notif.updated')}</Text>
         </View>

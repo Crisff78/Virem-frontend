@@ -22,6 +22,7 @@ import type { RootStackParamList } from './navigation/types';
 import { apiUrl } from './config/backend';
 
 import { useLanguage } from './localization/LanguageContext';
+import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -32,6 +33,8 @@ const AUTH_TOKEN_KEY = 'authToken';
 const LEGACY_TOKEN_KEY = 'token';
 
 type User = {
+  id?: number | string;
+  usuarioid?: number | string;
   nombres?: string;
   apellidos?: string;
   nombre?: string;
@@ -72,6 +75,21 @@ const normalizeText = (value: unknown) =>
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
+
+const sanitizeFotoUrl = (value: unknown) => {
+  const clean = String(value || '').trim();
+  if (!clean) return '';
+  if (clean.toLowerCase().startsWith('blob:')) return '';
+  return clean;
+};
+
+const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
+  const clean = sanitizeFotoUrl(value);
+  if (clean) {
+    return { uri: clean };
+  }
+  return DefaultAvatar;
+};
 
 const FALLBACK_SPECIALTIES: SpecialtyItem[] = [
   { icon: 'heart-outline', label: 'Cardiologia', description: 'Corazon y sistema circulatorio', totalMedicos: 0 },
@@ -190,22 +208,88 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
   useEffect(() => {
     const loadUser = async () => {
       try {
+        let sessionUser: User | null = null;
+
         if (Platform.OS === 'web') {
           const localStorageUser = parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY));
-          if (localStorageUser) {
-            setUser(localStorageUser);
-            return;
+          if (localStorageUser) sessionUser = localStorageUser;
+        }
+
+        if (!sessionUser) {
+          const secureStoreUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
+          if (secureStoreUser) sessionUser = secureStoreUser;
+        }
+
+        if (!sessionUser) {
+          const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
+          if (asyncUser) sessionUser = asyncUser;
+        }
+
+        sessionUser = ensurePatientSessionUser(sessionUser);
+
+        const token = await getAuthToken();
+        if (token) {
+          const profileResponse = await fetch(apiUrl('/api/users/me/paciente-profile'), {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const profilePayload = await profileResponse.json().catch(() => null);
+          if (profileResponse.ok && profilePayload?.success && profilePayload?.profile) {
+            const profileUser = profilePayload.profile as User;
+            const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
+            const profileUserId = String((profileUser as any)?.usuarioid || (profileUser as any)?.id || '').trim();
+            if (cachedUserId && profileUserId && cachedUserId !== profileUserId) {
+              sessionUser = null;
+            }
+            sessionUser = {
+              ...(sessionUser || {}),
+              ...profileUser,
+              nombres: String((profileUser as any)?.nombres || '').trim(),
+              apellidos: String((profileUser as any)?.apellidos || '').trim(),
+              nombre: String((profileUser as any)?.nombres || (profileUser as any)?.nombre || '').trim(),
+              apellido: String((profileUser as any)?.apellidos || (profileUser as any)?.apellido || '').trim(),
+              fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
+            };
+          } else {
+            const response = await fetch(apiUrl('/api/auth/me'), {
+              method: 'GET',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const payload = await response.json().catch(() => null);
+            if (response.ok && payload?.success && payload?.user) {
+              const apiUser = payload.user as User;
+              const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
+              const apiUserId = String((apiUser as any)?.usuarioid || (apiUser as any)?.id || '').trim();
+              if (cachedUserId && apiUserId && cachedUserId !== apiUserId) {
+                sessionUser = null;
+              }
+              const apiRoleId = Number((apiUser as any)?.rolid ?? (apiUser as any)?.rolId ?? (apiUser as any)?.roleId);
+              if (apiRoleId === 2) {
+                sessionUser = null;
+              } else {
+                sessionUser = {
+                  ...(sessionUser || {}),
+                  ...apiUser,
+                  fotoUrl: sanitizeFotoUrl((apiUser as any)?.fotoUrl),
+                };
+              }
+            }
+          }
+
+          if (sessionUser) {
+            const rawNextUser = JSON.stringify(sessionUser);
+            await AsyncStorage.setItem(STORAGE_KEY, rawNextUser);
+            await AsyncStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
+            if (Platform.OS === 'web') {
+              localStorage.setItem(STORAGE_KEY, rawNextUser);
+              localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
+            } else {
+              await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
+            }
           }
         }
 
-        const secureStoreUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
-        if (secureStoreUser) {
-          setUser(secureStoreUser);
-          return;
-        }
-
-        const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
-        setUser(asyncUser);
+        setUser(sessionUser);
       } catch {
         setUser(null);
       } finally {
@@ -297,12 +381,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
     loadSpecialties();
   }, []);
 
-  const fullName = useMemo(() => {
-    const nombres = (user?.nombres || user?.nombre || user?.firstName || '').trim();
-    const apellidos = (user?.apellidos || user?.apellido || user?.lastName || '').trim();
-    const name = `${nombres} ${apellidos}`.trim();
-    return name || 'Paciente';
-  }, [user]);
+  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
 
   const planLabel = useMemo(() => {
     const plan = (user?.plan || '').trim();
@@ -310,22 +389,19 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
   }, [user]);
 
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    if (user?.fotoUrl && user.fotoUrl.trim().length > 0) {
-      return { uri: user.fotoUrl.trim() };
-    }
-    return DefaultAvatar;
+    return resolveAvatarSource(user?.fotoUrl);
   }, [user]);
 
-  const specialtyList = [
-    { icon: 'heart-outline', label: 'Cardiologia', description: 'Corazon y sistema circulatorio' },
-    { icon: 'baby-face-outline', label: 'Pediatria', description: 'Atencion integral para ni�os' },
-    { icon: 'brain', label: 'Neurologia', description: 'Cerebro y sistema nervioso' },
-    { icon: 'face-man-outline', label: 'Dermatologia', description: 'Cuidado de la piel y cabello' },
-    { icon: 'stethoscope', label: 'Medicina General', description: 'Atencion primaria inicial' },
-    { icon: 'eye-outline', label: 'Oftalmologia', description: 'Salud visual y ocular' },
-    { icon: 'food-apple-outline', label: 'Nutricion', description: 'Dieta y bienestar alimenticio' },
-    { icon: 'pill', label: 'Endocrinologia', description: 'Hormonas y metabolismo' },
-  ];
+  const filteredSpecialties = useMemo(() => {
+    const query = normalizeText(searchText);
+    if (!query) return specialtyList;
+    return specialtyList.filter((item) => {
+      return (
+        normalizeText(item.label).includes(query) ||
+        normalizeText(item.description).includes(query)
+      );
+    });
+  }, [searchText, specialtyList]);
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
@@ -353,6 +429,15 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
   const onSelectSpecialty = (label: string) => {
     navigation.navigate('EspecialistasPorEspecialidad', { specialty: label });
   };
+
+  if (loadingUser) {
+    return (
+      <View style={styles.loaderWrap}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loaderText}>Cargando informacion del paciente...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -384,17 +469,26 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
               <Text style={styles.menuText}>{t('menu.home')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]}>
+            <TouchableOpacity
+              style={[styles.menuItemRow, styles.menuItemActive]}
+              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+            >
               <MaterialIcons name="person-search" size={20} color={colors.primary} />
               <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.searchDoctor')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteCitas')}
+            >
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
+            >
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
@@ -407,7 +501,10 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
               <Text style={styles.menuText}>{t('menu.chat')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
+            >
               <MaterialIcons name="description" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
@@ -439,7 +536,10 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
             />
           </View>
 
-          <TouchableOpacity style={styles.notifBtn}>
+          <TouchableOpacity
+            style={styles.notifBtn}
+            onPress={() => navigation.navigate('PacienteNotificaciones')}
+          >
             <MaterialIcons name="notifications" size={22} color={colors.dark} />
             <View style={styles.notifDot} />
           </TouchableOpacity>
@@ -480,7 +580,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Especialidades Medicas</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => setSearchText('')}>
             <Text style={styles.sectionLink}>
               {loadingSpecialties ? 'Actualizando...' : `${specialtyList.length} disponibles`}
             </Text>

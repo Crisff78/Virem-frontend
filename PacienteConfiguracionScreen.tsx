@@ -20,6 +20,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
+import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -71,20 +72,22 @@ const PacienteConfiguracionScreen: React.FC = () => {
     const loadUser = async () => {
       try {
         if (Platform.OS === 'web') {
-          const webUser = parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY));
+          const webUser = ensurePatientSessionUser(parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY)));
           if (webUser) {
             setUser(webUser);
             return;
           }
         }
 
-        const secureUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
+        const secureUser = ensurePatientSessionUser(
+          parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY))
+        );
         if (secureUser) {
           setUser(secureUser);
           return;
         }
 
-        const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
+        const asyncUser = ensurePatientSessionUser(parseUser(await AsyncStorage.getItem(STORAGE_KEY)));
         setUser(asyncUser);
 
         const savedSettingsRaw = await AsyncStorage.getItem(SETTINGS_KEY);
@@ -113,12 +116,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
     loadUser();
   }, []);
 
-  const fullName = useMemo(() => {
-    const nombres = (user?.nombres || user?.nombre || user?.firstName || '').trim();
-    const apellidos = (user?.apellidos || user?.apellido || user?.lastName || '').trim();
-    const name = `${nombres} ${apellidos}`.trim();
-    return name || 'Paciente';
-  }, [user]);
+  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
 
   const planLabel = useMemo(() => {
     const plan = (user?.plan || '').trim();
@@ -278,17 +276,26 @@ const PacienteConfiguracionScreen: React.FC = () => {
               <Text style={styles.menuText}>{t('menu.home')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+            >
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.searchDoctor')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteCitas')}
+            >
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
+            >
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
@@ -317,7 +324,10 @@ const PacienteConfiguracionScreen: React.FC = () => {
               <Text style={styles.menuText}>{t('menu.profile')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]}>
+            <TouchableOpacity
+              style={[styles.menuItemRow, styles.menuItemActive]}
+              onPress={() => navigation.navigate('PacienteConfiguracion')}
+            >
               <MaterialIcons name="settings" size={20} color={colors.primary} />
               <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.settings')}</Text>
             </TouchableOpacity>
@@ -478,10 +488,26 @@ const PacienteConfiguracionScreen: React.FC = () => {
               <Text style={styles.supportText}>{t('config.supportText')}</Text>
 
               <View style={styles.supportButtons}>
-                <TouchableOpacity style={styles.contactBtn}>
+                <TouchableOpacity
+                  style={styles.contactBtn}
+                  onPress={() =>
+                    Alert.alert(
+                      'Contacto de soporte',
+                      'Escribenos a soporte@virem.app y te responderemos en breve.'
+                    )
+                  }
+                >
                   <Text style={styles.contactBtnText}>{t('config.contact')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.faqBtn}>
+                <TouchableOpacity
+                  style={styles.faqBtn}
+                  onPress={() =>
+                    Alert.alert(
+                      'Preguntas frecuentes',
+                      'Puedes revisar tus dudas en el Centro de Ayuda dentro de la app.'
+                    )
+                  }
+                >
                   <Text style={styles.faqBtnText}>{t('config.faq')}</Text>
                 </TouchableOpacity>
               </View>

@@ -19,15 +19,16 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import { useLanguage } from './localization/LanguageContext';
-import type { RootStackParamList } from './navigation/types';
+import type { DoctorRouteSnapshot, RootStackParamList } from './navigation/types';
 import { apiUrl } from './config/backend';
+import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
-const Doctor1: ImageSourcePropType = { uri: 'https://i.pravatar.cc/240?img=12' };
-const Doctor2: ImageSourcePropType = { uri: 'https://i.pravatar.cc/240?img=32' };
-const Doctor3: ImageSourcePropType = { uri: 'https://i.pravatar.cc/240?img=18' };
+const Doctor1: ImageSourcePropType = DefaultAvatar;
+const Doctor2: ImageSourcePropType = DefaultAvatar;
+const Doctor3: ImageSourcePropType = DefaultAvatar;
 
 const STORAGE_KEY = 'user';
 const LEGACY_USER_STORAGE_KEY = 'userProfile';
@@ -35,6 +36,8 @@ const AUTH_TOKEN_KEY = 'authToken';
 const LEGACY_TOKEN_KEY = 'token';
 
 type User = {
+  id?: number | string;
+  usuarioid?: number | string;
   nombres?: string;
   apellidos?: string;
   nombre?: string;
@@ -52,6 +55,7 @@ type BackendMedico = {
   genero?: string;
   cedula?: string;
   telefono?: string;
+  fotoUrl?: string | null;
 };
 
 type Doctor = {
@@ -66,6 +70,7 @@ type Doctor = {
   tags: string[];
   availability: AvailabilityFilter[];
   image: ImageSourcePropType;
+  fotoUrl?: string | null;
   availableNow?: boolean;
   verified?: boolean;
 };
@@ -87,6 +92,28 @@ const normalizeText = (value: unknown) =>
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
+
+const sanitizeFotoUrl = (value: unknown) => {
+  const clean = String(value || '').trim();
+  if (!clean) return '';
+  if (clean.toLowerCase().startsWith('blob:')) return '';
+  return clean;
+};
+
+const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
+  const clean = sanitizeFotoUrl(value);
+  if (clean) {
+    return { uri: clean };
+  }
+  return DefaultAvatar;
+};
+
+const matchesSpecialty = (doctorSpecialty: unknown, selectedSpecialty: unknown) => {
+  const doctorKey = normalizeText(doctorSpecialty);
+  const selectedKey = normalizeText(selectedSpecialty);
+  if (!doctorKey || !selectedKey) return false;
+  return doctorKey === selectedKey || doctorKey.includes(selectedKey) || selectedKey.includes(doctorKey);
+};
 
 const getAuthToken = async (): Promise<string> => {
   try {
@@ -340,17 +367,13 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
   const [ratingMin, setRatingMin] = useState<'4.5' | '4.0' | null>('4.5');
   const [backendDoctors, setBackendDoctors] = useState<Doctor[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const specialty = route.params?.specialty || 'Cardiologia';
-  const fallbackDoctors = doctorsBySpecialty[specialty] || doctorsBySpecialty.Cardiologia;
-  const doctors = useMemo(() => {
-    if (!backendDoctors.length) return fallbackDoctors;
-    const specialtyKey = normalizeText(specialty);
-    const filtered = backendDoctors.filter((doctor) =>
-      normalizeText(doctor.focus || '').includes(specialtyKey)
-    );
-    return filtered.length ? filtered : backendDoctors;
-  }, [backendDoctors, fallbackDoctors, specialty]);
+  const doctors = useMemo(
+    () => backendDoctors.filter((doctor) => matchesSpecialty(doctor.focus, specialty)),
+    [backendDoctors, specialty]
+  );
   const availabilityLabel =
     availabilityFilter === 'today'
       ? 'hoy mismo'
@@ -368,26 +391,109 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
       }),
     [availabilityFilter, doctors, ratingMin]
   );
+  const pageSize = 5;
+  const totalPages = Math.max(1, Math.ceil(displayedDoctors.length / pageSize));
+  const pagedDoctors = useMemo(() => {
+    const safePage = Math.min(Math.max(1, currentPage), totalPages);
+    const start = (safePage - 1) * pageSize;
+    return displayedDoctors.slice(start, start + pageSize);
+  }, [currentPage, displayedDoctors, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [availabilityFilter, ratingMin, specialty]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
     const loadUser = async () => {
       try {
+        let sessionUser: User | null = null;
+
         if (Platform.OS === 'web') {
           const localStorageUser = parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY));
-          if (localStorageUser) {
-            setUser(localStorageUser);
-            return;
+          if (localStorageUser) sessionUser = localStorageUser;
+        }
+
+        if (!sessionUser) {
+          const secureStoreUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
+          if (secureStoreUser) sessionUser = secureStoreUser;
+        }
+
+        if (!sessionUser) {
+          const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
+          if (asyncUser) sessionUser = asyncUser;
+        }
+
+        sessionUser = ensurePatientSessionUser(sessionUser);
+
+        const token = await getAuthToken();
+        if (token) {
+          const profileResponse = await fetch(apiUrl('/api/users/me/paciente-profile'), {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const profilePayload = await profileResponse.json().catch(() => null);
+          if (profileResponse.ok && profilePayload?.success && profilePayload?.profile) {
+            const profileUser = profilePayload.profile as User;
+            const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
+            const profileUserId = String((profileUser as any)?.usuarioid || (profileUser as any)?.id || '').trim();
+            if (cachedUserId && profileUserId && cachedUserId !== profileUserId) {
+              sessionUser = null;
+            }
+            sessionUser = {
+              ...(sessionUser || {}),
+              ...profileUser,
+              nombres: String((profileUser as any)?.nombres || '').trim(),
+              apellidos: String((profileUser as any)?.apellidos || '').trim(),
+              nombre: String((profileUser as any)?.nombres || (profileUser as any)?.nombre || '').trim(),
+              apellido: String((profileUser as any)?.apellidos || (profileUser as any)?.apellido || '').trim(),
+              fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
+            };
+          } else {
+            const response = await fetch(apiUrl('/api/auth/me'), {
+              method: 'GET',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const payload = await response.json().catch(() => null);
+            if (response.ok && payload?.success && payload?.user) {
+              const apiUser = payload.user as User;
+              const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
+              const apiUserId = String((apiUser as any)?.usuarioid || (apiUser as any)?.id || '').trim();
+              if (cachedUserId && apiUserId && cachedUserId !== apiUserId) {
+                sessionUser = null;
+              }
+              const apiRoleId = Number((apiUser as any)?.rolid ?? (apiUser as any)?.rolId ?? (apiUser as any)?.roleId);
+              if (apiRoleId === 2) {
+                sessionUser = null;
+              } else {
+                sessionUser = {
+                  ...(sessionUser || {}),
+                  ...apiUser,
+                  fotoUrl: sanitizeFotoUrl((apiUser as any)?.fotoUrl),
+                };
+              }
+            }
+          }
+
+          if (sessionUser) {
+            const rawNextUser = JSON.stringify(sessionUser);
+            await AsyncStorage.setItem(STORAGE_KEY, rawNextUser);
+            await AsyncStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
+            if (Platform.OS === 'web') {
+              localStorage.setItem(STORAGE_KEY, rawNextUser);
+              localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
+            } else {
+              await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
+            }
           }
         }
 
-        const secureStoreUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
-        if (secureStoreUser) {
-          setUser(secureStoreUser);
-          return;
-        }
-
-        const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
-        setUser(asyncUser);
+        setUser(sessionUser);
       } catch {
         setUser(null);
       } finally {
@@ -421,8 +527,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
         const mapped = payload.medicos.map((item: BackendMedico, index: number) => {
           const name = String(item?.nombreCompleto || '').trim() || `Medico ${index + 1}`;
           const especialidad = String(item?.especialidad || '').trim() || 'Medicina General';
-          const genero = normalizeText(item?.genero);
-          const isFemale = genero.includes('f');
+          const fotoUrl = sanitizeFotoUrl(item?.fotoUrl);
           return {
             id: String(item?.medicoid || `med-${index + 1}`),
             name,
@@ -434,7 +539,8 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
             price: 'N/D',
             tags: [especialidad, item?.telefono ? `Tel: ${String(item.telefono)}` : 'Consulta virtual'],
             availability: ['today', 'week', 'weekend'],
-            image: isFemale ? Doctor2 : Doctor1,
+            image: resolveAvatarSource(fotoUrl),
+            fotoUrl: fotoUrl || null,
             availableNow: true,
             verified: true,
           } as Doctor;
@@ -450,12 +556,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
     loadDoctors();
   }, []);
 
-  const fullName = useMemo(() => {
-    const nombres = (user?.nombres || user?.nombre || user?.firstName || '').trim();
-    const apellidos = (user?.apellidos || user?.apellido || user?.lastName || '').trim();
-    const name = `${nombres} ${apellidos}`.trim();
-    return name || 'Paciente';
-  }, [user]);
+  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
 
   const planLabel = useMemo(() => {
     const plan = (user?.plan || '').trim();
@@ -463,10 +564,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
   }, [user]);
 
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    if (user?.fotoUrl && user.fotoUrl.trim().length > 0) {
-      return { uri: user.fotoUrl.trim() };
-    }
-    return DefaultAvatar;
+    return resolveAvatarSource(user?.fotoUrl);
   }, [user]);
 
   const handleLogout = async () => {
@@ -530,12 +628,18 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
               <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.searchDoctor')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteCitas')}
+            >
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
+            >
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
@@ -548,7 +652,10 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
               <Text style={styles.menuText}>{t('menu.chat')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
+            >
               <MaterialIcons name="description" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
@@ -580,7 +687,10 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
             />
           </View>
 
-          <TouchableOpacity style={styles.notifBtn}>
+          <TouchableOpacity
+            style={styles.notifBtn}
+            onPress={() => navigation.navigate('PacienteNotificaciones')}
+          >
             <MaterialIcons name="notifications" size={22} color={colors.dark} />
             <View style={styles.notifDot} />
           </TouchableOpacity>
@@ -652,7 +762,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
                 Mostrando resultados para <Text style={styles.resultsStrong}>{specialty}</Text>
               </Text>
               <Text style={styles.orderText}>
-                {backendDoctors.length ? 'Fuente: Base de datos real' : 'Fuente: Catalogo local'}
+                {loadingDoctors ? 'Sincronizando especialistas...' : 'Fuente: Base de datos real'}
               </Text>
             </View>
 
@@ -665,7 +775,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
                 </Text>
               </View>
             ) : (
-              displayedDoctors.map((doc) => (
+              pagedDoctors.map((doc) => (
                 <View key={doc.id} style={styles.docCard}>
                   <View style={styles.docLeft}>
                     <View style={styles.docImageWrap}>
@@ -701,12 +811,24 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
                     <Text style={styles.priceValue}>${doc.price}</Text>
                     <TouchableOpacity
                       style={styles.bookBtn}
-                      onPress={() =>
+                      onPress={() => {
+                        const doctorSnapshot: DoctorRouteSnapshot = {
+                          name: doc.name,
+                          focus: doc.focus,
+                          exp: doc.exp,
+                          rating: doc.rating,
+                          reviews: doc.reviews,
+                          city: doc.city,
+                          price: doc.price,
+                          tags: Array.isArray(doc.tags) ? doc.tags : [],
+                          fotoUrl: doc.fotoUrl || null,
+                        };
                         navigation.navigate('PerfilEspecialistaAgendar', {
                           specialty,
                           doctorId: doc.id,
-                        })
-                      }
+                          doctorSnapshot,
+                        });
+                      }}
                     >
                       <Text style={styles.bookBtnText}>Ver Perfil y Agendar</Text>
                     </TouchableOpacity>
@@ -716,19 +838,29 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
             )}
 
             <View style={styles.paginationRow}>
-              <TouchableOpacity style={styles.pageBtn}>
+              <TouchableOpacity
+                style={styles.pageBtn}
+                onPress={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
                 <MaterialIcons name="chevron-left" size={16} color={colors.muted} />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.pageBtn, styles.pageBtnActive]}>
-                <Text style={styles.pageBtnActiveText}>1</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.pageBtn}>
-                <Text style={styles.pageBtnText}>2</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.pageBtn}>
-                <Text style={styles.pageBtnText}>3</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.pageBtn}>
+              {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((page) => (
+                <TouchableOpacity
+                  key={page}
+                  style={[styles.pageBtn, currentPage === page ? styles.pageBtnActive : null]}
+                  onPress={() => setCurrentPage(page)}
+                >
+                  <Text style={currentPage === page ? styles.pageBtnActiveText : styles.pageBtnText}>
+                    {page}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={styles.pageBtn}
+                onPress={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage >= totalPages}
+              >
                 <MaterialIcons name="chevron-right" size={16} color={colors.muted} />
               </TouchableOpacity>
             </View>

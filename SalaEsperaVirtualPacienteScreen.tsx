@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Platform,
@@ -9,11 +9,13 @@ import {
   Image,
   ScrollView,
   Switch,
+  TextInput,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useLanguage } from './localization/LanguageContext';
@@ -21,11 +23,14 @@ import type { RootStackParamList } from './navigation/types';
 import { apiUrl } from './config/backend';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
+const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
-const DoctorAvatar: ImageSourcePropType = { uri: 'https://i.pravatar.cc/220?img=13' };
-const CameraPreview: ImageSourcePropType = { uri: 'https://i.pravatar.cc/420?img=50' };
+const DoctorAvatar: ImageSourcePropType = DefaultAvatar;
+const STORAGE_KEY = 'user';
+const LEGACY_USER_STORAGE_KEY = 'userProfile';
 const AUTH_TOKEN_KEY = 'authToken';
 const LEGACY_TOKEN_KEY = 'token';
 
@@ -34,13 +39,49 @@ type DeviceOption = {
   label: string;
 };
 
+type User = {
+  nombres?: string;
+  apellidos?: string;
+  nombre?: string;
+  apellido?: string;
+  firstName?: string;
+  lastName?: string;
+  plan?: string;
+  fotoUrl?: string;
+};
+
 type CitaItem = {
   citaid?: string;
   fechaHoraInicio?: string | null;
   medico?: {
     nombreCompleto?: string;
     especialidad?: string;
+    fotoUrl?: string | null;
   };
+};
+
+const parseUser = (raw: string | null): User | null => {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const sanitizeFotoUrl = (value: unknown) => {
+  const clean = String(value || '').trim();
+  if (!clean) return '';
+  if (clean.toLowerCase().startsWith('blob:')) return '';
+  return clean;
+};
+
+const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
+  const clean = sanitizeFotoUrl(value);
+  if (clean) {
+    return { uri: clean };
+  }
+  return DefaultAvatar;
 };
 
 const formatDateTime = (value: string | null | undefined) => {
@@ -54,6 +95,12 @@ const formatDateTime = (value: string | null | undefined) => {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+};
+
+const parseDateMs = (value: string | null | undefined) => {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
 };
 
 const getAuthToken = async (): Promise<string> => {
@@ -84,6 +131,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'SalaEsperaVirtualPaciente'>>();
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -98,7 +146,10 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [selectedMicId, setSelectedMicId] = useState('');
   const [selectedSpeakerId, setSelectedSpeakerId] = useState('');
+  const [user, setUser] = useState<User | null>(null);
   const [nextCita, setNextCita] = useState<CitaItem | null>(null);
+  const [upcomingCitas, setUpcomingCitas] = useState<CitaItem[]>([]);
+  const [selectedCitaId, setSelectedCitaId] = useState('');
   const [loadingCita, setLoadingCita] = useState(false);
   const dot1 = useRef(new Animated.Value(0.25)).current;
   const dot2 = useRef(new Animated.Value(0.25)).current;
@@ -106,6 +157,101 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const signalPulse = useRef(new Animated.Value(0.35)).current;
   const panelTranslateX = useRef(new Animated.Value(430)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const requestedCitaId = String(route.params?.citaId || '').trim();
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        let sessionUser: User | null = null;
+
+        if (Platform.OS === 'web') {
+          const webUser = parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY));
+          if (webUser) sessionUser = webUser;
+        }
+
+        if (!sessionUser) {
+          const secureUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
+          if (secureUser) sessionUser = secureUser;
+        }
+
+        if (!sessionUser) {
+          const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
+          if (asyncUser) sessionUser = asyncUser;
+        }
+
+        sessionUser = ensurePatientSessionUser(sessionUser);
+
+        const token = await getAuthToken();
+        if (token) {
+          const profileResponse = await fetch(apiUrl('/api/users/me/paciente-profile'), {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const profilePayload = await profileResponse.json().catch(() => null);
+          if (profileResponse.ok && profilePayload?.success && profilePayload?.profile) {
+            const profileUser = profilePayload.profile as User;
+            const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
+            const profileUserId = String((profileUser as any)?.usuarioid || (profileUser as any)?.id || '').trim();
+            if (cachedUserId && profileUserId && cachedUserId !== profileUserId) {
+              sessionUser = null;
+            }
+            sessionUser = {
+              ...(sessionUser || {}),
+              ...profileUser,
+              nombres: String((profileUser as any)?.nombres || '').trim(),
+              apellidos: String((profileUser as any)?.apellidos || '').trim(),
+              nombre: String((profileUser as any)?.nombres || (profileUser as any)?.nombre || '').trim(),
+              apellido: String((profileUser as any)?.apellidos || (profileUser as any)?.apellido || '').trim(),
+              fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
+            };
+          } else {
+            const response = await fetch(apiUrl('/api/auth/me'), {
+              method: 'GET',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const payload = await response.json().catch(() => null);
+            if (response.ok && payload?.success && payload?.user) {
+              const apiUser = payload.user as User;
+              const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
+              const apiUserId = String((apiUser as any)?.usuarioid || (apiUser as any)?.id || '').trim();
+              if (cachedUserId && apiUserId && cachedUserId !== apiUserId) {
+                sessionUser = null;
+              }
+              const apiRoleId = Number((apiUser as any)?.rolid ?? (apiUser as any)?.rolId ?? (apiUser as any)?.roleId);
+              if (apiRoleId === 2) {
+                sessionUser = null;
+              } else {
+                sessionUser = {
+                  ...(sessionUser || {}),
+                  ...apiUser,
+                  fotoUrl: sanitizeFotoUrl((apiUser as any)?.fotoUrl),
+                };
+              }
+            }
+          }
+
+          if (sessionUser) {
+            const rawNextUser = JSON.stringify(sessionUser);
+            await AsyncStorage.setItem(STORAGE_KEY, rawNextUser);
+            await AsyncStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
+
+            if (Platform.OS === 'web') {
+              localStorage.setItem(STORAGE_KEY, rawNextUser);
+              localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
+            } else {
+              await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
+            }
+          }
+        }
+
+        setUser(sessionUser);
+      } catch {
+        setUser(null);
+      }
+    };
+
+    loadUser();
+  }, []);
 
   useEffect(() => {
     const makePulse = (value: Animated.Value, delay: number) =>
@@ -143,21 +289,37 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
       try {
         const token = await getAuthToken();
         if (!token) {
+          setUpcomingCitas([]);
+          setSelectedCitaId('');
           setNextCita(null);
           return;
         }
 
-        const response = await fetch(apiUrl('/api/users/me/citas?scope=upcoming&limit=1'), {
+        const response = await fetch(apiUrl('/api/users/me/citas?scope=upcoming&limit=30'), {
           method: 'GET',
           headers: { Authorization: `Bearer ${token}` },
         });
         const payload = await response.json().catch(() => null);
         if (response.ok && payload?.success && Array.isArray(payload?.citas) && payload.citas.length) {
-          setNextCita(payload.citas[0] as CitaItem);
+          const ordered = [...(payload.citas as CitaItem[])].sort(
+            (a, b) => parseDateMs(a?.fechaHoraInicio) - parseDateMs(b?.fechaHoraInicio)
+          );
+          setUpcomingCitas(ordered);
+
+          const fromParam = requestedCitaId
+            ? ordered.find((item) => String(item?.citaid || '').trim() === requestedCitaId)
+            : null;
+          const chosen = fromParam || ordered[0] || null;
+          setSelectedCitaId(String(chosen?.citaid || ''));
+          setNextCita(chosen);
         } else {
+          setUpcomingCitas([]);
+          setSelectedCitaId('');
           setNextCita(null);
         }
       } catch {
+        setUpcomingCitas([]);
+        setSelectedCitaId('');
         setNextCita(null);
       } finally {
         setLoadingCita(false);
@@ -165,7 +327,22 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     };
 
     loadNextCita();
-  }, []);
+  }, [requestedCitaId]);
+
+  useEffect(() => {
+    if (!upcomingCitas.length) {
+      setNextCita(null);
+      return;
+    }
+    const selected =
+      upcomingCitas.find((item) => String(item?.citaid || '').trim() === selectedCitaId) ||
+      upcomingCitas[0];
+    setNextCita(selected || null);
+    const selectedId = String(selected?.citaid || '').trim();
+    if (selectedId && selectedId !== selectedCitaId) {
+      setSelectedCitaId(selectedId);
+    }
+  }, [selectedCitaId, upcomingCitas]);
 
   const openSettings = () => {
     setSettingsOpen(true);
@@ -289,6 +466,42 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const doctorSpec =
     String(nextCita?.medico?.especialidad || '').trim() || 'Medicina General';
   const citaHora = formatDateTime(nextCita?.fechaHoraInicio);
+  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
+  const planLabel = useMemo(() => {
+    const plan = String(user?.plan || '').trim();
+    return plan ? `Paciente ${plan}` : 'Paciente';
+  }, [user]);
+  const userAvatarSource: ImageSourcePropType = useMemo(() => {
+    return resolveAvatarSource(user?.fotoUrl);
+  }, [user]);
+  const doctorAvatarSource: ImageSourcePropType = useMemo(() => {
+    const foto = sanitizeFotoUrl(nextCita?.medico?.fotoUrl);
+    if (foto) return { uri: foto };
+    return DoctorAvatar;
+  }, [nextCita?.medico?.fotoUrl]);
+
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    await AsyncStorage.removeItem(LEGACY_USER_STORAGE_KEY);
+
+    try {
+      if (Platform.OS === 'web') {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        localStorage.removeItem(LEGACY_TOKEN_KEY);
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
+      } else {
+        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
+        await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
+        await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
+        await SecureStore.deleteItemAsync(STORAGE_KEY);
+      }
+    } catch {}
+
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+  };
 
   return (
     <View style={styles.container}>
@@ -302,28 +515,40 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
             </View>
           </View>
 
+          <View style={styles.userBox}>
+            <Image source={userAvatarSource} style={styles.userAvatar} />
+            <Text style={styles.userName}>{fullName}</Text>
+            <Text style={styles.userPlan}>{planLabel}</Text>
+          </View>
+
           <View style={styles.menu}>
             <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('DashboardPaciente')}>
               <MaterialIcons name="grid-view" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.home')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+            >
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Buscar Médico</Text>
+              <Text style={styles.menuText}>{t('menu.searchDoctor')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('PacienteCitas')}
+            >
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.menuItem, styles.menuItemActive]}>
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemActive]}
+              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
+            >
               <MaterialIcons name="videocam" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>
-                {tx({ es: 'Videollamada activa', en: 'Active Video Call', pt: 'Videochamada ativa' })}
-              </Text>
-              <View style={styles.menuLiveDot} />
+              <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -334,20 +559,52 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
               <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('PacienteChat')}>
+              <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>{t('menu.chat')}</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('PacientePerfil')}>
               <MaterialIcons name="account-circle" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.profile')}</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('PacienteConfiguracion')}
+            >
+              <MaterialIcons name="settings" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>{t('menu.settings')}</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.exitBtn} onPress={() => navigation.navigate('DashboardPaciente')}>
-          <MaterialIcons name="logout" size={18} color="#fff" />
-          <Text style={styles.exitBtnText}>Salir</Text>
+        <TouchableOpacity style={styles.exitBtn} onPress={handleLogout}>
+          <MaterialIcons name="logout" size={20} color="#fff" />
+          <Text style={styles.exitBtnText}>{t('menu.logout')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.main}>
+        <View style={styles.header}>
+          <View style={styles.searchBox}>
+            <MaterialIcons name="search" size={20} color={colors.muted} />
+            <TextInput
+              placeholder="Busca un medico para consulta online"
+              placeholderTextColor="#8aa7bf"
+              style={styles.searchInput}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={styles.notifBtn}
+            onPress={() => navigation.navigate('PacienteNotificaciones')}
+          >
+            <MaterialIcons name="notifications" size={22} color={colors.dark} />
+            <View style={styles.notifDot} />
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.topBar}>
           <View style={styles.liveTag}>
             <Animated.View style={{ opacity: signalPulse }}>
@@ -362,10 +619,39 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
           </View>
         </View>
 
+        {upcomingCitas.length > 1 ? (
+          <View style={styles.selectorCard}>
+            <Text style={styles.selectorTitle}>Selecciona la cita a videollamar</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorList}>
+              {upcomingCitas.map((cita) => {
+                const citaId = String(cita?.citaid || '').trim();
+                const active = citaId && citaId === selectedCitaId;
+                return (
+                  <TouchableOpacity
+                    key={citaId || `cita-${formatDateTime(cita?.fechaHoraInicio || null)}`}
+                    style={[styles.selectorItem, active && styles.selectorItemActive]}
+                    onPress={() => setSelectedCitaId(citaId)}
+                  >
+                    <Image source={resolveAvatarSource(cita?.medico?.fotoUrl)} style={styles.selectorAvatar} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.selectorDoctor, active && styles.selectorDoctorActive]} numberOfLines={1}>
+                        {String(cita?.medico?.nombreCompleto || 'Especialista').trim() || 'Especialista'}
+                      </Text>
+                      <Text style={[styles.selectorTime, active && styles.selectorTimeActive]} numberOfLines={1}>
+                        {formatDateTime(cita?.fechaHoraInicio || null)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
+
         <View style={styles.contentWrap}>
           <View style={styles.centerCol}>
             <View style={styles.doctorAvatarWrap}>
-              <Image source={DoctorAvatar} style={styles.doctorAvatar} />
+              <Image source={doctorAvatarSource} style={styles.doctorAvatar} />
               <View style={styles.verifiedBadge}>
                 <MaterialIcons name="verified" size={14} color="#fff" />
               </View>
@@ -374,17 +660,23 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
             <Text style={styles.waitTitle}>
               {loadingCita
                 ? 'Cargando los datos de tu cita...'
-                : `El ${doctorName} se unira pronto a la sesion`}
+                : nextCita
+                  ? `El ${doctorName} se unira pronto a la sesion`
+                  : 'No tienes citas proximas para videollamada'}
             </Text>
             <View style={styles.waitDotsRow}>
               <Animated.Text style={[styles.waitDot, { opacity: dot1 }]}>•</Animated.Text>
               <Animated.Text style={[styles.waitDot, { opacity: dot2 }]}>•</Animated.Text>
               <Animated.Text style={[styles.waitDot, { opacity: dot3 }]}>•</Animated.Text>
             </View>
-            <Text style={styles.waitSub}>{loadingCita ? 'Sincronizando...' : 'En espera...'}</Text>
+            <Text style={styles.waitSub}>
+              {loadingCita ? 'Sincronizando...' : nextCita ? 'En espera...' : 'Agenda una consulta para iniciar.'}
+            </Text>
 
             <Text style={styles.waitHint}>
-              Por favor, no cierres esta ventana. Se te notificará con un sonido cuando el doctor esté listo.
+              {nextCita
+                ? 'Por favor, no cierres esta ventana. Se te notificará con un sonido cuando el doctor esté listo.'
+                : 'Cuando tengas una cita, podrás seleccionarla aquí para entrar directamente a la sala.'}
             </Text>
           </View>
 
@@ -418,7 +710,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
             </View>
 
             <View style={styles.cameraCard}>
-              <Image source={CameraPreview} style={styles.cameraImage} />
+              <Image source={userAvatarSource} style={styles.cameraImage} />
               <View style={styles.cameraTag}>
                 <Text style={styles.cameraTagText}>TU CÁMARA</Text>
               </View>
@@ -484,7 +776,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
             <ScrollView style={styles.settingsBody} contentContainerStyle={{ paddingBottom: 20 }}>
               <View style={styles.settingsPreviewBox}>
-                <Image source={CameraPreview} style={styles.settingsPreviewImage} />
+                <Image source={userAvatarSource} style={styles.settingsPreviewImage} />
                 <View style={styles.audioOkTag}>
                   <View style={styles.audioBars}>
                     <View style={styles.audioBar} />
@@ -686,9 +978,36 @@ const styles = StyleSheet.create({
   logo: { width: 44, height: 44, resizeMode: 'contain' },
   logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
   logoSubtitle: { fontSize: 11, fontWeight: '700', color: colors.muted },
-  menu: {
+  userBox: {
     marginTop: 18,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  userAvatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 76,
+    borderWidth: 4,
+    borderColor: '#f5f7fb',
+    marginBottom: 10,
+  },
+  userName: {
+    color: colors.dark,
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  userPlan: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  menu: {
+    marginTop: 10,
     gap: 6,
+    flex: Platform.OS === 'web' ? 1 : 0,
     flexDirection: Platform.OS === 'web' ? 'column' : 'row',
     flexWrap: 'wrap',
   },
@@ -708,13 +1027,6 @@ const styles = StyleSheet.create({
   },
   menuText: { fontSize: 14, fontWeight: '700', color: colors.muted },
   menuTextActive: { color: colors.primary },
-  menuLiveDot: {
-    marginLeft: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 8,
-    backgroundColor: '#22c55e',
-  },
   exitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -726,6 +1038,56 @@ const styles = StyleSheet.create({
   },
   exitBtnText: { color: '#fff', fontWeight: '800' },
   main: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 14,
+    flexWrap: 'wrap',
+    paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
+    paddingTop: Platform.OS === 'web' ? 18 : 12,
+  },
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  searchInput: { flex: 1, color: colors.dark, fontWeight: '600' },
+  notifBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  notifDot: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 10,
+    height: 10,
+    borderRadius: 10,
+    backgroundColor: '#ef4444',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
   topBar: {
     backgroundColor: '#fff',
     borderBottomWidth: 1,
@@ -750,6 +1112,64 @@ const styles = StyleSheet.create({
   },
   connectedDot: { width: 8, height: 8, borderRadius: 8, backgroundColor: '#22c55e' },
   connectedText: { color: '#16a34a', fontWeight: '800', fontSize: 11 },
+  selectorCard: {
+    marginHorizontal: 20,
+    marginTop: 14,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#deebf7',
+    borderRadius: 14,
+    padding: 12,
+  },
+  selectorTitle: {
+    color: colors.dark,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  selectorList: {
+    gap: 8,
+    paddingRight: 6,
+  },
+  selectorItem: {
+    width: 260,
+    borderWidth: 1,
+    borderColor: '#d6e7f7',
+    borderRadius: 12,
+    backgroundColor: '#f7fbff',
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectorItemActive: {
+    backgroundColor: 'rgba(19,127,236,0.10)',
+    borderColor: colors.primary,
+  },
+  selectorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: '#f1f6fb',
+  },
+  selectorDoctor: {
+    color: colors.dark,
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  selectorDoctorActive: {
+    color: colors.primary,
+  },
+  selectorTime: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  selectorTimeActive: {
+    color: colors.blue,
+  },
   contentWrap: {
     flex: 1,
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',

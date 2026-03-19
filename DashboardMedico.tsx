@@ -26,6 +26,7 @@ import { apiUrl } from './config/backend';
 import { MaterialIcons } from '@expo/vector-icons';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
+type MaterialIconName = keyof typeof MaterialIcons.glyphMap;
 
 // Usa tu logo como avatar default (para no depender de avatar-default.png)
 const DefaultAvatar = ViremLogo;
@@ -35,7 +36,7 @@ const PatientAvatar: ImageSourcePropType = {
 };
 
 type SideItem = {
-  icon: string;
+  icon: MaterialIconName;
   label: string;
   badge?: { text: string; color: string };
   active?: boolean;
@@ -45,7 +46,7 @@ type SideItem = {
 type StatCardProps = {
   title: string;
   value: string;
-  icon: string;
+  icon: MaterialIconName;
   trendText: string;
   trendUp?: boolean;
 };
@@ -54,12 +55,14 @@ type AgendaItemProps = {
   time: string;
   name: string;
   detail: string;
+  onPress?: () => void;
 };
 
 type FileCardProps = {
   name: string;
   id: string;
   lastSeen: string;
+  onPress?: () => void;
 };
 
 type SessionUser = {
@@ -274,8 +277,8 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, trendText, tren
   );
 };
 
-const AgendaRow: React.FC<AgendaItemProps> = ({ time, name, detail }) => (
-  <TouchableOpacity activeOpacity={0.85} style={styles.agendaRow}>
+const AgendaRow: React.FC<AgendaItemProps> = ({ time, name, detail, onPress }) => (
+  <TouchableOpacity activeOpacity={0.85} style={styles.agendaRow} onPress={onPress}>
     <View style={styles.agendaLeft}>
       <Text style={styles.agendaTime}>{time}</Text>
       <View style={styles.agendaTexts}>
@@ -287,8 +290,8 @@ const AgendaRow: React.FC<AgendaItemProps> = ({ time, name, detail }) => (
   </TouchableOpacity>
 );
 
-const FileCard: React.FC<FileCardProps> = ({ name, id, lastSeen }) => (
-  <TouchableOpacity activeOpacity={0.85} style={styles.fileCard}>
+const FileCard: React.FC<FileCardProps> = ({ name, id, lastSeen, onPress }) => (
+  <TouchableOpacity activeOpacity={0.85} style={styles.fileCard} onPress={onPress}>
     <View style={styles.fileTop}>
       <View style={styles.fileIconBox}>
         <MaterialIcons name="folder-shared" size={20} color={colors.primary} />
@@ -657,9 +660,47 @@ const DashboardMedico: React.FC = () => {
   ];
 
   const handleSideItemPress = (item: SideItem) => {
-    if (!item.route) return;
+    if (!item.route) {
+      if (item.label === 'Agenda') {
+        Alert.alert('Agenda', `Tienes ${dashboardData.agendaHoy.length} cita(s) para hoy.`);
+        return;
+      }
+      if (item.label === 'Pacientes') {
+        Alert.alert(
+          'Pacientes',
+          `Tienes ${dashboardData.expedientesRecientes.length} expediente(s) reciente(s).`
+        );
+        return;
+      }
+      if (item.label === 'Solicitudes') {
+        Alert.alert('Solicitudes', 'Las solicitudes pendientes se mostraran en una proxima version.');
+        return;
+      }
+      if (item.label === 'Mensajes') {
+        Alert.alert('Mensajes', 'El modulo de mensajeria medica estara disponible pronto.');
+        return;
+      }
+      if (item.label === 'Configuracion') {
+        navigation.navigate('MedicoPerfil');
+        return;
+      }
+      return;
+    }
     if (item.route === 'DashboardMedico') return;
     navigation.navigate(item.route);
+  };
+
+  const handleVideoCall = () => {
+    const nextAgenda = dashboardData.agendaHoy[0];
+    if (!nextAgenda) {
+      Alert.alert('Videollamada', 'No tienes citas disponibles para iniciar en este momento.');
+      return;
+    }
+
+    Alert.alert(
+      'Videollamada lista',
+      `Paciente: ${nextAgenda.name}\nHora: ${nextAgenda.time}\nDetalle: ${nextAgenda.detail}`
+    );
   };
 
   if (!profileReady) {
@@ -782,7 +823,7 @@ const DashboardMedico: React.FC = () => {
               </View>
             </View>
 
-            <TouchableOpacity activeOpacity={0.9} style={styles.bannerBtn} onPress={() => {}}>
+            <TouchableOpacity activeOpacity={0.9} style={styles.bannerBtn} onPress={handleVideoCall}>
               <MaterialIcons name="videocam" size={20} color="#fff" />
               <Text style={styles.bannerBtnText}>Iniciar Videollamada</Text>
             </TouchableOpacity>
@@ -799,7 +840,11 @@ const DashboardMedico: React.FC = () => {
           <View style={styles.section}>
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Agenda de hoy</Text>
-              <TouchableOpacity>
+              <TouchableOpacity
+                onPress={() =>
+                  Alert.alert('Agenda', `Citas programadas hoy: ${dashboardData.agendaHoy.length}`)
+                }
+              >
                 <Text style={styles.sectionLink}>Ver calendario</Text>
               </TouchableOpacity>
             </View>
@@ -812,6 +857,14 @@ const DashboardMedico: React.FC = () => {
                     time={item.time}
                     name={item.name}
                     detail={item.detail}
+                    onPress={() =>
+                      Alert.alert(
+                        item.name,
+                        `Hora: ${item.time}\nDetalle: ${item.detail}\nCodigo: ${
+                          item.patientCode || 'N/D'
+                        }`
+                      )
+                    }
                   />
                 ))
               ) : (
@@ -828,7 +881,14 @@ const DashboardMedico: React.FC = () => {
           <View style={styles.section}>
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Expedientes Recientes</Text>
-              <TouchableOpacity>
+              <TouchableOpacity
+                onPress={() =>
+                  Alert.alert(
+                    'Expedientes',
+                    `Expedientes recientes disponibles: ${dashboardData.expedientesRecientes.length}`
+                  )
+                }
+              >
                 <Text style={styles.sectionLink}>Ver todos</Text>
               </TouchableOpacity>
             </View>
@@ -836,7 +896,18 @@ const DashboardMedico: React.FC = () => {
             <View style={styles.filesGrid}>
               {dashboardData.expedientesRecientes.length ? (
                 dashboardData.expedientesRecientes.map((item) => (
-                  <FileCard key={item.id || item.code} name={item.name} id={item.code} lastSeen={item.lastSeenText} />
+                  <FileCard
+                    key={item.id || item.code}
+                    name={item.name}
+                    id={item.code}
+                    lastSeen={item.lastSeenText}
+                    onPress={() =>
+                      Alert.alert(
+                        item.name,
+                        `Codigo: ${item.code || 'N/D'}\nUltima consulta: ${item.lastSeenText}`
+                      )
+                    }
+                  />
                 ))
               ) : (
                 <View style={styles.emptyStateCard}>

@@ -23,6 +23,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage } from './localization/LanguageContext';
 import type { RootStackParamList } from './navigation/types';
 import { apiUrl } from './config/backend';
+import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -233,7 +234,7 @@ const PacientePerfilScreen: React.FC = () => {
           ? localStorage.getItem(LEGACY_USER_STORAGE_KEY)
           : await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY);
       const rawUserFromAsync = await AsyncStorage.getItem(STORAGE_KEY);
-      const storageUser = parseUser(rawUserFromStorage) || parseUser(rawUserFromAsync);
+      const storageUser = ensurePatientSessionUser(parseUser(rawUserFromStorage) || parseUser(rawUserFromAsync));
       const token = await getAuthToken();
 
       let nextUser = storageUser;
@@ -361,8 +362,8 @@ const PacientePerfilScreen: React.FC = () => {
 
   const fullName = useMemo(() => {
     const name = `${form.nombres} ${form.apellidos}`.trim();
-    return name || 'Paciente';
-  }, [form.nombres, form.apellidos]);
+    return name || getPatientDisplayName(user, 'Paciente');
+  }, [form.apellidos, form.nombres, user]);
 
   const planLabel = useMemo(() => {
     const plan = (user?.plan || '').trim();
@@ -591,12 +592,18 @@ const PacientePerfilScreen: React.FC = () => {
               <Text style={styles.menuText}>Buscar Médico</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteCitas')}
+            >
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
+            >
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
@@ -617,7 +624,10 @@ const PacientePerfilScreen: React.FC = () => {
               <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]}>
+            <TouchableOpacity
+              style={[styles.menuItemRow, styles.menuItemActive]}
+              onPress={() => navigation.navigate('PacientePerfil')}
+            >
               <MaterialIcons name="account-circle" size={20} color={colors.primary} />
               <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.profile')}</Text>
             </TouchableOpacity>
@@ -640,7 +650,10 @@ const PacientePerfilScreen: React.FC = () => {
               style={styles.searchInput}
             />
           </View>
-          <TouchableOpacity style={styles.notifBtn}>
+          <TouchableOpacity
+            style={styles.notifBtn}
+            onPress={() => navigation.navigate('PacienteNotificaciones')}
+          >
             <MaterialIcons name="notifications" size={22} color={colors.dark} />
             <View style={styles.notifDot} />
           </TouchableOpacity>

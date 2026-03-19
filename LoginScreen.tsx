@@ -161,8 +161,10 @@ const LoginScreen: React.FC = () => {
       const token = data?.token ?? data?.data?.token ?? '';
       const userProfile = data?.user ?? data?.data?.user ?? null;
       const cachedMedico = await getCachedMedicoProfileByEmail(emailTrim);
+      const responseRoleId = Number(userProfile?.rolid ?? userProfile?.rolId ?? userProfile?.roleId);
+      const shouldMergeMedicoCache = responseRoleId === 2;
       const mergedProfile =
-        cachedMedico && userProfile
+        shouldMergeMedicoCache && cachedMedico && userProfile
           ? {
               ...userProfile,
               nombreCompleto: userProfile?.nombreCompleto || cachedMedico?.nombreCompleto,

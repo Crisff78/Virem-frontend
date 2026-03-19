@@ -40,6 +40,7 @@ const VerificarIdentidadScreen: React.FC = () => {
     const route = useRoute<VerificarIdentidadRouteProp>();
     const navigation = useNavigation<NavigationProps>();
     const [isLoading, setIsLoading] = useState(false);
+    const [resendLoading, setResendLoading] = useState(false);
     
     const recipient = route.params?.email || 'tu correo electronico'; 
     const OTP_LENGTH = 6;
@@ -120,6 +121,32 @@ const VerificarIdentidadScreen: React.FC = () => {
         }
     };
 
+    const handleResendCode = async () => {
+        if (!recipient || recipient === 'tu correo electronico') {
+            Alert.alert('Error', 'No se encontro el correo para reenviar el codigo.');
+            return;
+        }
+
+        setResendLoading(true);
+        try {
+            const response = await fetch(apiUrl('/api/auth/recovery/send-code'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: recipient }),
+            });
+            const data = await response.json().catch(() => null);
+            if (response.ok && data?.success) {
+                Alert.alert('Codigo reenviado', 'Revisa tu correo para el nuevo codigo.');
+            } else {
+                Alert.alert('Error', data?.message || 'No se pudo reenviar el codigo.');
+            }
+        } catch {
+            Alert.alert('Error', 'Sin conexion al servidor.');
+        } finally {
+            setResendLoading(false);
+        }
+    };
+
     return (
         <View style={styles.mainContainer}>
             <View style={styles.cardContainer}>
@@ -135,7 +162,12 @@ const VerificarIdentidadScreen: React.FC = () => {
                     {isLoading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Verificar Codigo</Text>}
                 </TouchableOpacity>
                 <View style={styles.resendTextWrapper}>
-                    <Text style={styles.resendText}>No recibiste el codigo? <TouchableOpacity><Text style={styles.resendLink}>Reenviar</Text></TouchableOpacity></Text>
+                    <Text style={styles.resendText}>No recibiste el codigo? </Text>
+                    <TouchableOpacity onPress={handleResendCode} disabled={resendLoading}>
+                        <Text style={styles.resendLink}>
+                            {resendLoading ? 'Enviando...' : 'Reenviar'}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             </View>
         </View>

@@ -28,6 +28,7 @@ import { apiUrl } from './config/backend';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useLanguage } from './localization/LanguageContext';
+import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 
@@ -60,6 +61,19 @@ const sanitizeFotoUrl = (value: unknown) => {
   if (!clean) return '';
   if (clean.toLowerCase().startsWith('blob:')) return '';
   return clean;
+};
+
+const extractUserId = (value: unknown) => {
+  const source = (value || {}) as Record<string, unknown>;
+  return normalizeString(source.usuarioid || source.id);
+};
+
+const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
+  const clean = sanitizeFotoUrl(value);
+  if (clean) {
+    return { uri: clean };
+  }
+  return DefaultAvatar;
 };
 
 const getAuthToken = async (): Promise<string> => {
@@ -112,9 +126,19 @@ const formatRelativeIn = (value: string | null) => {
   return `en ${diffDay} dia(s)`;
 };
 
+const parseDateMs = (value: string | null | undefined) => {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
+};
+
+const sortCitasByStartAsc = (items: CitaItem[]) =>
+  [...items].sort((a, b) => parseDateMs(a?.fechaHoraInicio) - parseDateMs(b?.fechaHoraInicio));
+
 /* ===================== TIPOS ===================== */
 type User = {
   id?: number | string;
+  usuarioid?: number | string;
   nombres?: string;
   apellidos?: string;
   nombre?: string;
@@ -142,6 +166,7 @@ type CitaItem = {
     medicoid?: string;
     nombreCompleto?: string;
     especialidad?: string;
+    fotoUrl?: string | null;
   };
 };
 
@@ -158,18 +183,22 @@ type AppointmentCardProps = {
   detail: string;
   avatar: ImageSourcePropType;
   simple?: boolean;
+  onPostpone?: () => void;
+  onDetails?: () => void;
 };
 
 type DocRowProps = {
   icon: string;
   title: string;
   sub: string;
+  onDownload?: () => void;
 };
 
 type DoctorCardProps = {
   name: string;
   spec: string;
   avatar: ImageSourcePropType;
+  onReserve?: () => void;
 };
 
 type NotificationItem = {
@@ -197,6 +226,8 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   detail,
   avatar,
   simple = false,
+  onPostpone,
+  onDetails,
 }) => (
   <View style={styles.apptCard}>
     <Image source={avatar} style={styles.apptAvatar} />
@@ -207,18 +238,18 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
 
     <View style={styles.apptBtns}>
       {!simple && (
-        <TouchableOpacity style={styles.smallBtnGray}>
+        <TouchableOpacity style={styles.smallBtnGray} onPress={onPostpone}>
           <Text style={styles.smallBtnGrayText}>Posponer</Text>
         </TouchableOpacity>
       )}
-      <TouchableOpacity style={styles.smallBtnBlue}>
+      <TouchableOpacity style={styles.smallBtnBlue} onPress={onDetails}>
         <Text style={styles.smallBtnBlueText}>Detalles</Text>
       </TouchableOpacity>
     </View>
   </View>
 );
 
-const DocRow: React.FC<DocRowProps> = ({ icon, title, sub }) => (
+const DocRow: React.FC<DocRowProps> = ({ icon, title, sub, onDownload }) => (
   <View style={styles.docRow}>
     <View style={styles.docLeft}>
       <View style={styles.docIconBox}>
@@ -233,13 +264,13 @@ const DocRow: React.FC<DocRowProps> = ({ icon, title, sub }) => (
         </Text>
       </View>
     </View>
-    <TouchableOpacity>
+    <TouchableOpacity onPress={onDownload}>
       <MaterialIcons name="download" size={20} color={colors.muted} />
     </TouchableOpacity>
   </View>
 );
 
-const DoctorCard: React.FC<DoctorCardProps> = ({ name, spec, avatar }) => (
+const DoctorCard: React.FC<DoctorCardProps> = ({ name, spec, avatar, onReserve }) => (
   <View style={styles.doctorCard}>
     <Image source={avatar} style={styles.doctorAvatar} />
     <Text style={styles.doctorName} numberOfLines={1}>
@@ -248,7 +279,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ name, spec, avatar }) => (
     <Text style={styles.doctorSpec} numberOfLines={1}>
       {spec}
     </Text>
-    <TouchableOpacity style={styles.reserveBtn}>
+    <TouchableOpacity style={styles.reserveBtn} onPress={onReserve}>
       <Text style={styles.reserveText}>RESERVAR</Text>
     </TouchableOpacity>
   </View>
@@ -321,7 +352,7 @@ const DashboardPacienteScreen: React.FC = () => {
           ? localStorage.getItem(LEGACY_USER_STORAGE_KEY)
           : await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY);
       const rawUserFromAsync = await AsyncStorage.getItem(STORAGE_KEY);
-      let sessionUser = parseUser(rawUserFromStorage) || parseUser(rawUserFromAsync);
+      let sessionUser = ensurePatientSessionUser(parseUser(rawUserFromStorage) || parseUser(rawUserFromAsync));
 
       const rawTokenFromStorage =
         Platform.OS === 'web'
@@ -333,32 +364,46 @@ const DashboardPacienteScreen: React.FC = () => {
 
       if (authToken) {
         try {
-          const response = await fetch(apiUrl('/api/auth/me'), {
+          const profileResponse = await fetch(apiUrl('/api/users/me/paciente-profile'), {
             method: 'GET',
             headers: { Authorization: `Bearer ${authToken}` },
           });
-          const payload = await response.json().catch(() => null);
+          const profilePayload = await profileResponse.json().catch(() => null);
+          if (profileResponse.ok && profilePayload?.success && profilePayload?.profile) {
+            const profileUser = profilePayload.profile as User;
+            const cachedUserId = extractUserId(sessionUser);
+            const profileUserId = extractUserId(profileUser);
+            const safeSessionUser =
+              cachedUserId && profileUserId && cachedUserId !== profileUserId ? null : sessionUser;
 
-          if (response.ok && payload?.success && payload?.user) {
-            const apiUser = payload.user as User;
             const mergedUser: User = {
-              ...(sessionUser || {}),
-              ...apiUser,
+              ...(safeSessionUser || {}),
+              ...profileUser,
               nombres: normalizeString(
-                apiUser?.nombres || sessionUser?.nombres || sessionUser?.nombre || apiUser?.nombre
+                (profileUser as any)?.nombres ||
+                  safeSessionUser?.nombres ||
+                  safeSessionUser?.nombre ||
+                  (profileUser as any)?.nombre
               ),
               apellidos: normalizeString(
-                apiUser?.apellidos || sessionUser?.apellidos || sessionUser?.apellido || apiUser?.apellido
+                (profileUser as any)?.apellidos ||
+                  safeSessionUser?.apellidos ||
+                  safeSessionUser?.apellido ||
+                  (profileUser as any)?.apellido
               ),
-              nombre: normalizeString(apiUser?.nombre || apiUser?.nombres || sessionUser?.nombre),
-              apellido: normalizeString(apiUser?.apellido || apiUser?.apellidos || sessionUser?.apellido),
-              fotoUrl: sanitizeFotoUrl(apiUser?.fotoUrl || sessionUser?.fotoUrl),
-              email: normalizeString(apiUser?.email || sessionUser?.email),
-              telefono: normalizeString((apiUser as any)?.telefono || (sessionUser as any)?.telefono),
-              cedula: normalizeString((apiUser as any)?.cedula || (sessionUser as any)?.cedula),
-              genero: normalizeString((apiUser as any)?.genero || (sessionUser as any)?.genero),
+              nombre: normalizeString(
+                (profileUser as any)?.nombre || (profileUser as any)?.nombres || safeSessionUser?.nombre
+              ),
+              apellido: normalizeString(
+                (profileUser as any)?.apellido || (profileUser as any)?.apellidos || safeSessionUser?.apellido
+              ),
+              fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
+              email: normalizeString((profileUser as any)?.email || safeSessionUser?.email),
+              telefono: normalizeString((profileUser as any)?.telefono || (safeSessionUser as any)?.telefono),
+              cedula: normalizeString((profileUser as any)?.cedula || (safeSessionUser as any)?.cedula),
+              genero: normalizeString((profileUser as any)?.genero || (safeSessionUser as any)?.genero),
               fechanacimiento: normalizeString(
-                (apiUser as any)?.fechanacimiento || (sessionUser as any)?.fechanacimiento
+                (profileUser as any)?.fechanacimiento || (safeSessionUser as any)?.fechanacimiento
               ),
             };
 
@@ -378,6 +423,63 @@ const DashboardPacienteScreen: React.FC = () => {
                 await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
               }
             } catch {}
+          } else {
+            const response = await fetch(apiUrl('/api/auth/me'), {
+              method: 'GET',
+              headers: { Authorization: `Bearer ${authToken}` },
+            });
+            const payload = await response.json().catch(() => null);
+
+            if (response.ok && payload?.success && payload?.user) {
+              const apiUser = payload.user as User;
+              const cachedUserId = extractUserId(sessionUser);
+              const apiUserId = extractUserId(apiUser);
+              const safeSessionUser =
+                cachedUserId && apiUserId && cachedUserId !== apiUserId ? null : sessionUser;
+
+              const apiRoleId = Number((apiUser as any)?.rolid ?? (apiUser as any)?.rolId ?? (apiUser as any)?.roleId);
+              if (apiRoleId !== 2) {
+                const mergedUser: User = {
+                  ...(safeSessionUser || {}),
+                  ...apiUser,
+                  nombres: normalizeString(
+                    apiUser?.nombres || safeSessionUser?.nombres || safeSessionUser?.nombre || apiUser?.nombre
+                  ),
+                  apellidos: normalizeString(
+                    apiUser?.apellidos || safeSessionUser?.apellidos || safeSessionUser?.apellido || apiUser?.apellido
+                  ),
+                  nombre: normalizeString(apiUser?.nombre || apiUser?.nombres || safeSessionUser?.nombre),
+                  apellido: normalizeString(apiUser?.apellido || apiUser?.apellidos || safeSessionUser?.apellido),
+                  fotoUrl: sanitizeFotoUrl(apiUser?.fotoUrl),
+                  email: normalizeString(apiUser?.email || safeSessionUser?.email),
+                  telefono: normalizeString((apiUser as any)?.telefono || (safeSessionUser as any)?.telefono),
+                  cedula: normalizeString((apiUser as any)?.cedula || (safeSessionUser as any)?.cedula),
+                  genero: normalizeString((apiUser as any)?.genero || (safeSessionUser as any)?.genero),
+                  fechanacimiento: normalizeString(
+                    (apiUser as any)?.fechanacimiento || (safeSessionUser as any)?.fechanacimiento
+                  ),
+                };
+
+                sessionUser = mergedUser;
+                const rawNextUser = JSON.stringify(mergedUser);
+
+                try {
+                  await AsyncStorage.setItem(STORAGE_KEY, rawNextUser);
+                  await AsyncStorage.setItem('user', rawNextUser);
+                } catch {}
+
+                try {
+                  if (Platform.OS === 'web') {
+                    localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
+                    localStorage.setItem('user', rawNextUser);
+                  } else {
+                    await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
+                  }
+                } catch {}
+              } else {
+                sessionUser = null;
+              }
+            }
           }
         } catch {
           // Fallback silencioso a storage.
@@ -404,7 +506,7 @@ const DashboardPacienteScreen: React.FC = () => {
             upcomingPayload?.success &&
             Array.isArray(upcomingPayload?.citas)
           ) {
-            setUpcomingCitas(upcomingPayload.citas as CitaItem[]);
+            setUpcomingCitas(sortCitasByStartAsc(upcomingPayload.citas as CitaItem[]));
           } else {
             setUpcomingCitas([]);
           }
@@ -448,12 +550,7 @@ const DashboardPacienteScreen: React.FC = () => {
     }, [loadUser])
   );
 
-  const fullName = useMemo(() => {
-    const nombres = (user?.nombres || user?.nombre || user?.firstName || '').trim();
-    const apellidos = (user?.apellidos || user?.apellido || user?.lastName || '').trim();
-    const name = `${nombres} ${apellidos}`.trim();
-    return name || 'Paciente';
-  }, [user]);
+  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
 
   const planLabel = useMemo(() => {
     const plan = (user?.plan || '').trim();
@@ -469,9 +566,12 @@ const DashboardPacienteScreen: React.FC = () => {
     return DefaultAvatar;
   }, [user]);
 
-  // Doctores placeholder (esto no depende del usuario)
-  const Doctor1: ImageSourcePropType = { uri: 'https://i.pravatar.cc/150?img=12' };
-  const Doctor2: ImageSourcePropType = { uri: 'https://i.pravatar.cc/150?img=32' };
+  const getDoctorAvatar = useCallback(
+    (cita: CitaItem | null | undefined): ImageSourcePropType =>
+      resolveAvatarSource(cita?.medico?.fotoUrl),
+    []
+  );
+
   const primaryCita = upcomingCitas.length ? upcomingCitas[0] : null;
   const pendingCitas = useMemo(() => {
     if (!upcomingCitas.length) return [];
@@ -479,14 +579,15 @@ const DashboardPacienteScreen: React.FC = () => {
   }, [upcomingCitas, primaryCita]);
   const historyRows = useMemo(() => historyCitas.slice(0, 2), [historyCitas]);
   const frequentDoctors = useMemo(() => {
-    const order: { name: string; spec: string }[] = [];
+    const order: { name: string; spec: string; fotoUrl: string }[] = [];
     const seen = new Set<string>();
     for (const cita of [...upcomingCitas, ...historyCitas]) {
       const name = normalizeString(cita?.medico?.nombreCompleto || '');
       const spec = normalizeString(cita?.medico?.especialidad || 'Medicina General');
+      const fotoUrl = sanitizeFotoUrl(cita?.medico?.fotoUrl);
       if (!name || seen.has(name.toLowerCase())) continue;
       seen.add(name.toLowerCase());
-      order.push({ name, spec: spec || 'Medicina General' });
+      order.push({ name, spec: spec || 'Medicina General', fotoUrl });
       if (order.length >= 2) break;
     }
     return order;
@@ -494,6 +595,7 @@ const DashboardPacienteScreen: React.FC = () => {
 
   const primaryDoctorName = normalizeString(primaryCita?.medico?.nombreCompleto || '');
   const primaryDoctorSpec = normalizeString(primaryCita?.medico?.especialidad || 'Medicina General');
+  const primaryDoctorAvatar = useMemo(() => getDoctorAvatar(primaryCita), [getDoctorAvatar, primaryCita]);
   const primaryDateLabel = formatDateTime(primaryCita?.fechaHoraInicio || null);
   const primaryRelative = formatRelativeIn(primaryCita?.fechaHoraInicio || null);
 
@@ -537,7 +639,7 @@ const DashboardPacienteScreen: React.FC = () => {
       Alert.alert('Videollamada', 'No tienes citas activas para entrar ahora.');
       return;
     }
-    navigation.navigate('SalaEsperaVirtualPaciente');
+    navigation.navigate('SalaEsperaVirtualPaciente', { citaId: primaryCita.citaid });
   };
 
   const handleSeePreparations = () => {
@@ -607,6 +709,35 @@ const DashboardPacienteScreen: React.FC = () => {
     setChatReply('');
   };
 
+  const handlePostponeCita = async (cita: CitaItem) => {
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        Alert.alert('Sesion expirada', 'Inicia sesion nuevamente.');
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
+      }
+
+      const response = await fetch(apiUrl(`/api/users/me/citas/${cita.citaid}/postpone`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) {
+        Alert.alert('No se pudo posponer', payload?.message || 'Intenta nuevamente.');
+        return;
+      }
+
+      Alert.alert('Cita pospuesta', `Nueva fecha: ${formatDateTime(payload?.cita?.fechaHoraInicio || null)}`);
+      loadUser();
+    } catch {
+      Alert.alert('Error', 'No se pudo conectar para posponer la cita.');
+    }
+  };
+
   const unreadNotifications = notifications.filter((n) => n.unread).length;
 
   const markAllNotificationsRead = () => {
@@ -643,22 +774,34 @@ const DashboardPacienteScreen: React.FC = () => {
 
           {/* Menú */}
           <View style={styles.menu}>
-            <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]}>
+            <TouchableOpacity
+              style={[styles.menuItemRow, styles.menuItemActive]}
+              onPress={() => navigation.navigate('DashboardPaciente')}
+            >
               <MaterialIcons name="grid-view" size={20} color={colors.primary} />
               <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.home')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+            >
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.searchDoctor')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteCitas')}
+            >
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
+            >
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
@@ -774,7 +917,7 @@ const DashboardPacienteScreen: React.FC = () => {
           </View>
 
           <View style={styles.bigCardRight}>
-            <Image source={Doctor1} style={styles.bigCardImage} />
+            <Image source={primaryDoctorAvatar} style={styles.bigCardImage} />
           </View>
         </View>
 
@@ -814,7 +957,7 @@ const DashboardPacienteScreen: React.FC = () => {
           <View style={styles.colLeft}>
             <View style={styles.rowBetween}>
               <Text style={styles.sectionTitle}>Citas pendientes</Text>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('PacienteCitas')}>
                 <Text style={styles.link}>Ver todas</Text>
               </TouchableOpacity>
             </View>
@@ -825,8 +968,26 @@ const DashboardPacienteScreen: React.FC = () => {
                   key={cita.citaid || `${cita.fechaHoraInicio}-${index}`}
                   doctor={normalizeString(cita?.medico?.nombreCompleto || 'Especialista')}
                   detail={`${normalizeString(cita?.medico?.especialidad || 'Medicina General')} · ${formatDateTime(cita.fechaHoraInicio)}`}
-                  avatar={index % 2 === 0 ? Doctor2 : Doctor1}
+                  avatar={getDoctorAvatar(cita)}
                   simple={index % 2 !== 0}
+                  onPostpone={() =>
+                    Alert.alert(
+                      'Posponer cita',
+                      `Se movera 24 horas hacia adelante.\nCita actual: ${formatDateTime(cita.fechaHoraInicio)}`,
+                      [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { text: 'Posponer', onPress: () => handlePostponeCita(cita) },
+                      ]
+                    )
+                  }
+                  onDetails={() =>
+                    Alert.alert(
+                      'Detalle de cita',
+                      `${normalizeString(cita?.medico?.nombreCompleto || 'Especialista')}\n${normalizeString(
+                        cita?.medico?.especialidad || 'Medicina General'
+                      )}\n${formatDateTime(cita.fechaHoraInicio)}`
+                    )
+                  }
                 />
               ))
             ) : (
@@ -854,6 +1015,14 @@ const DashboardPacienteScreen: React.FC = () => {
                     icon={index % 2 === 0 ? 'history' : 'description'}
                     title={`${normalizeString(cita?.medico?.especialidad || 'Consulta')} · ${normalizeString(cita.estado || 'Completada')}`}
                     sub={`${normalizeString(cita?.medico?.nombreCompleto || 'Especialista')} · ${formatDateTime(cita.fechaHoraInicio)}`}
+                    onDownload={() =>
+                      Alert.alert(
+                        'Documento clinico',
+                        `Puedes descargar documentos completos en "Mis recetas".\nConsulta: ${formatDateTime(
+                          cita.fechaHoraInicio
+                        )}`
+                      )
+                    }
                   />
                 ))
               ) : (
@@ -875,7 +1044,10 @@ const DashboardPacienteScreen: React.FC = () => {
                     key={`${item.name}-${index}`}
                     name={item.name}
                     spec={item.spec}
-                    avatar={index % 2 === 0 ? Doctor1 : Doctor2}
+                    avatar={resolveAvatarSource(item.fotoUrl)}
+                    onReserve={() =>
+                      navigation.navigate('EspecialistasPorEspecialidad', { specialty: item.spec })
+                    }
                   />
                 ))
               ) : (
@@ -937,9 +1109,9 @@ const DashboardPacienteScreen: React.FC = () => {
           ]}
         >
           <View style={styles.chatHeader}>
-            <Image source={Doctor1} style={styles.chatAvatar} />
+            <Image source={primaryDoctorAvatar} style={styles.chatAvatar} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.chatName}>Dr. Ricardo Ruiz</Text>
+              <Text style={styles.chatName}>{primaryDoctorName || 'Especialista'}</Text>
               <View style={styles.onlineRow}>
                 <View style={styles.onlineDot} />
                 <Text style={styles.onlineText}>Online</Text>
@@ -1137,7 +1309,11 @@ const DashboardPacienteScreen: React.FC = () => {
                   disabled={!allPrepItemsSelected}
                   onPress={() => {
                     setPrepOpen(false);
-                    navigation.navigate('SalaEsperaVirtualPaciente');
+                    if (primaryCita?.citaid) {
+                      navigation.navigate('SalaEsperaVirtualPaciente', { citaId: primaryCita.citaid });
+                    } else {
+                      navigation.navigate('SalaEsperaVirtualPaciente');
+                    }
                   }}
                 >
                   <Text style={[styles.readyBtnText, !allPrepItemsSelected && styles.readyBtnTextDisabled]}>

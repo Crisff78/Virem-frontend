@@ -20,6 +20,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
 import { apiUrl } from './config/backend';
+import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -66,18 +67,20 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
     const loadUser = async () => {
       try {
         if (Platform.OS === 'web') {
-          const webUser = parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY));
+          const webUser = ensurePatientSessionUser(parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY)));
           if (webUser) {
             setUser(webUser);
             return;
           }
         }
-        const secureUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
+        const secureUser = ensurePatientSessionUser(
+          parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY))
+        );
         if (secureUser) {
           setUser(secureUser);
           return;
         }
-        setUser(parseUser(await AsyncStorage.getItem(STORAGE_KEY)));
+        setUser(ensurePatientSessionUser(parseUser(await AsyncStorage.getItem(STORAGE_KEY))));
       } catch {
         setUser(null);
       }
@@ -85,11 +88,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
     loadUser();
   }, []);
 
-  const fullName = useMemo(() => {
-    const nombres = (user?.nombres || user?.nombre || user?.firstName || '').trim();
-    const apellidos = (user?.apellidos || user?.apellido || user?.lastName || '').trim();
-    return `${nombres} ${apellidos}`.trim() || 'Paciente';
-  }, [user]);
+  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
 
   const planLabel = useMemo(() => {
     const plan = (user?.plan || '').trim();
@@ -282,15 +281,24 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
               <MaterialIcons name="grid-view" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.home')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+            >
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.searchDoctor')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteCitas')}
+            >
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
+            >
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>

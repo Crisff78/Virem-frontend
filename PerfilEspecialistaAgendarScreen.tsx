@@ -20,8 +20,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { useLanguage } from './localization/LanguageContext';
-import type { RootStackParamList } from './navigation/types';
+import type { DoctorRouteSnapshot, RootStackParamList } from './navigation/types';
 import { apiUrl } from './config/backend';
+import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -31,11 +32,9 @@ const LEGACY_USER_STORAGE_KEY = 'userProfile';
 const AUTH_TOKEN_KEY = 'authToken';
 const LEGACY_TOKEN_KEY = 'token';
 
-const Doctor1: ImageSourcePropType = { uri: 'https://i.pravatar.cc/240?img=12' };
-const Doctor2: ImageSourcePropType = { uri: 'https://i.pravatar.cc/240?img=32' };
-const Doctor3: ImageSourcePropType = { uri: 'https://i.pravatar.cc/240?img=18' };
-
 type User = {
+  id?: number | string;
+  usuarioid?: number | string;
   nombres?: string;
   apellidos?: string;
   nombre?: string;
@@ -69,6 +68,7 @@ type BackendMedico = {
   genero?: string;
   cedula?: string;
   telefono?: string;
+  fotoUrl?: string | null;
 };
 
 const parseUser = (raw: string | null): User | null => {
@@ -88,18 +88,86 @@ const normalizeText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
+const sanitizeFotoUrl = (value: unknown) => {
+  const clean = String(value || '').trim();
+  if (!clean) return '';
+  if (clean.toLowerCase().startsWith('blob:')) return '';
+  return clean;
+};
+
+const resolveDoctorImage = (value: { fotoUrl?: string | null }): ImageSourcePropType => {
+  const clean = sanitizeFotoUrl(value.fotoUrl);
+  if (clean) {
+    return { uri: clean };
+  }
+  return DefaultAvatar;
+};
+
+const toDoctorProfile = (value: {
+  id?: string;
+  specialty?: string;
+  name?: string;
+  focus?: string;
+  years?: string;
+  rating?: string;
+  reviews?: string;
+  languages?: string;
+  license?: string;
+  price?: string;
+  fotoUrl?: string | null;
+  image?: ImageSourcePropType;
+  about?: string;
+  services?: string[];
+}): DoctorProfile => {
+  const specialty = String(value.specialty || 'Medicina General').trim() || 'Medicina General';
+  const name = String(value.name || '').trim() || 'Doctor';
+  const focus = String(value.focus || '').trim() || `Especialista en ${specialty}`;
+  const years = String(value.years || '').trim() || 'No disponible';
+  const rating = String(value.rating || '').trim() || 'N/D';
+  const reviews = String(value.reviews || '').trim() || 'N/D';
+  const languages = String(value.languages || '').trim() || 'Español';
+  const license = String(value.license || '').trim() || 'No disponible';
+  const price = String(value.price || '').trim() || 'N/D';
+  const about =
+    String(value.about || '').trim() ||
+    `Especialista en ${specialty}. Puedes agendar una consulta virtual para evaluacion y seguimiento clinico.`;
+  const services =
+    Array.isArray(value.services) && value.services.length
+      ? value.services
+      : [
+          `Consulta de ${specialty}`,
+          'Orientacion clinica y plan de manejo',
+          'Seguimiento por plataforma',
+        ];
+
+  return {
+    id: String(value.id || '').trim(),
+    specialty,
+    name,
+    focus,
+    years,
+    rating,
+    reviews,
+    languages,
+    license,
+    price,
+    image: value.image || resolveDoctorImage({ fotoUrl: value.fotoUrl }),
+    about,
+    services,
+  };
+};
+
 const mapBackendMedicoToProfile = (
   medico: BackendMedico,
   fallbackSpecialty: string
 ): DoctorProfile => {
   const specialty = String(medico?.especialidad || fallbackSpecialty || 'Medicina General').trim() || 'Medicina General';
   const name = String(medico?.nombreCompleto || '').trim() || 'Doctor';
-  const genero = normalizeText(medico?.genero);
-  const image = genero.includes('f') ? Doctor2 : Doctor1;
   const cedula = String(medico?.cedula || '').trim();
   const telefono = String(medico?.telefono || '').trim();
+  const fotoUrl = sanitizeFotoUrl(medico?.fotoUrl);
 
-  return {
+  return toDoctorProfile({
     id: String(medico?.medicoid || ''),
     specialty,
     name,
@@ -110,15 +178,61 @@ const mapBackendMedicoToProfile = (
     languages: 'Español',
     license: cedula || 'No disponible',
     price: 'N/D',
-    image,
+    fotoUrl: fotoUrl || null,
+    image: resolveDoctorImage({ fotoUrl }),
     about: `Especialista en ${specialty}. Puedes agendar una consulta virtual para evaluacion y seguimiento clinico.`,
     services: [
       `Consulta de ${specialty}`,
       'Orientacion clinica y plan de manejo',
       telefono ? `Contacto: ${telefono}` : 'Seguimiento por plataforma',
     ],
-  };
+  });
 };
+
+const mapRouteSnapshotToProfile = (
+  snapshot: DoctorRouteSnapshot,
+  fallbackSpecialty: string,
+  doctorId: string
+): DoctorProfile => {
+  const specialty =
+    String(fallbackSpecialty || '').trim() || String(snapshot?.focus || '').trim() || 'Medicina General';
+  return toDoctorProfile({
+    id: doctorId,
+    specialty,
+    name: snapshot.name,
+    focus: snapshot.focus || specialty,
+    years: snapshot.exp,
+    rating: snapshot.rating,
+    reviews: snapshot.reviews,
+    languages: 'Español',
+    license: 'No disponible',
+    price: snapshot.price,
+    fotoUrl: sanitizeFotoUrl(snapshot?.fotoUrl),
+    image: resolveDoctorImage({ fotoUrl: sanitizeFotoUrl(snapshot?.fotoUrl) }),
+    about: `Especialista en ${specialty}. Consulta virtual disponible para evaluacion y seguimiento.`,
+    services:
+      Array.isArray(snapshot.tags) && snapshot.tags.length
+        ? snapshot.tags
+        : [`Consulta de ${specialty}`, 'Seguimiento por plataforma'],
+  });
+};
+
+const createGenericFallbackDoctor = (specialty: string, doctorId: string): DoctorProfile =>
+  toDoctorProfile({
+    id: doctorId,
+    specialty,
+    name: 'Especialista disponible',
+    focus: specialty,
+    years: 'No disponible',
+    rating: 'N/D',
+    reviews: 'N/D',
+    languages: 'Español',
+    license: 'No disponible',
+    price: 'N/D',
+    image: DefaultAvatar,
+    about: `Perfil temporal para ${specialty}. Actualiza la lista de especialistas para ver el perfil completo.`,
+    services: [`Consulta de ${specialty}`, 'Atencion virtual'],
+  });
 
 const isSameCalendarDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
@@ -149,66 +263,9 @@ const getAuthToken = async (): Promise<string> => {
   }
 };
 
-const doctorProfiles: DoctorProfile[] = [
-  {
-    id: 'cardio-1',
-    specialty: 'Cardiologia',
-    name: 'Dr. Alejandro Mendez',
-    focus: 'Especialista en Cardiologia Intervencionista',
-    years: '12 años',
-    rating: '4.9',
-    reviews: '124',
-    languages: 'Español, Ingles',
-    license: '282855',
-    price: '65',
-    image: Doctor1,
-    about:
-      'El Dr. Alejandro Mendez es un cardiologo con amplia experiencia en afecciones cardiovasculares complejas. Su enfoque combina medicina preventiva y procedimientos de minima invasion.',
-    services: [
-      'Tratamiento de arritmias',
-      'Control de hipertension',
-      'Ecografia doppler',
-      'Pruebas de esfuerzo',
-      'Chequeo cardiovascular completo',
-    ],
-  },
-  {
-    id: 'cardio-2',
-    specialty: 'Cardiologia',
-    name: 'Dra. Elena Rodriguez',
-    focus: 'Cardiologia Pediatrica',
-    years: '8 años',
-    rating: '4.8',
-    reviews: '89',
-    languages: 'Español',
-    license: '192021',
-    price: '80',
-    image: Doctor2,
-    about:
-      'Especialista en cardiologia pediatrica, con enfoque humanizado y seguimiento continuo para niños con patologias cardiacas.',
-    services: ['Soplos', 'Prevencion infantil', 'Electrocardiograma pediatrico'],
-  },
-  {
-    id: 'cardio-3',
-    specialty: 'Cardiologia',
-    name: 'Dr. Javier Santos',
-    focus: 'Cardiologia Clinica y Rehabilitacion',
-    years: '20 años',
-    rating: '5.0',
-    reviews: '210',
-    languages: 'Español, Ingles',
-    license: '887744',
-    price: '55',
-    image: Doctor3,
-    about:
-      'Experto en prevencion secundaria y rehabilitacion cardiaca para pacientes post-evento.',
-    services: ['Infartos', 'Rehabilitacion', 'Control de riesgo cardiovascular'],
-  },
-];
-
 const PerfilEspecialistaAgendarScreen: React.FC = () => {
 
-  const { t, tx } = useLanguage();
+  const { t } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'PerfilEspecialistaAgendar'>>();
   const [user, setUser] = useState<User | null>(null);
@@ -220,13 +277,13 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const [loadingDoctor, setLoadingDoctor] = useState(false);
 
   const specialty = route.params?.specialty || 'Cardiologia';
+  const routeDoctorId = String(route.params?.doctorId || '').trim();
   const fallbackDoctor = useMemo(() => {
-    return (
-      doctorProfiles.find((profile) => profile.id === route.params?.doctorId) ||
-      doctorProfiles.find((profile) => profile.specialty === specialty) ||
-      doctorProfiles[0]
-    );
-  }, [route.params?.doctorId, specialty]);
+    if (route.params?.doctorSnapshot) {
+      return mapRouteSnapshotToProfile(route.params.doctorSnapshot, specialty, routeDoctorId);
+    }
+    return createGenericFallbackDoctor(specialty, routeDoctorId);
+  }, [route.params?.doctorSnapshot, routeDoctorId, specialty]);
   const doctor = backendDoctor || fallbackDoctor;
 
   const availableDays = useMemo(() => {
@@ -287,22 +344,88 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   useEffect(() => {
     const loadUser = async () => {
       try {
+        let sessionUser: User | null = null;
+
         if (Platform.OS === 'web') {
           const localStorageUser = parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY));
-          if (localStorageUser) {
-            setUser(localStorageUser);
-            return;
+          if (localStorageUser) sessionUser = localStorageUser;
+        }
+
+        if (!sessionUser) {
+          const secureStoreUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
+          if (secureStoreUser) sessionUser = secureStoreUser;
+        }
+
+        if (!sessionUser) {
+          const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
+          if (asyncUser) sessionUser = asyncUser;
+        }
+
+        sessionUser = ensurePatientSessionUser(sessionUser);
+
+        const token = await getAuthToken();
+        if (token) {
+          const profileResponse = await fetch(apiUrl('/api/users/me/paciente-profile'), {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const profilePayload = await profileResponse.json().catch(() => null);
+          if (profileResponse.ok && profilePayload?.success && profilePayload?.profile) {
+            const profileUser = profilePayload.profile as User;
+            const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
+            const profileUserId = String((profileUser as any)?.usuarioid || (profileUser as any)?.id || '').trim();
+            if (cachedUserId && profileUserId && cachedUserId !== profileUserId) {
+              sessionUser = null;
+            }
+            sessionUser = {
+              ...(sessionUser || {}),
+              ...profileUser,
+              nombres: String((profileUser as any)?.nombres || '').trim(),
+              apellidos: String((profileUser as any)?.apellidos || '').trim(),
+              nombre: String((profileUser as any)?.nombres || (profileUser as any)?.nombre || '').trim(),
+              apellido: String((profileUser as any)?.apellidos || (profileUser as any)?.apellido || '').trim(),
+              fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
+            };
+          } else {
+            const response = await fetch(apiUrl('/api/auth/me'), {
+              method: 'GET',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const payload = await response.json().catch(() => null);
+            if (response.ok && payload?.success && payload?.user) {
+              const apiUser = payload.user as User;
+              const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
+              const apiUserId = String((apiUser as any)?.usuarioid || (apiUser as any)?.id || '').trim();
+              if (cachedUserId && apiUserId && cachedUserId !== apiUserId) {
+                sessionUser = null;
+              }
+              const apiRoleId = Number((apiUser as any)?.rolid ?? (apiUser as any)?.rolId ?? (apiUser as any)?.roleId);
+              if (apiRoleId === 2) {
+                sessionUser = null;
+              } else {
+                sessionUser = {
+                  ...(sessionUser || {}),
+                  ...apiUser,
+                  fotoUrl: sanitizeFotoUrl((apiUser as any)?.fotoUrl),
+                };
+              }
+            }
+          }
+
+          if (sessionUser) {
+            const rawNextUser = JSON.stringify(sessionUser);
+            await AsyncStorage.setItem(STORAGE_KEY, rawNextUser);
+            await AsyncStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
+            if (Platform.OS === 'web') {
+              localStorage.setItem(STORAGE_KEY, rawNextUser);
+              localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
+            } else {
+              await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
+            }
           }
         }
 
-        const secureStoreUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
-        if (secureStoreUser) {
-          setUser(secureStoreUser);
-          return;
-        }
-
-        const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
-        setUser(asyncUser);
+        setUser(sessionUser);
       } catch {
         setUser(null);
       } finally {
@@ -315,7 +438,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
 
   useEffect(() => {
     const loadDoctorFromBackend = async () => {
-      const doctorId = String(route.params?.doctorId || '').trim();
+      const doctorId = routeDoctorId;
       if (!doctorId) {
         setBackendDoctor(null);
         return;
@@ -346,11 +469,28 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
         });
         const fallbackPayload = await fallbackResponse.json().catch(() => null);
         if (fallbackResponse.ok && fallbackPayload?.success && Array.isArray(fallbackPayload?.medicos)) {
-          const match = fallbackPayload.medicos.find(
+          const byId = fallbackPayload.medicos.find(
             (item: any) => String(item?.medicoid || '').trim() === doctorId
           );
-          if (match) {
-            setBackendDoctor(mapBackendMedicoToProfile(match as BackendMedico, specialty));
+          if (byId) {
+            setBackendDoctor(mapBackendMedicoToProfile(byId as BackendMedico, specialty));
+            return;
+          }
+
+          const byNameAndSpecialty = fallbackPayload.medicos.find((item: any) => {
+            const itemName = normalizeText(item?.nombreCompleto);
+            const itemSpecialty = normalizeText(item?.especialidad);
+            const doctorName = normalizeText(route.params?.doctorSnapshot?.name);
+            const targetSpecialty = normalizeText(specialty);
+            if (!itemName || !itemSpecialty) return false;
+            const sameSpecialty =
+              itemSpecialty === targetSpecialty ||
+              itemSpecialty.includes(targetSpecialty) ||
+              targetSpecialty.includes(itemSpecialty);
+            return itemName === doctorName && sameSpecialty;
+          });
+          if (byNameAndSpecialty) {
+            setBackendDoctor(mapBackendMedicoToProfile(byNameAndSpecialty as BackendMedico, specialty));
             return;
           }
         }
@@ -364,14 +504,9 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
     };
 
     loadDoctorFromBackend();
-  }, [route.params?.doctorId, specialty]);
+  }, [route.params?.doctorSnapshot?.name, routeDoctorId, specialty]);
 
-  const fullName = useMemo(() => {
-    const nombres = (user?.nombres || user?.nombre || user?.firstName || '').trim();
-    const apellidos = (user?.apellidos || user?.apellido || user?.lastName || '').trim();
-    const name = `${nombres} ${apellidos}`.trim();
-    return name || 'Paciente';
-  }, [user]);
+  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
 
   const planLabel = useMemo(() => {
     const plan = (user?.plan || '').trim();
@@ -379,10 +514,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   }, [user]);
 
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    if (user?.fotoUrl && user.fotoUrl.trim().length > 0) {
-      return { uri: user.fotoUrl.trim() };
-    }
-    return DefaultAvatar;
+    return resolveDoctorImage({ fotoUrl: user?.fotoUrl || null });
   }, [user]);
 
   const handleLogout = async () => {
@@ -435,14 +567,18 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
     setCreatingCita(true);
     try {
       const parsedPrice = Number.parseFloat(String(doctor.price || '').replace(/[^\d.]/g, ''));
+      const requestSpecialty = String(doctor.specialty || specialty).trim() || specialty;
+      const requestDoctorId = String(doctor.id || '').trim();
       const body: any = {
         fechaHoraInicio: appointmentDate.toISOString(),
         duracionMin: 30,
         nota: `Solicitud desde portal paciente - ${doctor.focus}`,
-        especialidad: specialty,
+        especialidad: requestSpecialty,
         nombreMedico: doctor.name,
-        medicoId: doctor.id,
       };
+      if (requestDoctorId) {
+        body.medicoId = requestDoctorId;
+      }
       if (Number.isFinite(parsedPrice) && parsedPrice >= 0) {
         body.precio = parsedPrice;
       }
@@ -514,15 +650,19 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
             </View>
           </View>
 
+          <View style={styles.sidebarUserBox}>
+            <Image source={userAvatarSource} style={styles.sidebarUserAvatar} />
+            <Text style={styles.sidebarUserName}>{fullName}</Text>
+            <Text style={styles.sidebarUserPlan}>{planLabel}</Text>
+          </View>
+
           <View style={styles.menu}>
             <TouchableOpacity
               style={styles.menuItemRow}
               onPress={() => navigation.navigate('DashboardPaciente')}
             >
               <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>
-                {tx({ es: 'Dashboard', en: 'Dashboard', pt: 'Painel' })}
-              </Text>
+              <Text style={styles.menuText}>{t('menu.home')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -530,74 +670,86 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
               onPress={() => navigation.navigate('NuevaConsultaPaciente')}
             >
               <MaterialIcons name="person-search" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>
-                {tx({ es: 'Buscar Especialista', en: 'Find Specialist', pt: 'Buscar Especialista' })}
-              </Text>
+              <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.searchDoctor')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteCitas')}
+            >
               <MaterialIcons name="calendar-month" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
+            >
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>
-                {tx({ es: 'Telemedicina', en: 'Telemedicine', pt: 'Telemedicina' })}
-              </Text>
+              <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
+            >
               <MaterialIcons name="description" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow}>
-              <MaterialIcons name="folder-shared" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>
-                {tx({ es: 'Historial Clinico', en: 'Clinical History', pt: 'Historico Clinico' })}
-              </Text>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteChat')}
+            >
+              <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>{t('menu.chat')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacientePerfil')}
+            >
+              <MaterialIcons name="account-circle" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>{t('menu.profile')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteConfiguracion')}
+            >
+              <MaterialIcons name="settings" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>{t('menu.settings')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <View>
-          <View style={styles.supportCard}>
-            <Text style={styles.supportTitle}>Soporte 24/7</Text>
-            <Text style={styles.supportSub}>Necesitas ayuda con tu agendamiento?</Text>
-            <TouchableOpacity style={styles.supportBtn}>
-              <Text style={styles.supportBtnText}>Contactar Soporte</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <MaterialIcons name="logout" size={18} color="#fff" />
-            <Text style={styles.logoutText}>{t('menu.logout')}</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <MaterialIcons name="logout" size={20} color="#fff" />
+          <Text style={styles.logoutText}>{t('menu.logout')}</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={{ flex: 1 }}>
-        <View style={styles.header}>
-          <TextInput
-            placeholder="Busca un medico para consulta online"
-            placeholderTextColor="#8aa7bf"
-            style={styles.searchInput}
-          />
-          <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.notifBtn}>
-              <MaterialIcons name="notifications" size={20} color={colors.dark} />
-            </TouchableOpacity>
-            <View style={styles.userInfo}>
-              <View>
-                <Text style={styles.userName}>{fullName}</Text>
-                <Text style={styles.userPlan}>{planLabel}</Text>
-              </View>
-              <Image source={userAvatarSource} style={styles.userAvatar} />
-            </View>
-          </View>
-        </View>
-
         <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+          <View style={styles.header}>
+            <View style={styles.searchBox}>
+              <MaterialIcons name="search" size={20} color={colors.muted} />
+              <TextInput
+                placeholder="Busca un medico para consulta online"
+                placeholderTextColor="#8aa7bf"
+                style={styles.searchInput}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.notifBtn}
+              onPress={() => navigation.navigate('PacienteNotificaciones')}
+            >
+              <MaterialIcons name="notifications" size={22} color={colors.dark} />
+              <View style={styles.notifDot} />
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.breadcrumbRow}>
             <TouchableOpacity onPress={() => navigation.navigate('DashboardPaciente')}>
               <Text style={styles.breadcrumbLink}>Inicio</Text>
@@ -770,89 +922,128 @@ const styles = StyleSheet.create({
   loaderText: { marginTop: 8, color: colors.muted, fontWeight: '700' },
 
   sidebar: {
-    width: Platform.OS === 'web' ? 240 : '100%',
+    width: Platform.OS === 'web' ? 280 : '100%',
     backgroundColor: colors.white,
     borderRightWidth: Platform.OS === 'web' ? 1 : 0,
     borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
-    borderRightColor: '#e9eff6',
-    borderBottomColor: '#e9eff6',
-    paddingHorizontal: 12,
-    paddingTop: Platform.OS === 'web' ? 18 : 12,
-    paddingBottom: 12,
+    borderRightColor: '#eef2f7',
+    borderBottomColor: '#eef2f7',
+    padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
   },
-  logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, marginBottom: 12 },
-  logo: { width: 30, height: 30, resizeMode: 'contain' },
-  logoTitle: { fontSize: 20, fontWeight: '900', color: colors.dark, letterSpacing: 0.5 },
-  logoSubtitle: { fontSize: 10, color: colors.muted, fontWeight: '700' },
-  menu: { gap: 4, flexDirection: Platform.OS === 'web' ? 'column' : 'row', flexWrap: 'wrap' },
+  logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logo: { width: 44, height: 44, resizeMode: 'contain' },
+  logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
+  logoSubtitle: { fontSize: 11, color: colors.muted, fontWeight: '700' },
+  sidebarUserBox: {
+    marginTop: 18,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  sidebarUserAvatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 76,
+    borderWidth: 4,
+    borderColor: '#f5f7fb',
+    marginBottom: 10,
+  },
+  sidebarUserName: {
+    color: colors.dark,
+    fontWeight: '800',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  sidebarUserPlan: {
+    color: colors.muted,
+    fontWeight: '700',
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  menu: {
+    marginTop: 10,
+    gap: 6,
+    flex: Platform.OS === 'web' ? 1 : 0,
+    flexDirection: Platform.OS === 'web' ? 'column' : 'row',
+    flexWrap: 'wrap',
+  },
   menuItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
     minWidth: Platform.OS === 'web' ? 0 : 150,
   },
-  menuItemActive: { backgroundColor: 'rgba(19,127,236,0.08)' },
+  menuItemActive: {
+    backgroundColor: 'rgba(19,127,236,0.10)',
+    borderRightWidth: 3,
+    borderRightColor: colors.primary,
+  },
   menuText: { color: colors.muted, fontWeight: '700', fontSize: 14 },
   menuTextActive: { color: colors.primary, fontWeight: '800' },
-  supportCard: {
-    backgroundColor: '#f2f7fc',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#dae8f5',
-    padding: 10,
-  },
-  supportTitle: { color: colors.blue, fontWeight: '900', fontSize: 12, marginBottom: 4 },
-  supportSub: { color: colors.muted, fontWeight: '600', fontSize: 11, marginBottom: 8 },
-  supportBtn: { backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#d3e2f0', paddingVertical: 8 },
-  supportBtnText: { textAlign: 'center', color: colors.blue, fontWeight: '800', fontSize: 11 },
 
   header: {
-    height: 60,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9eff6',
-    paddingHorizontal: 14,
-    alignItems: 'center',
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+    marginBottom: 14,
     flexWrap: 'wrap',
+  },
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
-    backgroundColor: '#f4f8fc',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
     color: colors.dark,
     fontWeight: '600',
   },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   notifBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#f7fafc',
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#edf2f7',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
-  userInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  userName: { color: colors.dark, fontWeight: '800', fontSize: 12, textAlign: 'right' },
-  userPlan: { color: colors.muted, fontWeight: '600', fontSize: 10, textAlign: 'right' },
-  userAvatar: { width: 32, height: 32, borderRadius: 32, borderWidth: 2, borderColor: '#d9e7f4' },
+  notifDot: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 10,
+    height: 10,
+    borderRadius: 10,
+    backgroundColor: '#ef4444',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
 
   main: {
     flex: 1,
-    paddingHorizontal: Platform.OS === 'web' ? 18 : 12,
-    paddingTop: 14,
+    paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
+    paddingTop: Platform.OS === 'web' ? 18 : 12,
   },
-  breadcrumbRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  breadcrumbRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, marginBottom: 12 },
   breadcrumbLink: { color: colors.muted, fontSize: 12, fontWeight: '700' },
   breadcrumbCurrent: { color: colors.primary, fontSize: 12, fontWeight: '800' },
   contentRow: {

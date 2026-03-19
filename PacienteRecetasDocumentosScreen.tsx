@@ -21,6 +21,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { RootStackParamList } from './navigation/types';
+import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -138,7 +139,11 @@ const downloadExampleDocument = (item: DocumentItem) => {
 };
 
 const DocumentRow: React.FC<{ item: DocumentItem }> = ({ item }) => (
-  <TouchableOpacity style={styles.docCard} activeOpacity={0.9}>
+  <TouchableOpacity
+    style={styles.docCard}
+    activeOpacity={0.9}
+    onPress={() => downloadExampleDocument(item)}
+  >
     <View style={[styles.docIconWrap, { backgroundColor: item.bg }]}>
       <MaterialIcons name={item.icon} size={20} color={item.tint} />
     </View>
@@ -192,18 +197,22 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
     const loadUser = async () => {
       try {
         if (Platform.OS === 'web') {
-          const localStorageUser = parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY));
+          const localStorageUser = ensurePatientSessionUser(
+            parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY))
+          );
           if (localStorageUser) {
             setUser(localStorageUser);
             return;
           }
         }
-        const secureStoreUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
+        const secureStoreUser = ensurePatientSessionUser(
+          parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY))
+        );
         if (secureStoreUser) {
           setUser(secureStoreUser);
           return;
         }
-        const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
+        const asyncUser = ensurePatientSessionUser(parseUser(await AsyncStorage.getItem(STORAGE_KEY)));
         setUser(asyncUser);
       } catch {
         setUser(null);
@@ -214,12 +223,7 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
     loadUser();
   }, []);
 
-  const fullName = useMemo(() => {
-    const nombres = (user?.nombres || user?.nombre || user?.firstName || '').trim();
-    const apellidos = (user?.apellidos || user?.apellido || user?.lastName || '').trim();
-    const name = `${nombres} ${apellidos}`.trim();
-    return name || 'Paciente';
-  }, [user]);
+  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
 
   const planLabel = useMemo(() => {
     const plan = (user?.plan || '').trim();
@@ -236,6 +240,15 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
     await AsyncStorage.removeItem(STORAGE_KEY);
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
+
+  if (loadingUser) {
+    return (
+      <View style={styles.loaderWrap}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loaderText}>Cargando tus documentos...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -260,15 +273,24 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
               <MaterialIcons name="grid-view" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.home')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+            >
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
               <Text style={styles.menuText}>Buscar Médico</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteCitas')}
+            >
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItemRow}>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
+            >
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
@@ -279,7 +301,10 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
               <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.chat')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]}>
+            <TouchableOpacity
+              style={[styles.menuItemRow, styles.menuItemActive]}
+              onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
+            >
               <MaterialIcons name="description" size={20} color={colors.primary} />
               <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
@@ -309,7 +334,15 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
               style={styles.searchInput}
             />
           </View>
-          <TouchableOpacity style={styles.filterBtn}>
+          <TouchableOpacity
+            style={styles.filterBtn}
+            onPress={() =>
+              Alert.alert(
+                'Filtros',
+                'Puedes buscar por nombre o fecha usando la barra de busqueda.'
+              )
+            }
+          >
             <MaterialIcons name="filter-list" size={16} color="#fff" />
             <Text style={styles.filterBtnText}>Filtrar</Text>
           </TouchableOpacity>
