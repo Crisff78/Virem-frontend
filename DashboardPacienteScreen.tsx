@@ -12,6 +12,7 @@ import {
   TextInput,
   Easing,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -312,7 +313,10 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ name, spec, avatar, onReserve }
 /* ===================== PANTALLA ===================== */
 const DashboardPacienteScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { width: viewportWidth } = useWindowDimensions();
   const { t, tx } = useLanguage();
+  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
@@ -814,10 +818,39 @@ const DashboardPacienteScreen: React.FC = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
   };
 
+  const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const handleSidebarNavigation = (
+    route:
+      | 'DashboardPaciente'
+      | 'NuevaConsultaPaciente'
+      | 'PacienteCitas'
+      | 'SalaEsperaVirtualPaciente'
+      | 'PacienteChat'
+      | 'PacienteRecetasDocumentos'
+      | 'PacientePerfil'
+      | 'PacienteConfiguracion'
+  ) => {
+    closeMobileMenu();
+    navigation.navigate(route);
+  };
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDesktopLayout ? styles.containerDesktop : styles.containerMobile]}>
+      {!isDesktopLayout ? (
+        <View style={styles.mobileMenuBar}>
+          <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
+            <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.dark} />
+            <Text style={styles.mobileMenuButtonText}>
+              {isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       {/* ===================== SIDEBAR ===================== */}
-      <View style={styles.sidebar}>
+      {(isDesktopLayout || isMobileMenuOpen) && (
+      <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}>
         <View>
           {/* Logo */}
           <View style={styles.logoBox}>
@@ -843,10 +876,10 @@ const DashboardPacienteScreen: React.FC = () => {
           </View>
 
           {/* Menú */}
-          <View style={styles.menu}>
+          <View style={[styles.menu, isDesktopLayout ? styles.menuDesktop : styles.menuMobile]}>
             <TouchableOpacity
               style={[styles.menuItemRow, styles.menuItemActive]}
-              onPress={() => navigation.navigate('DashboardPaciente')}
+              onPress={() => handleSidebarNavigation('DashboardPaciente')}
             >
               <MaterialIcons name="grid-view" size={20} color={colors.primary} />
               <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.home')}</Text>
@@ -854,7 +887,7 @@ const DashboardPacienteScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.menuItemRow}
-              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+              onPress={() => handleSidebarNavigation('NuevaConsultaPaciente')}
             >
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.searchDoctor')}</Text>
@@ -862,7 +895,7 @@ const DashboardPacienteScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteCitas')}
+              onPress={() => handleSidebarNavigation('PacienteCitas')}
             >
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.appointments')}</Text>
@@ -870,7 +903,7 @@ const DashboardPacienteScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.menuItemRow}
-              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
+              onPress={() => handleSidebarNavigation('SalaEsperaVirtualPaciente')}
             >
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.videocall')}</Text>
@@ -878,7 +911,7 @@ const DashboardPacienteScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteChat')}
+              onPress={() => handleSidebarNavigation('PacienteChat')}
             >
               <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.chat')}</Text>
@@ -886,7 +919,7 @@ const DashboardPacienteScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
+              onPress={() => handleSidebarNavigation('PacienteRecetasDocumentos')}
             >
               <MaterialIcons name="description" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
@@ -894,7 +927,7 @@ const DashboardPacienteScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacientePerfil')}
+              onPress={() => handleSidebarNavigation('PacientePerfil')}
             >
               <MaterialIcons name="account-circle" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.profile')}</Text>
@@ -902,7 +935,7 @@ const DashboardPacienteScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteConfiguracion')}
+              onPress={() => handleSidebarNavigation('PacienteConfiguracion')}
             >
               <MaterialIcons name="settings" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.settings')}</Text>
@@ -911,14 +944,21 @@ const DashboardPacienteScreen: React.FC = () => {
         </View>
 
         {/* Cerrar sesión */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={() => {
+            closeMobileMenu();
+            handleLogout();
+          }}
+        >
           <MaterialIcons name="logout" size={20} color="#fff" />
           <Text style={styles.logoutText}>{t('menu.logout')}</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       {/* ===================== MAIN ===================== */}
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
+      <ScrollView style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]} contentContainerStyle={{ paddingBottom: 30 }}>
         <View style={styles.header}>
           <View style={styles.searchBox}>
             <MaterialIcons name="search" size={20} color={colors.muted} />
@@ -1537,19 +1577,49 @@ const colors = {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
+  },
+  containerDesktop: { flexDirection: 'row' },
+  containerMobile: { flexDirection: 'column' },
+  mobileMenuBar: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: colors.bg,
+  },
+  mobileMenuButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d8e4f0',
+    backgroundColor: colors.white,
+  },
+  mobileMenuButtonText: {
+    color: colors.dark,
+    fontWeight: '700',
+    fontSize: 13,
   },
 
   sidebar: {
-    width: Platform.OS === 'web' ? 280 : '100%',
     backgroundColor: colors.white,
-    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-    borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
-    borderRightColor: '#eef2f7',
-    borderBottomColor: '#eef2f7',
-    padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
+  },
+  sidebarDesktop: {
+    width: 280,
+    borderRightWidth: 1,
+    borderRightColor: '#eef2f7',
+    padding: 20,
+  },
+  sidebarMobile: {
+    width: '100%',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef2f7',
+    padding: 14,
   },
 
   logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -1573,10 +1643,9 @@ const styles = StyleSheet.create({
   menu: {
     marginTop: 10,
     gap: 6,
-    flex: Platform.OS === 'web' ? 1 : 0,
-    flexDirection: Platform.OS === 'web' ? 'column' : 'row',
-    flexWrap: 'wrap',
   },
+  menuDesktop: { flex: 1 },
+  menuMobile: { flexDirection: 'row', flexWrap: 'wrap' },
   menuItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1584,7 +1653,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 12,
-    minWidth: Platform.OS === 'web' ? 0 : 150,
+    minWidth: 150,
   },
   menuItemActive: {
     backgroundColor: 'rgba(19,127,236,0.10)',
@@ -1607,8 +1676,12 @@ const styles = StyleSheet.create({
 
   main: {
     flex: 1,
-    paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
-    paddingTop: Platform.OS === 'web' ? 18 : 12,
+    paddingHorizontal: 26,
+    paddingTop: 18,
+  },
+  mainMobile: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
   },
 
   header: {

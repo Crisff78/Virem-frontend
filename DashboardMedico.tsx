@@ -10,6 +10,7 @@ import {
   Image,
   TextInput,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -333,6 +334,9 @@ const FileCard: React.FC<FileCardProps> = ({ name, id, lastSeen, onPress }) => (
 
 const DashboardMedico: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { width: viewportWidth } = useWindowDimensions();
+  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const initialMedicoUi = useMemo(() => getInitialMedicoUiFromWeb(), []);
   const [doctorName, setDoctorName] = useState(initialMedicoUi.doctorName);
   const [doctorSpec, setDoctorSpec] = useState(initialMedicoUi.doctorSpec);
@@ -673,6 +677,7 @@ const DashboardMedico: React.FC = () => {
   );
 
   const handleLogout = async () => {
+    setIsMobileMenuOpen(false);
     try {
       await AsyncStorage.removeItem(ASYNC_USER_KEY);
       await AsyncStorage.removeItem(LEGACY_USER_STORAGE_KEY);
@@ -730,6 +735,7 @@ const DashboardMedico: React.FC = () => {
   ];
 
   const handleSideItemPress = (item: SideItem) => {
+    setIsMobileMenuOpen(false);
     if (!item.route) {
       Alert.alert('Solicitudes', 'Las solicitudes pendientes se integraran en un modulo dedicado.');
       return;
@@ -737,6 +743,8 @@ const DashboardMedico: React.FC = () => {
     if (item.route === 'DashboardMedico') return;
     navigation.navigate(item.route);
   };
+
+  const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
 
   const handleVideoCall = () => {
     const nextAgenda = upcomingCitas[0] || null;
@@ -763,9 +771,21 @@ const DashboardMedico: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDesktopLayout ? styles.containerDesktop : styles.containerMobile]}>
+      {!isDesktopLayout ? (
+        <View style={styles.mobileMenuBar}>
+          <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
+            <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.viremDark} />
+            <Text style={styles.mobileMenuButtonText}>
+              {isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       {/* ===================== SIDEBAR ===================== */}
-      <View style={styles.sidebar}>
+      {(isDesktopLayout || isMobileMenuOpen) && (
+      <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}>
         <View>
           {/* Logo */}
           <View style={styles.logoBox}>
@@ -788,7 +808,7 @@ const DashboardMedico: React.FC = () => {
           </View>
 
           {/* Nav */}
-          <View style={styles.nav}>
+          <View style={[styles.nav, isDesktopLayout ? styles.navDesktop : styles.navMobile]}>
             {sideItems.map((it) => (
               <SidebarItem
                 key={it.label}
@@ -808,8 +828,9 @@ const DashboardMedico: React.FC = () => {
           <Text style={styles.logoutButtonText}>Cerrar sesion</Text>
         </TouchableOpacity>
       </View>
+      )}
       {/* ===================== MAIN ===================== */}
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+      <ScrollView style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]} contentContainerStyle={{ paddingBottom: 28 }}>
         {/* Header */}
         <View style={styles.headerWrap}>
           <View style={styles.headerRow}>
@@ -1001,20 +1022,50 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bgLight,
+  },
+  containerDesktop: { flexDirection: 'row' },
+  containerMobile: { flexDirection: 'column' },
+  mobileMenuBar: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: colors.bgLight,
+  },
+  mobileMenuButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d8e4f0',
+    backgroundColor: colors.white,
+  },
+  mobileMenuButtonText: {
+    color: colors.viremDark,
+    fontWeight: '700',
+    fontSize: 13,
   },
 
   /* Sidebar */
   sidebar: {
-    width: Platform.OS === 'web' ? 280 : '100%',
     backgroundColor: colors.white,
-    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-    borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
-    borderRightColor: '#eef2f7',
-    borderBottomColor: '#eef2f7',
-    padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
+  },
+  sidebarDesktop: {
+    width: 280,
+    borderRightWidth: 1,
+    borderRightColor: '#eef2f7',
+    padding: 20,
+  },
+  sidebarMobile: {
+    width: '100%',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef2f7',
+    padding: 14,
   },
   logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
@@ -1043,8 +1094,10 @@ const styles = StyleSheet.create({
   nav: {
     marginTop: 10,
     gap: 6,
-    flex: Platform.OS === 'web' ? 1 : 0,
-    flexDirection: Platform.OS === 'web' ? 'column' : 'row',
+  },
+  navDesktop: { flex: 1 },
+  navMobile: {
+    flexDirection: 'row',
     flexWrap: 'wrap',
   },
   sideItem: {
@@ -1054,7 +1107,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 10,
-    minWidth: Platform.OS === 'web' ? 0 : 150,
+    minWidth: 150,
   },
   sideItemActive: {
     backgroundColor: 'rgba(19,127,236,0.10)',
@@ -1092,6 +1145,7 @@ const styles = StyleSheet.create({
 
   /* Main */
   main: { flex: 1 },
+  mainMobile: { paddingTop: 2 },
 
   headerWrap: {
     paddingHorizontal: Platform.OS === 'web' ? 32 : 14,

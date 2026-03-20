@@ -7,7 +7,6 @@ import { Pressable } from "react-native";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
   Modal,
   Platform,
@@ -16,6 +15,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -51,7 +51,6 @@ const loadFaceDetectorModule = async (): Promise<FaceDetectorModule | null> => {
 };
 
 const ViremLogo = require("./assets/imagenes/descarga.png");
-const { width } = Dimensions.get("window");
 const MEDICO_DRAFT_PREFIX = "medicoRegDraft:";
 
 // Prefijos + máscara
@@ -392,13 +391,14 @@ const styles = StyleSheet.create({
   headerContent: {
     maxWidth: 1200,
     width: "100%",
-    marginHorizontal: "auto" as any,
-    paddingHorizontal: width > 768 ? 24 : 16,
+    alignSelf: "center",
+    paddingHorizontal: 16,
     height: 64,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
+  headerContentWide: { paddingHorizontal: 24 },
   logoGroup: { flexDirection: "row", alignItems: "center", gap: 12 },
   logoImage: { width: 40, height: 40, resizeMode: "contain" },
   logoText: {
@@ -412,11 +412,12 @@ const styles = StyleSheet.create({
   mainContent: {
     flex: 1,
     paddingVertical: 32,
-    paddingHorizontal: width > 768 ? 24 : 16,
+    paddingHorizontal: 16,
   },
+  mainContentWide: { paddingHorizontal: 24 },
   contentWrapper: {
     maxWidth: 960,
-    marginHorizontal: "auto" as any,
+    alignSelf: "center",
     width: "100%",
     gap: 24,
   },
@@ -442,7 +443,7 @@ const styles = StyleSheet.create({
   formCard: {
     backgroundColor: colors.white,
     borderRadius: 12,
-    padding: width > 768 ? 32 : 24,
+    padding: 24,
     shadowColor: colors.shadowColor,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -451,6 +452,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(26, 61, 99, 0.3)",
   },
+  formCardWide: { padding: 32 },
 
   progressHeader: {
     flexDirection: "row",
@@ -475,10 +477,11 @@ const styles = StyleSheet.create({
   },
 
   formRow: {
-    flexDirection: width > 768 ? "row" : "column",
+    flexDirection: "column",
     gap: 24,
     marginBottom: 16,
   },
+  formRowWide: { flexDirection: "row" },
   inputLabel: {
     color: colors.navyDark,
     fontSize: 14,
@@ -516,7 +519,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.slate50,
   },
   prefixButton: {
-    width: width > 768 ? 90 : 70,
+    width: 70,
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
@@ -526,6 +529,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 8,
     paddingLeft: 4,
   },
+  prefixButtonWide: { width: 90 },
   prefixText: { color: colors.navyDark, fontSize: 14, fontWeight: "bold" },
   numberInput: {
     flex: 1,
@@ -538,7 +542,7 @@ const styles = StyleSheet.create({
 
   cancelButtonText: { color: colors.blueGray, fontWeight: "bold" },
   continueButton: {
-    width: width > 640 ? "auto" : "100%",
+    width: "100%",
     height: 48,
     paddingHorizontal: 32,
     borderRadius: 8,
@@ -548,9 +552,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
+  continueButtonWide: { width: "auto" },
 
   footerActions: {
-    flexDirection: width > 640 ? "row" : "column-reverse",
+    flexDirection: "column-reverse",
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 16,
@@ -559,6 +564,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(26, 61, 99, 0.3)",
   },
+  footerActionsWide: { flexDirection: "row" },
 
   modalOverlay: {
     flex: 1,
@@ -626,6 +632,9 @@ const styles = StyleSheet.create({
 
 const RegistroMedicoScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
+  const { width: viewportWidth } = useWindowDimensions();
+  const isWideLayout = viewportWidth > 768;
+  const isTabletLayout = viewportWidth > 640;
 
   // Campos
   const [nombreCompleto, setNombreCompleto] = useState("");
@@ -858,7 +867,7 @@ const RegistroMedicoScreen: React.FC = () => {
   return (
     <View style={styles.mainWrapper}>
       <View style={styles.header}>
-        <View style={styles.headerContent}>
+        <View style={[styles.headerContent, isWideLayout && styles.headerContentWide]}>
           <View style={styles.logoGroup}>
             <Image source={ViremLogo} style={styles.logoImage} />
             <View>
@@ -869,7 +878,10 @@ const RegistroMedicoScreen: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView style={styles.mainContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={[styles.mainContent, isWideLayout && styles.mainContentWide]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.contentWrapper}>
           <View style={styles.breadcrumbs}>
             <Text style={styles.breadcrumbLink}>Médicos</Text>
@@ -881,7 +893,7 @@ const RegistroMedicoScreen: React.FC = () => {
             <Text style={styles.pageTitle}>Nuevo Médico</Text>
           </View>
 
-          <View style={styles.formCard}>
+          <View style={[styles.formCard, isWideLayout && styles.formCardWide]}>
             <View style={styles.progressHeader}>
               <Text style={styles.progressTitle}>Información del Médico</Text>
               <Text style={styles.progressPercent}>
@@ -927,7 +939,7 @@ const RegistroMedicoScreen: React.FC = () => {
 
             {/* FORM */}
             <View style={{ gap: 24 }}>
-              <View style={styles.formRow}>
+              <View style={[styles.formRow, isWideLayout && styles.formRowWide]}>
                 <View style={styles.inputWrapper}>
                   <Text style={styles.inputLabel}>Nombre completo</Text>
                   <TextInput
@@ -946,7 +958,7 @@ const RegistroMedicoScreen: React.FC = () => {
                 </View>
               </View>
 
-              <View style={styles.formRow}>
+              <View style={[styles.formRow, isWideLayout && styles.formRowWide]}>
                 <View style={styles.inputWrapper}>
                   <Text style={styles.inputLabel}>Cédula (Identificación)</Text>
                   <TextInput
@@ -980,11 +992,14 @@ const RegistroMedicoScreen: React.FC = () => {
                 </View>
               </View>
 
-              <View style={styles.formRow}>
+              <View style={[styles.formRow, isWideLayout && styles.formRowWide]}>
                 <View style={styles.inputWrapper}>
                   <Text style={styles.inputLabel}>Teléfono</Text>
                   <View style={[styles.phoneInputGroup, showErrors && !phone && styles.inputError]}>
-                    <TouchableOpacity style={styles.prefixButton} onPress={() => setShowPrefixModal(true)}>
+                    <TouchableOpacity
+                      style={[styles.prefixButton, isWideLayout && styles.prefixButtonWide]}
+                      onPress={() => setShowPrefixModal(true)}
+                    >
                       <Text style={styles.prefixText}>{selectedCountryCode.code}</Text>
                     </TouchableOpacity>
 
@@ -1025,7 +1040,7 @@ const RegistroMedicoScreen: React.FC = () => {
                 </View>
               </View>
 
-              <View style={styles.formRow}>
+              <View style={[styles.formRow, isWideLayout && styles.formRowWide]}>
                 <View style={styles.inputWrapper}>
                   <Text style={styles.inputLabel}>Especialidad</Text>
                   <TouchableOpacity
@@ -1050,9 +1065,13 @@ const RegistroMedicoScreen: React.FC = () => {
               </View>
             </View>
 
-            <View style={styles.footerActions}>
+            <View style={[styles.footerActions, isTabletLayout && styles.footerActionsWide]}>
               <TouchableOpacity
-                style={[styles.continueButton, { backgroundColor: "transparent" }]}
+                style={[
+                  styles.continueButton,
+                  isTabletLayout && styles.continueButtonWide,
+                  { backgroundColor: "transparent" },
+                ]}
                 onPress={handleCancel}
                 activeOpacity={0.85}
               >
@@ -1060,7 +1079,11 @@ const RegistroMedicoScreen: React.FC = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.continueButton, { backgroundColor: isFormComplete ? colors.primary : colors.disabled }]}
+                style={[
+                  styles.continueButton,
+                  isTabletLayout && styles.continueButtonWide,
+                  { backgroundColor: isFormComplete ? colors.primary : colors.disabled },
+                ]}
                 onPress={handleContinue}
                 disabled={isLoading}
                 activeOpacity={0.85}
