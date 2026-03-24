@@ -2,14 +2,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { createRef, useRef, useState } from 'react';
-import { Dimensions, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
+import { Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { apiUrl } from './config/backend';
 import { RootStackParamList } from './navigation/types';
 
 type VerificarIdentidadRouteProp = RouteProp<RootStackParamList, 'VerificarIdentidad'>;
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'VerificarIdentidad'>;
-
-const { width } = Dimensions.get('window');
 
 const colors = {
     primary: '#4A7FA7', 
@@ -21,8 +19,9 @@ const colors = {
 };
 
 const styles = StyleSheet.create({
-    mainContainer: { flex: 1, backgroundColor: colors.backgroundLight, alignItems: 'center', justifyContent: 'center', padding: 16 },
-    cardContainer: { width: width < 400 ? '95%' : 380, backgroundColor: colors.cardLight, borderRadius: 12, elevation: 5, padding: 32, alignItems: 'center' },
+    mainContainer: { flex: 1, backgroundColor: colors.backgroundLight },
+    scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
+    cardContainer: { backgroundColor: colors.cardLight, borderRadius: 12, elevation: 5, padding: 32, alignItems: 'center' },
     iconWrapper: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(74, 127, 167, 0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
     icon: { color: colors.primary },
     title: { color: colors.textPrimaryLight, fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
@@ -41,11 +40,14 @@ const VerificarIdentidadScreen: React.FC = () => {
     const navigation = useNavigation<NavigationProps>();
     const [isLoading, setIsLoading] = useState(false);
     const [resendLoading, setResendLoading] = useState(false);
+    const { width } = useWindowDimensions();
     
     const recipient = route.params?.email || 'tu correo electronico'; 
     const OTP_LENGTH = 6;
     const [otp, setOtp] = useState<string[]>(new Array(OTP_LENGTH).fill(''));
     const inputRefs = useRef<Array<React.RefObject<TextInput | null>>>([]);
+    const cardWidth = Math.max(300, Math.min(420, width - 24));
+    const otpBoxSize = width < 390 ? 40 : 45;
 
     if (inputRefs.current.length === 0) {
         inputRefs.current = Array(OTP_LENGTH).fill(0).map(() => createRef<TextInput | null>()); 
@@ -148,14 +150,28 @@ const VerificarIdentidadScreen: React.FC = () => {
     };
 
     return (
-        <View style={styles.mainContainer}>
-            <View style={styles.cardContainer}>
+        <ScrollView
+            style={styles.mainContainer}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+        >
+            <View style={[styles.cardContainer, { width: cardWidth }]}>
                 <View style={styles.iconWrapper}><MaterialCommunityIcons name="shield-lock" size={40} style={styles.icon} /></View>
                 <Text style={styles.title}>Verifica tu Identidad</Text>
                 <Text style={styles.subtitle}>Introduce el codigo enviado a {recipient}.</Text>
                 <View style={styles.otpContainer}>
                     {otp.map((digit, index) => (
-                        <TextInput key={index} ref={inputRefs.current[index]} style={styles.otpInput} value={digit} onChangeText={(text) => handleOtpChange(text, index)} onKeyPress={(e) => handleKeyPress(e, index)} keyboardType="numeric" maxLength={1} autoFocus={index === 0} />
+                        <TextInput
+                            key={index}
+                            ref={inputRefs.current[index]}
+                            style={[styles.otpInput, { width: otpBoxSize, height: otpBoxSize + 11 }]}
+                            value={digit}
+                            onChangeText={(text) => handleOtpChange(text, index)}
+                            onKeyPress={(e) => handleKeyPress(e, index)}
+                            keyboardType="numeric"
+                            maxLength={1}
+                            autoFocus={index === 0}
+                        />
                     ))}
                 </View>
                 <TouchableOpacity style={styles.verifyButton} onPress={handleVerifyCode} disabled={isLoading}>
@@ -170,7 +186,7 @@ const VerificarIdentidadScreen: React.FC = () => {
                     </TouchableOpacity>
                 </View>
             </View>
-        </View>
+        </ScrollView>
     );
 };
 

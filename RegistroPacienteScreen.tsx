@@ -5,7 +5,6 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
   Modal,
   ScrollView,
@@ -13,6 +12,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { RootStackParamList } from './navigation/types';
@@ -28,7 +28,6 @@ interface CountryCodeType {
 }
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
-const { width } = Dimensions.get('window');
 
 // Prefijos + máscara
 const countryCodes: CountryCodeType[] = [
@@ -205,36 +204,43 @@ const colors = {
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: colors.backgroundLight },
   header: { backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: 'rgba(26, 61, 99, 0.2)', elevation: 1, zIndex: 50 },
-  headerContent: { maxWidth: 1200, width: '100%', marginHorizontal: 'auto', paddingHorizontal: width > 768 ? 24 : 16, height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerContent: { maxWidth: 1200, width: '100%', alignSelf: 'center', paddingHorizontal: 16, height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerContentWide: { paddingHorizontal: 24 },
   logoGroup: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   logoImage: { width: 40, height: 40, resizeMode: 'contain' },
   logoText: { color: colors.navyDark, fontSize: 18, fontWeight: 'bold', lineHeight: 20 },
   logoSubtitle: { color: colors.blueGray, fontSize: 10, fontWeight: '500' },
-  mainContent: { flex: 1, paddingVertical: 32, paddingHorizontal: width > 768 ? 24 : 16 },
-  contentWrapper: { maxWidth: 960, marginHorizontal: 'auto', width: '100%', gap: 24 },
+  mainContent: { flex: 1, paddingVertical: 32, paddingHorizontal: 16 },
+  mainContentWide: { paddingHorizontal: 24 },
+  contentWrapper: { maxWidth: 960, alignSelf: 'center', width: '100%', gap: 24 },
   breadcrumbs: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   breadcrumbLink: { color: colors.blueGray, fontSize: 14, fontWeight: '500' },
   breadcrumbSeparator: { color: colors.blueGray, fontSize: 12 },
   breadcrumbCurrent: { color: colors.navyDark, fontSize: 14, fontWeight: 'bold' },
   pageTitle: { color: colors.navyDark, fontSize: 28, fontWeight: '800', lineHeight: 36, textAlign: 'center' },
-  formCard: { backgroundColor: colors.white, borderRadius: 12, padding: width > 768 ? 32 : 24, shadowColor: colors.shadowColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3, borderWidth: 1, borderColor: 'rgba(26, 61, 99, 0.3)' },
+  formCard: { backgroundColor: colors.white, borderRadius: 12, padding: 24, shadowColor: colors.shadowColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3, borderWidth: 1, borderColor: 'rgba(26, 61, 99, 0.3)' },
+  formCardWide: { padding: 32 },
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 },
   progressTitle: { color: colors.navyDark, fontSize: 16, fontWeight: 'bold' },
   progressPercent: { color: colors.blueGray, fontSize: 14, fontWeight: '500' },
   progressBarOuter: { height: 8, width: '100%', borderRadius: 4, backgroundColor: colors.slate50, overflow: 'hidden', marginBottom: 24 },
   progressBarInner: { height: '100%', borderRadius: 4, backgroundColor: colors.primary },
-  formRow: { flexDirection: width > 768 ? 'row' : 'column', gap: 24, marginBottom: 16 },
+  formRow: { flexDirection: 'column', gap: 24, marginBottom: 16 },
+  formRowWide: { flexDirection: 'row' },
   inputLabel: { color: colors.navyDark, fontSize: 14, fontWeight: '600', marginBottom: 8 },
   inputWrapper: { flex: 1 },
   selectInput: { height: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.navyMedium, backgroundColor: colors.slate50, paddingHorizontal: 16, justifyContent: 'center' },
   inputField: { height: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.navyMedium, backgroundColor: colors.slate50, paddingHorizontal: 16, fontSize: 16, color: colors.navyDark },
   phoneInputGroup: { flexDirection: 'row', height: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.navyMedium, backgroundColor: colors.slate50 },
-  prefixButton: { width: width > 768 ? 90 : 70, height: '100%', justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: colors.navyMedium, borderTopLeftRadius: 8, borderBottomLeftRadius: 8, paddingLeft: 4 },
+  prefixButton: { width: 70, height: '100%', justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: colors.navyMedium, borderTopLeftRadius: 8, borderBottomLeftRadius: 8, paddingLeft: 4 },
+  prefixButtonWide: { width: 90 },
   prefixText: { color: colors.navyDark, fontSize: 14, fontWeight: 'bold' },
   numberInput: { flex: 1, paddingHorizontal: 16, fontSize: 16, color: colors.navyDark, borderTopRightRadius: 8, borderBottomRightRadius: 8 },
   cancelButtonText: { color: colors.blueGray, fontWeight: 'bold', paddingHorizontal: 0 },
-  continueButton: { width: width > 640 ? 'auto' : '100%', height: 48, paddingHorizontal: 32, borderRadius: 8, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  footerActions: { flexDirection: width > 640 ? 'row' : 'column-reverse', alignItems: 'center', justifyContent: 'flex-end', gap: 16, marginTop: 16, paddingTop: 24, borderTopWidth: 1, borderTopColor: 'rgba(26, 61, 99, 0.3)' },
+  continueButton: { width: '100%', height: 48, paddingHorizontal: 32, borderRadius: 8, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  continueButtonWide: { width: 'auto' },
+  footerActions: { flexDirection: 'column-reverse', alignItems: 'center', justifyContent: 'flex-end', gap: 16, marginTop: 16, paddingTop: 24, borderTopWidth: 1, borderTopColor: 'rgba(26, 61, 99, 0.3)' },
+  footerActionsWide: { flexDirection: 'row' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 },
   modalContent: { backgroundColor: colors.white, borderRadius: 12, padding: 24, width: '100%', maxWidth: 400, elevation: 5 },
   modalOption: { paddingVertical: 16, paddingHorizontal: 20, borderRadius: 8, marginBottom: 8, backgroundColor: colors.slate50, borderWidth: 1, borderColor: colors.navyMedium },
@@ -245,6 +251,9 @@ const styles = StyleSheet.create({
 
 const RegistroPacienteScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
+  const { width: viewportWidth } = useWindowDimensions();
+  const isWideLayout = viewportWidth > 768;
+  const isTabletLayout = viewportWidth > 640;
 
   const [names, setNames] = useState('');
   const [lastNames, setLastNames] = useState('');
@@ -340,7 +349,7 @@ const RegistroPacienteScreen: React.FC = () => {
   return (
     <View style={styles.mainWrapper}>
       <View style={styles.header}>
-        <View style={styles.headerContent}>
+        <View style={[styles.headerContent, isWideLayout && styles.headerContentWide]}>
           <View style={styles.logoGroup}>
             <Image source={ViremLogo} style={styles.logoImage} />
             <View>
@@ -351,7 +360,10 @@ const RegistroPacienteScreen: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView style={styles.mainContent}>
+      <ScrollView
+        style={[styles.mainContent, isWideLayout && styles.mainContentWide]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.contentWrapper}>
           <View style={styles.breadcrumbs}>
             <Text style={styles.breadcrumbLink}>Pacientes</Text>
@@ -363,7 +375,7 @@ const RegistroPacienteScreen: React.FC = () => {
             <Text style={styles.pageTitle}>Nuevo Paciente</Text>
           </View>
 
-          <View style={styles.formCard}>
+          <View style={[styles.formCard, isWideLayout && styles.formCardWide]}>
             <View style={styles.progressHeader}>
               <Text style={styles.progressTitle}>Información del Paciente</Text>
               <Text style={styles.progressPercent}>{progressPercent}% Completado</Text>
@@ -374,7 +386,7 @@ const RegistroPacienteScreen: React.FC = () => {
             </View>
 
             <View style={{ gap: 24 }}>
-              <View style={styles.formRow}>
+              <View style={[styles.formRow, isWideLayout && styles.formRowWide]}>
                 <View style={styles.inputWrapper}>
                   <Text style={styles.inputLabel}>Nombres</Text>
                   <TextInput
@@ -396,7 +408,7 @@ const RegistroPacienteScreen: React.FC = () => {
                 </View>
               </View>
 
-              <View style={styles.formRow}>
+              <View style={[styles.formRow, isWideLayout && styles.formRowWide]}>
                 <View style={styles.inputWrapper}>
                   <Text style={styles.inputLabel}>Cédula (Identificación)</Text>
                   <TextInput
@@ -426,11 +438,14 @@ const RegistroPacienteScreen: React.FC = () => {
                 </View>
               </View>
 
-              <View style={styles.formRow}>
+              <View style={[styles.formRow, isWideLayout && styles.formRowWide]}>
                 <View style={styles.inputWrapper}>
                   <Text style={styles.inputLabel}>Teléfono</Text>
                   <View style={[styles.phoneInputGroup, (showErrors && !phone) && styles.inputError]}>
-                    <TouchableOpacity style={styles.prefixButton} onPress={() => setShowPrefixModal(true)}>
+                    <TouchableOpacity
+                      style={[styles.prefixButton, isWideLayout && styles.prefixButtonWide]}
+                      onPress={() => setShowPrefixModal(true)}
+                    >
                       <Text style={styles.prefixText}>{selectedCountryCode.code}</Text>
                     </TouchableOpacity>
 
@@ -472,13 +487,24 @@ const RegistroPacienteScreen: React.FC = () => {
               </View>
             </View>
 
-            <View style={styles.footerActions}>
-              <TouchableOpacity style={[styles.continueButton, { backgroundColor: 'transparent' }]} onPress={handleCancel}>
+            <View style={[styles.footerActions, isTabletLayout && styles.footerActionsWide]}>
+              <TouchableOpacity
+                style={[
+                  styles.continueButton,
+                  isTabletLayout && styles.continueButtonWide,
+                  { backgroundColor: 'transparent' },
+                ]}
+                onPress={handleCancel}
+              >
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.continueButton, { backgroundColor: isFormComplete ? colors.primary : colors.disabled }]}
+                style={[
+                  styles.continueButton,
+                  isTabletLayout && styles.continueButtonWide,
+                  { backgroundColor: isFormComplete ? colors.primary : colors.disabled },
+                ]}
                 onPress={handleContinue}
                 disabled={isLoading}
               >

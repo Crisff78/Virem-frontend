@@ -5,11 +5,12 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { apiUrl } from './config/backend';
@@ -20,8 +21,6 @@ type NavigationProps = NativeStackNavigationProp<
   RootStackParamList,
   'RecuperarContrasena'
 >;
-
-const { width } = Dimensions.get('window');
 
 // ===================================================
 // ESTILOS BASE
@@ -42,13 +41,15 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
     backgroundColor: colors.backgroundLight,
+  },
+  scrollContent: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
   },
 
   cardContainer: {
-    width: width < 400 ? '95%' : 380,
     backgroundColor: colors.cardLight,
     borderRadius: 12,
     padding: 22,
@@ -153,6 +154,8 @@ const RecuperarContrasenaScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const navigation = useNavigation<NavigationProps>();
+  const { width } = useWindowDimensions();
+  const cardWidth = Math.max(300, Math.min(420, width - 24));
 
   const handleSendCode = async () => {
     const cleanedEmail = emailOrPhone.toLowerCase().trim();
@@ -201,8 +204,12 @@ const RecuperarContrasenaScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.mainContainer}>
-      <View style={styles.cardContainer}>
+    <ScrollView
+      style={styles.mainContainer}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={[styles.cardContainer, { width: cardWidth }]}>
         <View style={styles.iconWrapper}>
           <MaterialCommunityIcons name="shield-check" size={30} style={styles.icon} />
         </View>
@@ -246,9 +253,8 @@ const RecuperarContrasenaScreen: React.FC = () => {
           <Text style={styles.backToLoginText}>Volver al Inicio de Sesion</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
 export default RecuperarContrasenaScreen;
-

@@ -1,8 +1,9 @@
-import { NavigationContainer } from "@react-navigation/native";
+﻿import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as Linking from "expo-linking";
 import React from "react";
-import { Platform } from "react-native";
+import { Platform, StyleSheet, Text, TextInput } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import EstablecerNuevaContrasenaScreen from "./EstablecerNuevaContrasenaScreen";
 import LoginScreen from "./LoginScreen";
@@ -42,6 +43,12 @@ if (Platform.OS === "web" && typeof window !== "undefined") {
   linkingPrefixes.push(window.location.origin);
 }
 
+// Keeps layouts stable on phones with large OS text scaling enabled.
+(Text as any).defaultProps = (Text as any).defaultProps || {};
+(Text as any).defaultProps.allowFontScaling = false;
+(TextInput as any).defaultProps = (TextInput as any).defaultProps || {};
+(TextInput as any).defaultProps.allowFontScaling = false;
+
 const linking = {
   prefixes: linkingPrefixes,
   config: {
@@ -75,88 +82,96 @@ const linking = {
 
 const App: React.FC = () => {
   return (
-    <LanguageProvider>
-      <NavigationContainer linking={linking}>
-        <Stack.Navigator
-          id="RootStack"
-          initialRouteName="SeleccionPerfil"
-          screenOptions={{
-            headerShown: false,
-            gestureEnabled: false,
-            animation: "none",
-          }}
-        >
-          <Stack.Screen name="SeleccionPerfil" component={SeleccionPerfil} />
-          <Stack.Screen name="Login" component={LoginScreen} />
+    <SafeAreaProvider>
+      <LanguageProvider>
+        <SafeAreaView style={styles.rootSafeArea} edges={["top", "left", "right"]}>
+          <NavigationContainer linking={linking}>
+            <Stack.Navigator
+              id="RootStack"
+              initialRouteName="SeleccionPerfil"
+              screenOptions={{
+                headerShown: false,
+                gestureEnabled: false,
+                animation: "none",
+              }}
+            >
+              <Stack.Screen name="SeleccionPerfil" component={SeleccionPerfil} />
+              <Stack.Screen name="Login" component={LoginScreen} />
 
-        <Stack.Screen name="RegistroPaciente" component={RegistroPacienteScreen} />
-        <Stack.Screen name="RegistroMedico" component={RegistroMedicoScreen} />
+              <Stack.Screen name="RegistroPaciente" component={RegistroPacienteScreen} />
+              <Stack.Screen name="RegistroMedico" component={RegistroMedicoScreen} />
 
-        <Stack.Screen name="RegistroCredenciales" component={RegistroCredencialesScreen} />
-        <Stack.Screen name="RegistroCredencialesMedico" component={RegistroCredencialesMedicoScreen} />
+              <Stack.Screen name="RegistroCredenciales" component={RegistroCredencialesScreen} />
+              <Stack.Screen
+                name="RegistroCredencialesMedico"
+                component={RegistroCredencialesMedicoScreen}
+              />
 
-        <Stack.Screen name="RecuperarContrasena" component={RecuperarContrasenaScreen} />
-        <Stack.Screen name="VerificarIdentidad" component={VerificarIdentidadScreen} />
-        <Stack.Screen
-          name="EstablecerNuevaContrasena"
-          component={EstablecerNuevaContrasenaScreen}
-        />
+              <Stack.Screen name="RecuperarContrasena" component={RecuperarContrasenaScreen} />
+              <Stack.Screen name="VerificarIdentidad" component={VerificarIdentidadScreen} />
+              <Stack.Screen
+                name="EstablecerNuevaContrasena"
+                component={EstablecerNuevaContrasenaScreen}
+              />
 
-        {/* ✅ Dashboard Paciente */}
-        <Stack.Screen name="DashboardPaciente" component={DashboardPacienteScreen} />
-        <Stack.Screen name="PacienteCitas" component={PacienteCitasScreen} />
-        <Stack.Screen name="PacienteChat" component={PacienteChatScreen} />
-        <Stack.Screen
-          name="PacienteNotificaciones"
-          component={PacienteNotificacionesScreen}
-        />
-        <Stack.Screen
-          name="PacienteRecetasDocumentos"
-          component={PacienteRecetasDocumentosScreen}
-        />
-        <Stack.Screen
-          name="PacientePerfil"
-          component={PacientePerfilScreen}
-        />
-        <Stack.Screen
-          name="PacienteConfiguracion"
-          component={PacienteConfiguracionScreen}
-        />
-        <Stack.Screen
-          name="PacienteCambiarContrasena"
-          component={PacienteCambiarContrasenaScreen}
-        />
-        <Stack.Screen
-          name="PacienteHistorialSesiones"
-          component={PacienteHistorialSesionesScreen}
-        />
-        <Stack.Screen
-          name="NuevaConsultaPaciente"
-          component={NuevaConsultaPacienteScreen}
-        />
-        <Stack.Screen
-          name="SalaEsperaVirtualPaciente"
-          component={SalaEsperaVirtualPacienteScreen}
-        />
-        <Stack.Screen
-          name="EspecialistasPorEspecialidad"
-          component={EspecialistasPorEspecialidadScreen}
-        />
-        <Stack.Screen
-          name="PerfilEspecialistaAgendar"
-          component={PerfilEspecialistaAgendarScreen}
-        />
-          <Stack.Screen name="DashboardMedico" component={DashboardMedico} />
-          <Stack.Screen name="MedicoCitas" component={MedicoCitasScreen} />
-          <Stack.Screen name="MedicoPacientes" component={MedicoPacientesScreen} />
-          <Stack.Screen name="MedicoChat" component={MedicoChatScreen} />
-          <Stack.Screen name="MedicoPerfil" component={MedicoPerfilScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </LanguageProvider>
+              <Stack.Screen name="DashboardPaciente" component={DashboardPacienteScreen} />
+              <Stack.Screen name="PacienteCitas" component={PacienteCitasScreen} />
+              <Stack.Screen name="PacienteChat" component={PacienteChatScreen} />
+              <Stack.Screen
+                name="PacienteNotificaciones"
+                component={PacienteNotificacionesScreen}
+              />
+              <Stack.Screen
+                name="PacienteRecetasDocumentos"
+                component={PacienteRecetasDocumentosScreen}
+              />
+              <Stack.Screen name="PacientePerfil" component={PacientePerfilScreen} />
+              <Stack.Screen
+                name="PacienteConfiguracion"
+                component={PacienteConfiguracionScreen}
+              />
+              <Stack.Screen
+                name="PacienteCambiarContrasena"
+                component={PacienteCambiarContrasenaScreen}
+              />
+              <Stack.Screen
+                name="PacienteHistorialSesiones"
+                component={PacienteHistorialSesionesScreen}
+              />
+              <Stack.Screen
+                name="NuevaConsultaPaciente"
+                component={NuevaConsultaPacienteScreen}
+              />
+              <Stack.Screen
+                name="SalaEsperaVirtualPaciente"
+                component={SalaEsperaVirtualPacienteScreen}
+              />
+              <Stack.Screen
+                name="EspecialistasPorEspecialidad"
+                component={EspecialistasPorEspecialidadScreen}
+              />
+              <Stack.Screen
+                name="PerfilEspecialistaAgendar"
+                component={PerfilEspecialistaAgendarScreen}
+              />
+
+              <Stack.Screen name="DashboardMedico" component={DashboardMedico} />
+              <Stack.Screen name="MedicoCitas" component={MedicoCitasScreen} />
+              <Stack.Screen name="MedicoPacientes" component={MedicoPacientesScreen} />
+              <Stack.Screen name="MedicoChat" component={MedicoChatScreen} />
+              <Stack.Screen name="MedicoPerfil" component={MedicoPerfilScreen} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </SafeAreaView>
+      </LanguageProvider>
+    </SafeAreaProvider>
   );
 };
 
 export default App;
 
-
+const styles = StyleSheet.create({
+  rootSafeArea: {
+    flex: 1,
+  },
+});

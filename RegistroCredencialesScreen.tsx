@@ -4,7 +4,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
-  Dimensions,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,7 +21,6 @@ import { isStrongPassword, isValidEmail, passwordChecks } from './utils/validati
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'RegistroCredenciales'>;
 type RegistroRouteProp = RouteProp<RootStackParamList, 'RegistroCredenciales'>;
 
-const { width } = Dimensions.get('window');
 const ViremLogo = require('./assets/imagenes/descarga.png');
 
 const colors = {

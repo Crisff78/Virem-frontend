@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   TextInput,
   Image,
@@ -206,7 +205,7 @@ const LoginScreen: React.FC = () => {
   const handleGoToRegister = () => navigation.navigate('SeleccionPerfil');
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
 
       <View style={styles.container}>
@@ -282,7 +281,7 @@ const LoginScreen: React.FC = () => {
           </Text>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

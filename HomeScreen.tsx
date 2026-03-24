@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Dimensions,
   Image,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -41,7 +41,7 @@ const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
   const [patientName, setPatientName] = useState(DEFAULT_PATIENT_NAME);
 
-  const { width } = Dimensions.get('window');
+  const { width } = useWindowDimensions();
   const isWideLayout = width >= 1024;
 
   useEffect(() => {

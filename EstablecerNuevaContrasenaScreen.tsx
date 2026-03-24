@@ -5,12 +5,13 @@ import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { apiUrl } from './config/backend';
@@ -23,7 +24,6 @@ type NavigationProps = NativeStackNavigationProp<
 type RouteProps = RouteProp<RootStackParamList, 'EstablecerNuevaContrasena'>;
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
-const { width } = Dimensions.get('window');
 
 const colors = {
   primary: '#4A7FA7',
@@ -45,6 +45,8 @@ const EstablecerNuevaContrasenaScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute<RouteProps>();
   const email = route.params?.email; // Traemos el email desde la pantalla anterior
+  const { width } = useWindowDimensions();
+  const cardWidth = Math.max(300, Math.min(420, width - 24));
 
   const checkRule = (rule: string) => {
     if (!newPassword) return false;
@@ -124,8 +126,12 @@ const EstablecerNuevaContrasenaScreen: React.FC = () => {
   const handleBackToLogin = () => navigation.navigate('Login');
 
   return (
-    <View style={styles.mainContainer}>
-      <View style={styles.cardContainer}>
+    <ScrollView
+      style={styles.mainContainer}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={[styles.cardContainer, { width: cardWidth }]}>
         <View style={styles.logoWrapper}>
           <Image source={ViremLogo} style={styles.logoImage} />
           <Text style={styles.logoText}>Virem</Text>
@@ -241,7 +247,7 @@ const EstablecerNuevaContrasenaScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -249,6 +255,9 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
     backgroundColor: colors.backgroundLight,
+  },
+  scrollContent: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
@@ -266,7 +275,6 @@ const styles = StyleSheet.create({
   },
   logoText: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary },
   cardContainer: {
-    width: width < 400 ? '95%' : 380,
     backgroundColor: colors.cardLight,
     borderRadius: 12,
     elevation: 3,

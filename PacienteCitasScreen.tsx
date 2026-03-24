@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
@@ -150,7 +151,10 @@ const MIN_REFRESH_INTERVAL_MS = 15000;
 
 const PacienteCitasScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { width: viewportWidth } = useWindowDimensions();
+  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
   const { t } = useLanguage();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingCitas, setLoadingCitas] = useState(false);
@@ -484,9 +488,38 @@ const PacienteCitasScreen: React.FC = () => {
     );
   };
 
+  const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const navigateFromMenu = (
+    route:
+      | 'DashboardPaciente'
+      | 'NuevaConsultaPaciente'
+      | 'PacienteCitas'
+      | 'SalaEsperaVirtualPaciente'
+      | 'PacienteChat'
+      | 'PacienteRecetasDocumentos'
+      | 'PacientePerfil'
+      | 'PacienteConfiguracion'
+  ) => {
+    closeMobileMenu();
+    navigation.navigate(route);
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.sidebar}>
+    <View style={[styles.container, isDesktopLayout ? styles.containerDesktop : styles.containerMobile]}>
+      {!isDesktopLayout ? (
+        <View style={styles.mobileMenuBar}>
+          <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
+            <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.dark} />
+            <Text style={styles.mobileMenuButtonText}>
+              {isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {(isDesktopLayout || isMobileMenuOpen) && (
+      <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}>
         <View>
           <View style={styles.logoBox}>
             <Image source={ViremLogo} style={styles.logo} />
@@ -506,56 +539,63 @@ const PacienteCitasScreen: React.FC = () => {
             ) : null}
           </View>
 
-          <View style={styles.menu}>
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('DashboardPaciente')}>
+          <View style={[styles.menu, isDesktopLayout ? styles.menuDesktop : styles.menuMobile]}>
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('DashboardPaciente')}>
               <MaterialIcons name="grid-view" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.home')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('NuevaConsultaPaciente')}>
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('NuevaConsultaPaciente')}>
               <MaterialIcons name="person-search" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.searchDoctor')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]} onPress={() => navigation.navigate('PacienteCitas')}>
+            <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]} onPress={() => navigateFromMenu('PacienteCitas')}>
               <MaterialIcons name="calendar-today" size={20} color={colors.primary} />
               <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.appointments')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}>
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('SalaEsperaVirtualPaciente')}>
               <MaterialIcons name="videocam" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('PacienteChat')}>
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('PacienteChat')}>
               <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.chat')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('PacienteRecetasDocumentos')}>
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('PacienteRecetasDocumentos')}>
               <MaterialIcons name="description" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('PacientePerfil')}>
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('PacientePerfil')}>
               <MaterialIcons name="account-circle" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.profile')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('PacienteConfiguracion')}>
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('PacienteConfiguracion')}>
               <MaterialIcons name="settings" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.settings')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={() => {
+            closeMobileMenu();
+            handleLogout();
+          }}
+        >
           <MaterialIcons name="logout" size={20} color="#fff" />
           <Text style={styles.logoutText}>{t('menu.logout')}</Text>
         </TouchableOpacity>
       </View>
+      )}
 
-      <View style={styles.main}>
+      <View style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]}>
         <View style={styles.header}>
           <View style={styles.searchBox}>
             <MaterialIcons name="search" size={20} color={colors.muted} />
@@ -676,19 +716,45 @@ const PacienteCitasScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
   },
+  containerDesktop: { flexDirection: 'row' },
+  containerMobile: { flexDirection: 'column' },
+  mobileMenuBar: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: colors.bg,
+  },
+  mobileMenuButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d8e4f0',
+    backgroundColor: colors.white,
+  },
+  mobileMenuButtonText: { color: colors.dark, fontWeight: '700', fontSize: 13 },
 
   sidebar: {
-    width: Platform.OS === 'web' ? 280 : '100%',
     backgroundColor: colors.white,
-    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-    borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
-    borderRightColor: '#eef2f7',
-    borderBottomColor: '#eef2f7',
-    padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
+  },
+  sidebarDesktop: {
+    width: 280,
+    borderRightWidth: 1,
+    borderRightColor: '#eef2f7',
+    padding: 20,
+  },
+  sidebarMobile: {
+    width: '100%',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef2f7',
+    padding: 14,
   },
   logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
@@ -700,15 +766,18 @@ const styles = StyleSheet.create({
   userPlan: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 2, textAlign: 'center' },
   syncText: { marginTop: 6, color: colors.muted, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   hintText: { marginTop: 6, color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  menu: { marginTop: 10, gap: 6, flex: Platform.OS === 'web' ? 1 : 0, flexDirection: Platform.OS === 'web' ? 'column' : 'row', flexWrap: 'wrap' },
-  menuItemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12, minWidth: Platform.OS === 'web' ? 0 : 150 },
+  menu: { marginTop: 10, gap: 6 },
+  menuDesktop: { flex: 1 },
+  menuMobile: { flexDirection: 'row', flexWrap: 'wrap' },
+  menuItemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12, minWidth: 150 },
   menuItemActive: { backgroundColor: 'rgba(19,127,236,0.10)', borderRightWidth: 3, borderRightColor: colors.primary },
   menuText: { fontSize: 14, fontWeight: '700', color: colors.muted },
   menuTextActive: { color: colors.primary },
   logoutButton: { flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blue, paddingVertical: 12, borderRadius: 12 },
   logoutText: { color: '#fff', fontWeight: '800' },
 
-  main: { flex: 1, paddingHorizontal: Platform.OS === 'web' ? 26 : 14, paddingTop: Platform.OS === 'web' ? 18 : 12 },
+  main: { flex: 1, paddingHorizontal: 26, paddingTop: 18 },
+  mainMobile: { paddingHorizontal: 14, paddingTop: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14, flexWrap: 'wrap' },
   searchBox: {
     flex: 1,
