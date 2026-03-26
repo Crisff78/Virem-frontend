@@ -61,6 +61,7 @@ eas build -p ios
 ## 5) CI/CD (GitHub Actions)
 
 - CI frontend: `.github/workflows/ci.yml`
+- Deploy automatico real a Vercel: `.github/workflows/deploy-vercel.yml`
 - Deploy parcial/simulado: `.github/workflows/deploy-partial.yml`
 
 ### Build web local (igual que CI)
@@ -71,5 +72,6 @@ npx expo export --platform web --output-dir dist-web --clear
 
 ### Secrets opcionales para deploy real
 
-- `RENDER_DEPLOY_HOOK_URL_FRONTEND`
-- `FRONTEND_PUBLIC_URL`
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
