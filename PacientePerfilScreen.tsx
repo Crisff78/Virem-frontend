@@ -94,6 +94,7 @@ type ProfileForm = {
   recibirEmail: boolean;
   recibirSMS: boolean;
   compartirHistorial: boolean;
+  confirmPassword: string;
 };
 
 const parseUser = (raw: string | null): User | null => {
@@ -109,6 +110,34 @@ const normalizeValue = (value: unknown) =>
   String(value || '')
     .replace(/\s+/g, ' ')
     .trim();
+
+const normalizeDigits = (value: unknown, maxLength: number) =>
+  String(value || '')
+    .replace(/\D/g, '')
+    .slice(0, maxLength);
+
+const toComparableSqlDate = (rawValue: unknown) => {
+  const raw = String(rawValue || '').trim();
+  if (!raw) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const isoPrefix = raw.match(/^(\d{4}-\d{2}-\d{2})[T\s]/);
+  if (isoPrefix?.[1]) return isoPrefix[1];
+
+  const parts = raw.split('/');
+  if (parts.length === 3) {
+    const [dd, mm, yyyy] = parts;
+    if (/^\d+$/.test(dd) && /^\d+$/.test(mm) && /^\d+$/.test(yyyy)) {
+      return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+    }
+  }
+
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return '';
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 const sanitizeFotoUrl = (value: unknown) => {
   const clean = normalizeValue(value);
@@ -162,7 +191,8 @@ const ProfileField: React.FC<{
   onChangeText: (v: string) => void;
   placeholder?: string;
   multiline?: boolean;
-}> = ({ label, value, onChangeText, placeholder, multiline }) => (
+  secureTextEntry?: boolean;
+}> = ({ label, value, onChangeText, placeholder, multiline, secureTextEntry }) => (
   <View style={styles.fieldWrap}>
     <Text style={styles.fieldLabel}>{label}</Text>
     <TextInput
@@ -171,6 +201,7 @@ const ProfileField: React.FC<{
       placeholder={placeholder}
       placeholderTextColor="#8aa7bf"
       multiline={multiline}
+      secureTextEntry={Boolean(secureTextEntry)}
       style={[styles.input, multiline && styles.inputMultiline]}
     />
   </View>
@@ -214,6 +245,7 @@ const PacientePerfilScreen: React.FC = () => {
     recibirEmail: true,
     recibirSMS: true,
     compartirHistorial: false,
+    confirmPassword: '',
   });
 
   const getAuthToken = useCallback(async () => {
@@ -381,6 +413,25 @@ const PacientePerfilScreen: React.FC = () => {
     return DefaultAvatar;
   }, [user?.fotoUrl]);
   const hasProfilePhoto = useMemo(() => Boolean(sanitizeFotoUrl(user?.fotoUrl)), [user?.fotoUrl]);
+  const requiresSensitiveConfirmation = useMemo(() => {
+    if (!user) return false;
+
+    const previousEmail = normalizeValue(user.email).toLowerCase();
+    const nextEmail = normalizeValue(form.email).toLowerCase();
+    const previousCedula = normalizeDigits(user.cedula, 11);
+    const nextCedula = normalizeDigits(form.cedula, 11);
+    const previousTelefono = normalizeDigits(user.telefono, 15);
+    const nextTelefono = normalizeDigits(form.telefono, 15);
+    const previousFechaNacimiento = toComparableSqlDate(user.fechanacimiento);
+    const nextFechaNacimiento = toComparableSqlDate(form.fechaNacimiento);
+
+    return (
+      previousEmail !== nextEmail ||
+      previousCedula !== nextCedula ||
+      previousTelefono !== nextTelefono ||
+      previousFechaNacimiento !== nextFechaNacimiento
+    );
+  }, [form.cedula, form.email, form.fechaNacimiento, form.telefono, user]);
 
   const updateField = <K extends keyof ProfileForm>(field: K, value: ProfileForm[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -487,6 +538,14 @@ const PacientePerfilScreen: React.FC = () => {
       Alert.alert('Datos incompletos', 'Completa al menos nombre, apellido y correo.');
       return;
     }
+    const confirmPassword = normalizeValue(form.confirmPassword);
+    if (requiresSensitiveConfirmation && !confirmPassword) {
+      Alert.alert(
+        'Confirmación requerida',
+        'Debes escribir tu contraseña actual para guardar cambios en correo, cédula, teléfono o fecha de nacimiento.'
+      );
+      return;
+    }
 
     setSaving(true);
     try {
@@ -522,6 +581,7 @@ const PacientePerfilScreen: React.FC = () => {
           recibirEmail: Boolean(form.recibirEmail),
           recibirSMS: Boolean(form.recibirSMS),
           compartirHistorial: Boolean(form.compartirHistorial),
+          confirmPassword,
         }),
       });
 
@@ -558,6 +618,7 @@ const PacientePerfilScreen: React.FC = () => {
       };
 
       setUser(nextUser);
+      setForm((prev) => ({ ...prev, confirmPassword: '' }));
       await persistUser(nextUser);
       Alert.alert('Perfil actualizado', 'Tus datos de paciente fueron guardados correctamente.');
     } catch {
@@ -925,6 +986,21 @@ const PacientePerfilScreen: React.FC = () => {
           )}
         </View>
 
+        {requiresSensitiveConfirmation ? (
+          <ProfileCard title="Confirmación de seguridad">
+            <ProfileField
+              label="Contraseña actual"
+              value={form.confirmPassword}
+              onChangeText={(v) => updateField('confirmPassword', v)}
+              placeholder="Necesaria para guardar cambios sensibles"
+              secureTextEntry
+            />
+            <Text style={styles.securityHint}>
+              Requerida para cambiar correo, cédula, teléfono o fecha de nacimiento.
+            </Text>
+          </ProfileCard>
+        ) : null}
+
         <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
           {saving ? (
             <ActivityIndicator color="#fff" />
@@ -1105,6 +1181,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   blockSpacingTop: { marginTop: 10 },
+  securityHint: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: -2,
+  },
   fieldWrap: { flex: 1, minWidth: Platform.OS === 'web' ? 250 : 0 },
   fieldLabel: { color: colors.dark, fontSize: 12, fontWeight: '800', marginBottom: 6 },
   input: {

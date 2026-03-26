@@ -179,7 +179,8 @@ const LoginScreen: React.FC = () => {
       // Guardar sesion sin bloquear navegacion
       await saveSession(token, mergedProfile);
       const rolid = Number(mergedProfile?.rolid);
-      const targetRoute: keyof RootStackParamList = rolid === 2 ? 'DashboardMedico' : 'DashboardPaciente';
+      const targetRoute: keyof RootStackParamList =
+        rolid === 3 ? 'AdminPanel' : rolid === 2 ? 'DashboardMedico' : 'DashboardPaciente';
 
       console.log(`Login OK -> ${targetRoute} (rolid=${rolid || 'N/A'})`);
 

@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,6 +19,9 @@ const colors = {
 
 const SeleccionPerfil: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
+  const { width: viewportWidth } = useWindowDimensions();
+  const isMobileLayout = viewportWidth <= 600;
+  const isMobileWeb = Platform.OS === 'web' && viewportWidth <= 768;
 
   const handleRegister = (profile: 'Medico' | 'Paciente') => {
     navigation.navigate(profile === 'Paciente' ? 'RegistroPaciente' : 'RegistroMedico');
@@ -28,53 +31,65 @@ const SeleccionPerfil: React.FC = () => {
     navigation.navigate('Login');
   };
 
-  return (
-    <View style={styles.mainContainer}>
-      <View style={styles.contentWrapper}>
-        <Text style={styles.title}>Elige cómo quieres registrarte</Text>
-        <Text style={styles.subtitle}>
-          Selecciona tu perfil para acceder a las herramientas y funciones diseñadas específicamente para ti.
-        </Text>
+  const content = (
+    <View style={styles.contentWrapper}>
+      <Text style={styles.title}>Elige cómo quieres registrarte</Text>
+      <Text style={styles.subtitle}>
+        Selecciona tu perfil para acceder a las herramientas y funciones diseñadas específicamente para ti.
+      </Text>
 
-        <View style={styles.cardsGrid}>
-          <View style={styles.card}>
-            <View style={styles.iconWrapper}>
-              <MaterialCommunityIcons name="stethoscope" size={50} color={colors.blueDark} />
-            </View>
-            <Text style={styles.cardTitle}>Médico</Text>
-            <TouchableOpacity
-              style={[styles.registerButton, styles.buttonMedico]}
-              onPress={() => handleRegister('Medico')}
-            >
-              <Text style={styles.buttonText}>Registrarme</Text>
-            </TouchableOpacity>
+      <View style={[styles.cardsGrid, isMobileLayout ? styles.cardsGridMobile : styles.cardsGridDesktop]}>
+        <View style={[styles.card, isMobileLayout && styles.cardMobile]}>
+          <View style={styles.iconWrapper}>
+            <MaterialCommunityIcons name="stethoscope" size={50} color={colors.blueDark} />
           </View>
-
-          <View style={styles.card}>
-            <View style={styles.iconWrapper}>
-              <MaterialCommunityIcons name="account" size={50} color={colors.blueDark} />
-            </View>
-            <Text style={styles.cardTitle}>Paciente</Text>
-            <TouchableOpacity
-              style={[styles.registerButton, styles.buttonPaciente]}
-              onPress={() => handleRegister('Paciente')}
-            >
-              <Text style={styles.buttonText}>Registrarme</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.cardTitle}>Médico</Text>
+          <TouchableOpacity
+            style={[styles.registerButton, styles.buttonMedico]}
+            onPress={() => handleRegister('Medico')}
+          >
+            <Text style={styles.buttonText}>Registrarme</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.footerWrapper}>
-          <Text style={styles.footerText}>
-            ¿Ya tienes una cuenta?{' '}
-            <Text style={styles.footerLink} onPress={handleLogin}>
-              Inicia sesión aquí.
-            </Text>
+        <View style={[styles.card, isMobileLayout && styles.cardMobile]}>
+          <View style={styles.iconWrapper}>
+            <MaterialCommunityIcons name="account" size={50} color={colors.blueDark} />
+          </View>
+          <Text style={styles.cardTitle}>Paciente</Text>
+          <TouchableOpacity
+            style={[styles.registerButton, styles.buttonPaciente]}
+            onPress={() => handleRegister('Paciente')}
+          >
+            <Text style={styles.buttonText}>Registrarme</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.footerWrapper}>
+        <Text style={styles.footerText}>
+          ¿Ya tienes una cuenta?{' '}
+          <Text style={styles.footerLink} onPress={handleLogin}>
+            Inicia sesión aquí.
           </Text>
-        </View>
+        </Text>
       </View>
     </View>
   );
+
+  if (isMobileWeb) {
+    return (
+      <ScrollView
+        style={styles.mainContainer}
+        contentContainerStyle={styles.mainContainerMobileContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {content}
+      </ScrollView>
+    );
+  }
+
+  return <View style={styles.mainContainer}>{content}</View>;
 };
 
 const styles = StyleSheet.create({
@@ -85,6 +100,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
+  },
+  mainContainerMobileContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 24,
+    paddingBottom: 140,
+    paddingHorizontal: 16,
   },
   contentWrapper: {
     width: '100%',
@@ -109,11 +132,12 @@ const styles = StyleSheet.create({
   },
   cardsGrid: {
     width: '100%',
-    flexDirection: Dimensions.get('window').width > 600 ? 'row' : 'column',
     justifyContent: 'center',
     gap: 28,
     paddingHorizontal: 16,
   },
+  cardsGridDesktop: { flexDirection: 'row' },
+  cardsGridMobile: { flexDirection: 'column' },
   card: {
     flex: 1,
     backgroundColor: colors.white,
@@ -127,6 +151,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 5,
+  },
+  cardMobile: {
+    flex: 0,
+    width: '100%',
   },
   iconWrapper: {
     height: 80,

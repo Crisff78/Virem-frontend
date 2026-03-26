@@ -231,6 +231,12 @@ const RegistroCredencialesMedicoScreen: React.FC = () => {
       const cedulaRaw = String(dm.cedula || draftData?.cedula || '').trim();
       const telefonoRaw = String(dm.telefono || draftData?.telefono || '').trim();
       const fotoUrl = String(dm.fotoUrl || draftData?.fotoUrl || '').trim();
+      const cedulaProfesionalUrl = String(
+        dm.cedulaProfesionalUrl || draftData?.cedulaProfesionalUrl || fotoUrl || ''
+      ).trim();
+      const certificadoEspecialidadUrl = String(
+        dm.certificadoEspecialidadUrl || draftData?.certificadoEspecialidadUrl || fotoUrl || ''
+      ).trim();
       const exequaturValidationToken = String(
         dm.exequaturValidationToken || draftData?.exequaturValidationToken || ''
       ).trim();
@@ -243,6 +249,10 @@ const RegistroCredencialesMedicoScreen: React.FC = () => {
         cedula: String(cedulaRaw || '').replace(/\D/g, '').slice(0, 11),
         telefono: String(telefonoRaw || '').replace(/\D/g, '').slice(0, 15),
         fotoUrl,
+        documentos: {
+          cedulaProfesionalUrl,
+          certificadoEspecialidadUrl,
+        },
         exequaturValidationToken,
         email: emailTrim,
         password: String(password),
@@ -274,7 +284,15 @@ const RegistroCredencialesMedicoScreen: React.FC = () => {
       );
       await clearMedicoDraft(dm.draftKey);
 
-      showAlert('Exito', 'Cuenta de medico creada correctamente. Ahora inicia sesion.');
+      if (res?.requiresAdminApproval) {
+        showAlert(
+          'Registro enviado',
+          res?.message ||
+            'Tu cuenta de medico fue creada y quedo pendiente de aprobacion administrativa.'
+        );
+      } else {
+        showAlert('Exito', 'Cuenta de medico creada correctamente. Ahora inicia sesion.');
+      }
       navigation.replace('Login');
     } catch (error) {
       showAlert('Error de Red', `No se pudo conectar al servidor.\n\nBackend actual: ${BACKEND_URL}`);

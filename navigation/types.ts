@@ -15,6 +15,8 @@ export type DatosPersonalesMedico = {
   cedula: string;
   telefono: string;
   fotoUrl?: string;
+  cedulaProfesionalUrl?: string;
+  certificadoEspecialidadUrl?: string;
   exequaturValidationToken?: string;
   draftKey?: string;
 };
@@ -90,4 +92,5 @@ export type RootStackParamList = {
       }
     | undefined;
   MedicoPerfil: undefined;
+  AdminPanel: undefined;
 };

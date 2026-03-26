@@ -501,6 +501,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     justifyContent: "center",
   },
+  docUploadContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
   inputField: {
     height: 48,
     borderRadius: 8,
@@ -656,6 +662,8 @@ const RegistroMedicoScreen: React.FC = () => {
   // Foto
   const [fotoUri, setFotoUri] = useState<string>("");
   const [fotoError, setFotoError] = useState(false);
+  const [cedulaProfesionalUri, setCedulaProfesionalUri] = useState<string>("");
+  const [certificadoEspecialidadUri, setCertificadoEspecialidadUri] = useState<string>("");
 
   // UI
   const [isLoading, setIsLoading] = useState(false);
@@ -678,13 +686,23 @@ const RegistroMedicoScreen: React.FC = () => {
     cedula.trim() !== "" &&
     phone.trim() !== "" &&
     especialidad.trim() !== "" &&
-    !!fotoUri;
+    !!fotoUri &&
+    !!cedulaProfesionalUri &&
+    !!certificadoEspecialidadUri;
 
-  const completedFields = [nombreCompleto, birthDate, gender, cedula, phone, especialidad, fotoUri].filter(
-    (x) => (typeof x === "string" ? x.trim() !== "" : !!x)
-  ).length;
+  const completedFields = [
+    nombreCompleto,
+    birthDate,
+    gender,
+    cedula,
+    phone,
+    especialidad,
+    fotoUri,
+    cedulaProfesionalUri,
+    certificadoEspecialidadUri,
+  ].filter((x) => (typeof x === "string" ? x.trim() !== "" : !!x)).length;
 
-  const progressPercent = Math.round((completedFields / 7) * 100);
+  const progressPercent = Math.round((completedFields / 9) * 100);
 
   const especialidadesFiltradas = useMemo(() => {
     const q = espQuery.trim().toLowerCase();
@@ -755,6 +773,35 @@ const RegistroMedicoScreen: React.FC = () => {
     } catch {
       setIsLoading(false);
       Alert.alert("Error", "No se pudo abrir el selector de imágenes.");
+    }
+  };
+
+  const pickSupportingDocument = async (onSelected: (uri: string) => void) => {
+    try {
+      if (Platform.OS !== "web") {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert("Permiso requerido", "Necesitamos permiso para acceder a tus archivos.");
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.65,
+        base64: true,
+      });
+
+      if (result.canceled) return;
+      const pickedAsset = result.assets[0];
+      const baseUri = buildPersistentPhotoUri(pickedAsset);
+      const persistentUri = await toWebDataUrl(baseUri);
+      if (!persistentUri) return;
+
+      onSelected(persistentUri);
+    } catch {
+      Alert.alert("Error", "No se pudo seleccionar el documento.");
     }
   };
 
@@ -846,6 +893,8 @@ const RegistroMedicoScreen: React.FC = () => {
       cedula,
       telefono: `${selectedCountryCode.code} ${phone}`,
       fotoUrl: String(fotoUri || "").trim() || undefined,
+      cedulaProfesionalUrl: String(cedulaProfesionalUri || "").trim() || undefined,
+      certificadoEspecialidadUrl: String(certificadoEspecialidadUri || "").trim() || undefined,
       exequaturValidationToken,
     };
 
@@ -861,6 +910,10 @@ const RegistroMedicoScreen: React.FC = () => {
       datosPersonales: {
         ...draftPayload,
         fotoUrl: draftKey ? undefined : draftPayload.fotoUrl,
+        cedulaProfesionalUrl: draftKey ? undefined : draftPayload.cedulaProfesionalUrl,
+        certificadoEspecialidadUrl: draftKey
+          ? undefined
+          : draftPayload.certificadoEspecialidadUrl,
         draftKey,
       },
     });
@@ -1071,6 +1124,55 @@ const RegistroMedicoScreen: React.FC = () => {
                   {((showErrors && !especialidad) || especialidadError) && (
                     <Text style={styles.errorText}>Debe seleccionar una especialidad</Text>
                   )}
+                </View>
+
+                <View style={styles.inputWrapper}>
+                  <Text style={styles.inputLabel}>Cédula profesional</Text>
+                  <TouchableOpacity
+                    style={[styles.selectInput, showErrors && !cedulaProfesionalUri && styles.inputError]}
+                    onPress={() => pickSupportingDocument((uri) => setCedulaProfesionalUri(uri))}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.docUploadContent}>
+                      <Text
+                        numberOfLines={1}
+                        style={{ color: cedulaProfesionalUri ? colors.navyDark : colors.blueGray, flex: 1 }}
+                      >
+                        {cedulaProfesionalUri ? "Documento cargado" : "Subir documento"}
+                      </Text>
+                      <MaterialIcons name="upload-file" size={18} color={colors.blueGray} />
+                    </View>
+                  </TouchableOpacity>
+                  {showErrors && !cedulaProfesionalUri ? (
+                    <Text style={styles.errorText}>Debe subir la cédula profesional</Text>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={[styles.formRow, isWideLayout && styles.formRowWide]}>
+                <View style={styles.inputWrapper}>
+                  <Text style={styles.inputLabel}>Certificado de especialidad</Text>
+                  <TouchableOpacity
+                    style={[styles.selectInput, showErrors && !certificadoEspecialidadUri && styles.inputError]}
+                    onPress={() => pickSupportingDocument((uri) => setCertificadoEspecialidadUri(uri))}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.docUploadContent}>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          color: certificadoEspecialidadUri ? colors.navyDark : colors.blueGray,
+                          flex: 1,
+                        }}
+                      >
+                        {certificadoEspecialidadUri ? "Documento cargado" : "Subir documento"}
+                      </Text>
+                      <MaterialIcons name="upload-file" size={18} color={colors.blueGray} />
+                    </View>
+                  </TouchableOpacity>
+                  {showErrors && !certificadoEspecialidadUri ? (
+                    <Text style={styles.errorText}>Debe subir el certificado de especialidad</Text>
+                  ) : null}
                 </View>
 
                 <View style={styles.inputWrapper} />

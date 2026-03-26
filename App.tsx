@@ -20,6 +20,7 @@ import DashboardMedico from "./DashboardMedico";
 import MedicoCitasScreen from "./MedicoCitasScreen";
 import MedicoPacientesScreen from "./MedicoPacientesScreen";
 import MedicoChatScreen from "./MedicoChatScreen";
+import AdminPanelScreen from "./AdminPanelScreen";
 import NuevaConsultaPacienteScreen from "./NuevaConsultaPacienteScreen";
 import SalaEsperaVirtualPacienteScreen from "./SalaEsperaVirtualPacienteScreen";
 import EspecialistasPorEspecialidadScreen from "./EspecialistasPorEspecialidadScreen";
@@ -76,6 +77,7 @@ const linking = {
       MedicoPacientes: "medico-pacientes",
       MedicoChat: "medico-chat",
       MedicoPerfil: "medico-perfil",
+      AdminPanel: "admin-panel",
     },
   },
 };
@@ -160,6 +162,7 @@ const App: React.FC = () => {
               <Stack.Screen name="MedicoPacientes" component={MedicoPacientesScreen} />
               <Stack.Screen name="MedicoChat" component={MedicoChatScreen} />
               <Stack.Screen name="MedicoPerfil" component={MedicoPerfilScreen} />
+              <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
             </Stack.Navigator>
           </NavigationContainer>
         </SafeAreaView>
