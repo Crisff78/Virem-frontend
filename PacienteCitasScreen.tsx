@@ -17,11 +17,13 @@ import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { io, Socket } from 'socket.io-client';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { RootStackParamList } from './navigation/types';
-import { apiUrl, BACKEND_URL } from './config/backend';
+import { apiUrl } from './config/backend';
+import { useSocketEvent } from './hooks/useSocketEvent';
+import { useAuth } from './providers/AuthProvider';
+import { getAuthToken } from './utils/session';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
@@ -112,30 +114,6 @@ const formatDateTime = (value: string | null) => {
   }).format(date);
 };
 
-const getAuthToken = async (): Promise<string> => {
-  try {
-    if (Platform.OS === 'web') {
-      return (
-        localStorage.getItem(AUTH_TOKEN_KEY) ||
-        localStorage.getItem(LEGACY_TOKEN_KEY) ||
-        ''
-      ).trim();
-    }
-
-    const secureToken =
-      (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-      (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-    if (secureToken && secureToken.trim()) return secureToken.trim();
-
-    const asyncToken =
-      (await AsyncStorage.getItem(AUTH_TOKEN_KEY)) ||
-      (await AsyncStorage.getItem(LEGACY_TOKEN_KEY));
-    return String(asyncToken || '').trim();
-  } catch {
-    return '';
-  }
-};
-
 const colors = {
   primary: '#137fec',
   bg: '#F6FAFD',
@@ -151,6 +129,7 @@ const MIN_REFRESH_INTERVAL_MS = 15000;
 
 const PacienteCitasScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { signOut } = useAuth();
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
   const { t } = useLanguage();
@@ -162,7 +141,6 @@ const PacienteCitasScreen: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [citas, setCitas] = useState<CitaItem[]>([]);
   const lastRefreshRef = useRef(0);
-  const socketRef = useRef<Socket | null>(null);
 
   const loadUser = useCallback(async () => {
     if (!user) {
@@ -274,45 +252,22 @@ const PacienteCitasScreen: React.FC = () => {
     });
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      let mounted = true;
-      const initSocket = async () => {
-        const token = await getAuthToken();
-        if (!mounted || !token) return;
-
-        const socket = io(BACKEND_URL, {
-          transports: ['websocket'],
-          auth: { token },
-        });
-        socketRef.current = socket;
-
-        const onCitaEvent = (payload: any) => {
-          const citaPayload = payload?.cita as CitaItem | undefined;
-          if (citaPayload?.citaid) {
-            upsertCita(citaPayload);
-          } else {
-            loadCitas();
-          }
-        };
-
-        socket.on('cita_creada', onCitaEvent);
-        socket.on('cita_actualizada', onCitaEvent);
-        socket.on('cita_cancelada', onCitaEvent);
-        socket.on('cita_reprogramada', onCitaEvent);
-      };
-
-      initSocket();
-      return () => {
-        mounted = false;
-        if (socketRef.current) {
-          socketRef.current.removeAllListeners();
-          socketRef.current.disconnect();
-          socketRef.current = null;
-        }
-      };
-    }, [loadCitas, upsertCita])
+  const handleRealtimeCitaEvent = useCallback(
+    (payload: any) => {
+      const citaPayload = payload?.cita as CitaItem | undefined;
+      if (citaPayload?.citaid) {
+        upsertCita(citaPayload);
+        return;
+      }
+      loadCitas();
+    },
+    [loadCitas, upsertCita]
   );
+
+  useSocketEvent('cita_creada', handleRealtimeCitaEvent);
+  useSocketEvent('cita_actualizada', handleRealtimeCitaEvent);
+  useSocketEvent('cita_cancelada', handleRealtimeCitaEvent);
+  useSocketEvent('cita_reprogramada', handleRealtimeCitaEvent);
 
   const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
 
@@ -354,22 +309,7 @@ const PacienteCitasScreen: React.FC = () => {
   }, [filteredCitas]);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    await AsyncStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-    try {
-      if (Platform.OS === 'web') {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(LEGACY_TOKEN_KEY);
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-      } else {
-        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
-      }
-    } catch {}
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 

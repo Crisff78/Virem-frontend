@@ -16,10 +16,12 @@ import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { io, Socket } from 'socket.io-client';
 import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
-import { apiUrl, BACKEND_URL } from './config/backend';
+import { apiUrl } from './config/backend';
+import { useSocketEvent } from './hooks/useSocketEvent';
+import { useAuth } from './providers/AuthProvider';
+import { getAuthToken } from './utils/session';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
@@ -87,30 +89,6 @@ const normalizeText = (value: unknown) =>
   String(value || '')
     .replace(/\s+/g, ' ')
     .trim();
-
-const getAuthToken = async (): Promise<string> => {
-  try {
-    if (Platform.OS === 'web') {
-      return (
-        localStorage.getItem(AUTH_TOKEN_KEY) ||
-        localStorage.getItem(LEGACY_TOKEN_KEY) ||
-        ''
-      ).trim();
-    }
-
-    const secureToken =
-      (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-      (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-    if (secureToken && secureToken.trim()) return secureToken.trim();
-
-    const asyncToken =
-      (await AsyncStorage.getItem(AUTH_TOKEN_KEY)) ||
-      (await AsyncStorage.getItem(LEGACY_TOKEN_KEY));
-    return String(asyncToken || '').trim();
-  } catch {
-    return '';
-  }
-};
 
 const toRelativeTime = (value: string | null | undefined) => {
   const date = value ? new Date(value) : null;
@@ -195,12 +173,12 @@ const mapNotification = (item: AgendaNotification): NotificationItem => {
 const PacienteNotificacionesScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { t } = useLanguage();
+  const { signOut } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>('todas');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const socketRef = useRef<Socket | null>(null);
   const lastRefreshRef = useRef(0);
 
   const loadUser = useCallback(async () => {
@@ -307,56 +285,30 @@ const PacienteNotificacionesScreen: React.FC = () => {
     }, [loadNotifications, loadUser])
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      let mounted = true;
-      const initSocket = async () => {
-        const token = await getAuthToken();
-        if (!mounted || !token) return;
+  useSocketEvent('notificacion_nueva', (payload: any) => {
+    const next = mapNotification({
+      id: payload?.id,
+      tipo: payload?.tipo,
+      titulo: payload?.titulo,
+      contenido: payload?.contenido,
+      leida: payload?.leida,
+      createdAt: payload?.createdAt,
+      data: payload?.data,
+    });
+    if (!next.id) return;
+    setNotifications((prev) => {
+      const exists = prev.some((item) => item.id === next.id);
+      if (exists) {
+        return prev.map((item) => (item.id === next.id ? { ...item, ...next } : item));
+      }
+      return [next, ...prev];
+    });
+  });
 
-        const socket = io(BACKEND_URL, {
-          transports: ['websocket'],
-          auth: { token },
-        });
-        socketRef.current = socket;
-
-        socket.on('notificacion_nueva', (payload: any) => {
-          const next = mapNotification({
-            id: payload?.id,
-            tipo: payload?.tipo,
-            titulo: payload?.titulo,
-            contenido: payload?.contenido,
-            leida: payload?.leida,
-            createdAt: payload?.createdAt,
-            data: payload?.data,
-          });
-          if (!next.id) return;
-          setNotifications((prev) => {
-            const exists = prev.some((item) => item.id === next.id);
-            if (exists) {
-              return prev.map((item) => (item.id === next.id ? { ...item, ...next } : item));
-            }
-            return [next, ...prev];
-          });
-        });
-
-        socket.on('mensaje_nuevo', () => loadNotifications());
-        socket.on('cita_actualizada', () => loadNotifications());
-        socket.on('cita_cancelada', () => loadNotifications());
-        socket.on('cita_reprogramada', () => loadNotifications());
-      };
-
-      initSocket();
-      return () => {
-        mounted = false;
-        if (socketRef.current) {
-          socketRef.current.removeAllListeners();
-          socketRef.current.disconnect();
-          socketRef.current = null;
-        }
-      };
-    }, [loadNotifications])
-  );
+  useSocketEvent('mensaje_nuevo', () => loadNotifications());
+  useSocketEvent('cita_actualizada', () => loadNotifications());
+  useSocketEvent('cita_cancelada', () => loadNotifications());
+  useSocketEvent('cita_reprogramada', () => loadNotifications());
 
   const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
 
@@ -455,22 +407,7 @@ const PacienteNotificacionesScreen: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    await AsyncStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-    try {
-      if (Platform.OS === 'web') {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(LEGACY_TOKEN_KEY);
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-      } else {
-        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
-      }
-    } catch {}
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 

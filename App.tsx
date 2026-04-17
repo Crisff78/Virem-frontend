@@ -37,6 +37,8 @@ import PacienteCitasScreen from "./PacienteCitasScreen";
 import { LanguageProvider } from "./localization/LanguageContext";
 
 import { RootStackParamList } from "./navigation/types";
+import { AuthProvider } from "./providers/AuthProvider";
+import { SocketProvider } from "./providers/SocketProvider";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const linkingPrefixes = [Linking.createURL("/")];
@@ -86,86 +88,90 @@ const App: React.FC = () => {
   return (
     <SafeAreaProvider>
       <LanguageProvider>
-        <SafeAreaView style={styles.rootSafeArea} edges={["top", "left", "right"]}>
-          <NavigationContainer linking={linking}>
-            <Stack.Navigator
-              id="RootStack"
-              initialRouteName="SeleccionPerfil"
-              screenOptions={{
-                headerShown: false,
-                gestureEnabled: false,
-                animation: "none",
-              }}
-            >
-              <Stack.Screen name="SeleccionPerfil" component={SeleccionPerfil} />
-              <Stack.Screen name="Login" component={LoginScreen} />
+        <AuthProvider>
+          <SocketProvider>
+            <SafeAreaView style={styles.rootSafeArea} edges={["top", "left", "right"]}>
+              <NavigationContainer linking={linking}>
+                <Stack.Navigator
+                  id="RootStack"
+                  initialRouteName="SeleccionPerfil"
+                  screenOptions={{
+                    headerShown: false,
+                    gestureEnabled: false,
+                    animation: "none",
+                  }}
+                >
+                  <Stack.Screen name="SeleccionPerfil" component={SeleccionPerfil} />
+                  <Stack.Screen name="Login" component={LoginScreen} />
 
-              <Stack.Screen name="RegistroPaciente" component={RegistroPacienteScreen} />
-              <Stack.Screen name="RegistroMedico" component={RegistroMedicoScreen} />
+                  <Stack.Screen name="RegistroPaciente" component={RegistroPacienteScreen} />
+                  <Stack.Screen name="RegistroMedico" component={RegistroMedicoScreen} />
 
-              <Stack.Screen name="RegistroCredenciales" component={RegistroCredencialesScreen} />
-              <Stack.Screen
-                name="RegistroCredencialesMedico"
-                component={RegistroCredencialesMedicoScreen}
-              />
+                  <Stack.Screen name="RegistroCredenciales" component={RegistroCredencialesScreen} />
+                  <Stack.Screen
+                    name="RegistroCredencialesMedico"
+                    component={RegistroCredencialesMedicoScreen}
+                  />
 
-              <Stack.Screen name="RecuperarContrasena" component={RecuperarContrasenaScreen} />
-              <Stack.Screen name="VerificarIdentidad" component={VerificarIdentidadScreen} />
-              <Stack.Screen
-                name="EstablecerNuevaContrasena"
-                component={EstablecerNuevaContrasenaScreen}
-              />
+                  <Stack.Screen name="RecuperarContrasena" component={RecuperarContrasenaScreen} />
+                  <Stack.Screen name="VerificarIdentidad" component={VerificarIdentidadScreen} />
+                  <Stack.Screen
+                    name="EstablecerNuevaContrasena"
+                    component={EstablecerNuevaContrasenaScreen}
+                  />
 
-              <Stack.Screen name="DashboardPaciente" component={DashboardPacienteScreen} />
-              <Stack.Screen name="PacienteCitas" component={PacienteCitasScreen} />
-              <Stack.Screen name="PacienteChat" component={PacienteChatScreen} />
-              <Stack.Screen
-                name="PacienteNotificaciones"
-                component={PacienteNotificacionesScreen}
-              />
-              <Stack.Screen
-                name="PacienteRecetasDocumentos"
-                component={PacienteRecetasDocumentosScreen}
-              />
-              <Stack.Screen name="PacientePerfil" component={PacientePerfilScreen} />
-              <Stack.Screen
-                name="PacienteConfiguracion"
-                component={PacienteConfiguracionScreen}
-              />
-              <Stack.Screen
-                name="PacienteCambiarContrasena"
-                component={PacienteCambiarContrasenaScreen}
-              />
-              <Stack.Screen
-                name="PacienteHistorialSesiones"
-                component={PacienteHistorialSesionesScreen}
-              />
-              <Stack.Screen
-                name="NuevaConsultaPaciente"
-                component={NuevaConsultaPacienteScreen}
-              />
-              <Stack.Screen
-                name="SalaEsperaVirtualPaciente"
-                component={SalaEsperaVirtualPacienteScreen}
-              />
-              <Stack.Screen
-                name="EspecialistasPorEspecialidad"
-                component={EspecialistasPorEspecialidadScreen}
-              />
-              <Stack.Screen
-                name="PerfilEspecialistaAgendar"
-                component={PerfilEspecialistaAgendarScreen}
-              />
+                  <Stack.Screen name="DashboardPaciente" component={DashboardPacienteScreen} />
+                  <Stack.Screen name="PacienteCitas" component={PacienteCitasScreen} />
+                  <Stack.Screen name="PacienteChat" component={PacienteChatScreen} />
+                  <Stack.Screen
+                    name="PacienteNotificaciones"
+                    component={PacienteNotificacionesScreen}
+                  />
+                  <Stack.Screen
+                    name="PacienteRecetasDocumentos"
+                    component={PacienteRecetasDocumentosScreen}
+                  />
+                  <Stack.Screen name="PacientePerfil" component={PacientePerfilScreen} />
+                  <Stack.Screen
+                    name="PacienteConfiguracion"
+                    component={PacienteConfiguracionScreen}
+                  />
+                  <Stack.Screen
+                    name="PacienteCambiarContrasena"
+                    component={PacienteCambiarContrasenaScreen}
+                  />
+                  <Stack.Screen
+                    name="PacienteHistorialSesiones"
+                    component={PacienteHistorialSesionesScreen}
+                  />
+                  <Stack.Screen
+                    name="NuevaConsultaPaciente"
+                    component={NuevaConsultaPacienteScreen}
+                  />
+                  <Stack.Screen
+                    name="SalaEsperaVirtualPaciente"
+                    component={SalaEsperaVirtualPacienteScreen}
+                  />
+                  <Stack.Screen
+                    name="EspecialistasPorEspecialidad"
+                    component={EspecialistasPorEspecialidadScreen}
+                  />
+                  <Stack.Screen
+                    name="PerfilEspecialistaAgendar"
+                    component={PerfilEspecialistaAgendarScreen}
+                  />
 
-              <Stack.Screen name="DashboardMedico" component={DashboardMedico} />
-              <Stack.Screen name="MedicoCitas" component={MedicoCitasScreen} />
-              <Stack.Screen name="MedicoPacientes" component={MedicoPacientesScreen} />
-              <Stack.Screen name="MedicoChat" component={MedicoChatScreen} />
-              <Stack.Screen name="MedicoPerfil" component={MedicoPerfilScreen} />
-              <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </SafeAreaView>
+                  <Stack.Screen name="DashboardMedico" component={DashboardMedico} />
+                  <Stack.Screen name="MedicoCitas" component={MedicoCitasScreen} />
+                  <Stack.Screen name="MedicoPacientes" component={MedicoPacientesScreen} />
+                  <Stack.Screen name="MedicoChat" component={MedicoChatScreen} />
+                  <Stack.Screen name="MedicoPerfil" component={MedicoPerfilScreen} />
+                  <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
+                </Stack.Navigator>
+              </NavigationContainer>
+            </SafeAreaView>
+          </SocketProvider>
+        </AuthProvider>
       </LanguageProvider>
     </SafeAreaProvider>
   );

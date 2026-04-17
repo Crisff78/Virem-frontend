@@ -11,24 +11,20 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { io, Socket } from 'socket.io-client';
 
 import type { RootStackParamList } from './navigation/types';
-import { apiUrl, BACKEND_URL } from './config/backend';
+import { useSocketEvent } from './hooks/useSocketEvent';
+import { useSocketRoom } from './hooks/useSocketRoom';
+import { useAuth } from './providers/AuthProvider';
+import { apiClient } from './utils/api';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
-const STORAGE_KEY = 'user';
-const LEGACY_USER_STORAGE_KEY = 'userProfile';
-const AUTH_TOKEN_KEY = 'authToken';
-const LEGACY_TOKEN_KEY = 'token';
 const MIN_REFRESH_INTERVAL_MS = 12000;
 
 type SessionUser = {
@@ -66,15 +62,6 @@ type SideItem = {
   badge?: { text: string; color: string };
 };
 
-const parseJson = <T,>(raw: string | null): T | null => {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
-};
-
 const normalizeText = (value: unknown) =>
   String(value || '')
     .replace(/\s+/g, ' ')
@@ -105,33 +92,10 @@ const formatDateTime = (value: string | null | undefined) => {
   }).format(date);
 };
 
-const getAuthToken = async (): Promise<string> => {
-  try {
-    if (Platform.OS === 'web') {
-      return (
-        localStorage.getItem(AUTH_TOKEN_KEY) ||
-        localStorage.getItem(LEGACY_TOKEN_KEY) ||
-        ''
-      ).trim();
-    }
-
-    const secureToken =
-      (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-      (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-    if (secureToken && secureToken.trim()) return secureToken.trim();
-
-    const asyncToken =
-      (await AsyncStorage.getItem(AUTH_TOKEN_KEY)) ||
-      (await AsyncStorage.getItem(LEGACY_TOKEN_KEY));
-    return String(asyncToken || '').trim();
-  } catch {
-    return '';
-  }
-};
-
 const MedicoChatScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'MedicoChat'>>();
+  const { user: sessionUser, updateUser, signOut } = useAuth<SessionUser>();
 
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingContacts, setLoadingContacts] = useState(false);
@@ -142,61 +106,46 @@ const MedicoChatScreen: React.FC = () => {
   const [reply, setReply] = useState('');
   const [selectedChatId, setSelectedChatId] = useState('');
   const [messagesByChat, setMessagesByChat] = useState<Record<string, Message[]>>({});
-  const socketRef = useRef<Socket | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRefreshRef = useRef(0);
 
   const loadUser = useCallback(async () => {
     setLoadingUser(true);
     try {
-      const rawStorageUser =
-        Platform.OS === 'web'
-          ? localStorage.getItem(LEGACY_USER_STORAGE_KEY)
-          : await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY);
-      const rawAsyncUser = await AsyncStorage.getItem(STORAGE_KEY);
-      let sessionUser = parseJson<SessionUser>(rawStorageUser) || parseJson<SessionUser>(rawAsyncUser);
+      let nextUser = sessionUser || null;
+      const dashboardPayload = await apiClient.get<any>('/api/users/me/dashboard-medico', {
+        authenticated: true,
+      });
 
-      const token = await getAuthToken();
-      if (token) {
-        const dashboardResponse = await fetch(apiUrl('/api/users/me/dashboard-medico'), {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const dashboardPayload = await dashboardResponse.json().catch(() => null);
-        if (dashboardResponse.ok && dashboardPayload?.success && dashboardPayload?.dashboard?.profile) {
-          const profile = dashboardPayload.dashboard.profile;
-          sessionUser = {
-            ...(sessionUser || {}),
-            nombreCompleto: normalizeText(profile?.nombreCompleto || sessionUser?.nombreCompleto),
-            especialidad: normalizeText(profile?.especialidad || sessionUser?.especialidad),
-            fotoUrl: sanitizeFotoUrl(profile?.fotoUrl || sessionUser?.fotoUrl),
-          };
+      if (dashboardPayload?.success && dashboardPayload?.dashboard?.profile) {
+        const profile = dashboardPayload.dashboard.profile;
+        nextUser = {
+          ...(nextUser || {}),
+          nombreCompleto: normalizeText(profile?.nombreCompleto || nextUser?.nombreCompleto),
+          especialidad: normalizeText(profile?.especialidad || nextUser?.especialidad),
+          fotoUrl: sanitizeFotoUrl(profile?.fotoUrl || nextUser?.fotoUrl),
+        };
+        if (nextUser) {
+          await updateUser(nextUser);
         }
       }
 
-      setUser(sessionUser);
+      setUser(nextUser);
     } catch {
-      setUser(null);
+      setUser(sessionUser || null);
     } finally {
       setLoadingUser(false);
     }
-  }, []);
+  }, [sessionUser, updateUser]);
 
   const loadContacts = useCallback(async () => {
     setLoadingContacts(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        setContacts([]);
-        return;
-      }
-
-      const response = await fetch(apiUrl('/api/agenda/me/conversaciones?limit=150'), {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = await apiClient.get<any>('/api/agenda/me/conversaciones', {
+        authenticated: true,
+        query: { limit: 150 },
       });
-      const payload = await response.json().catch(() => null);
-      if (!(response.ok && payload?.success && Array.isArray(payload?.conversaciones))) {
+      if (!(payload?.success && Array.isArray(payload?.conversaciones))) {
         setContacts([]);
         return;
       }
@@ -258,18 +207,14 @@ const MedicoChatScreen: React.FC = () => {
 
     setLoadingMessages(true);
     try {
-      const token = await getAuthToken();
-      if (!token) return;
-
-      const response = await fetch(
-        apiUrl(`/api/agenda/me/conversaciones/${cleanConversationId}/mensajes?limit=120`),
+      const payload = await apiClient.get<any>(
+        `/api/agenda/me/conversaciones/${cleanConversationId}/mensajes`,
         {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
+          authenticated: true,
+          query: { limit: 120 },
         }
       );
-      const payload = await response.json().catch(() => null);
-      if (!(response.ok && payload?.success && Array.isArray(payload?.mensajes))) {
+      if (!(payload?.success && Array.isArray(payload?.mensajes))) {
         return;
       }
 
@@ -289,12 +234,8 @@ const MedicoChatScreen: React.FC = () => {
         [cleanConversationId]: normalized,
       }));
 
-      await fetch(apiUrl(`/api/agenda/me/conversaciones/${cleanConversationId}/leido`), {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+      await apiClient.patch(`/api/agenda/me/conversaciones/${cleanConversationId}/leido`, {
+        authenticated: true,
       }).catch(() => null);
     } catch {
       // noop
@@ -339,61 +280,43 @@ const MedicoChatScreen: React.FC = () => {
     loadMessages(selectedChatId);
   }, [loadMessages, selectedChatId]);
 
-  useFocusEffect(
-    useCallback(() => {
-      let mounted = true;
-      const initSocket = async () => {
-        const token = await getAuthToken();
-        if (!mounted || !token) return;
+  useSocketRoom('conversation', selectedChatId, Boolean(selectedChatId));
 
-        const socket = io(BACKEND_URL, {
-          transports: ['websocket'],
-          auth: { token },
-        });
-        socketRef.current = socket;
-
-        socket.on('mensaje_nuevo', (payload: any) => {
-          const conversationId = normalizeText(payload?.conversacionId);
-          if (!conversationId) return;
-          const rawMessage = payload?.mensaje;
-          if (conversationId === selectedChatId && rawMessage) {
-            const sender = normalizeText(rawMessage?.emisorTipo).toLowerCase();
-            const from = sender === 'medico' ? 'me' : 'other';
-            const nextMessage: Message = {
-              id: normalizeText(rawMessage?.mensajeId || `${Date.now()}-${Math.random()}`),
-              from,
-              text: normalizeText(rawMessage?.contenido),
-              time: formatDateTime(rawMessage?.createdAt),
-            };
-            setMessagesByChat((prev) => ({
-              ...prev,
-              [conversationId]: [...(prev[conversationId] || []), nextMessage],
-            }));
-          }
-          scheduleContactsReload();
-          if (conversationId === selectedChatId) {
-            loadMessages(conversationId);
-          }
-        });
-        socket.on('cita_actualizada', () => scheduleContactsReload());
-        socket.on('cita_reprogramada', () => scheduleContactsReload());
+  useSocketEvent('mensaje_nuevo', (payload: any) => {
+    const conversationId = normalizeText(payload?.conversacionId);
+    if (!conversationId) return;
+    const rawMessage = payload?.mensaje;
+    if (conversationId === selectedChatId && rawMessage) {
+      const sender = normalizeText(rawMessage?.emisorTipo).toLowerCase();
+      const from = sender === 'medico' ? 'me' : 'other';
+      const nextMessage: Message = {
+        id: normalizeText(rawMessage?.mensajeId || `${Date.now()}-${Math.random()}`),
+        from,
+        text: normalizeText(rawMessage?.contenido),
+        time: formatDateTime(rawMessage?.createdAt),
       };
+      setMessagesByChat((prev) => ({
+        ...prev,
+        [conversationId]: [...(prev[conversationId] || []), nextMessage],
+      }));
+    }
+    scheduleContactsReload();
+    if (conversationId === selectedChatId) {
+      loadMessages(conversationId);
+    }
+  });
 
-      initSocket();
-      return () => {
-        mounted = false;
-        if (socketRef.current) {
-          socketRef.current.removeAllListeners();
-          socketRef.current.disconnect();
-          socketRef.current = null;
-        }
-        if (refreshTimerRef.current) {
-          clearTimeout(refreshTimerRef.current);
-          refreshTimerRef.current = null;
-        }
-      };
-    }, [loadMessages, scheduleContactsReload, selectedChatId])
-  );
+  useSocketEvent('cita_actualizada', () => scheduleContactsReload());
+  useSocketEvent('cita_reprogramada', () => scheduleContactsReload());
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const filteredContacts = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
@@ -455,22 +378,17 @@ const MedicoChatScreen: React.FC = () => {
     if (!text || !selectedChatId) return;
 
     try {
-      const token = await getAuthToken();
-      if (!token) return;
-
-      const response = await fetch(apiUrl(`/api/agenda/me/conversaciones/${selectedChatId}/mensajes`), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          contenido: text,
-          tipo: 'texto',
-        }),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.success || !payload?.mensaje) {
+      const payload = await apiClient.post<any>(
+        `/api/agenda/me/conversaciones/${selectedChatId}/mensajes`,
+        {
+          authenticated: true,
+          body: {
+            contenido: text,
+            tipo: 'texto',
+          },
+        }
+      );
+      if (!payload?.success || !payload?.mensaje) {
         return;
       }
 
@@ -512,22 +430,7 @@ const MedicoChatScreen: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    await AsyncStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-    try {
-      if (Platform.OS === 'web') {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(LEGACY_TOKEN_KEY);
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-      } else {
-        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
-      }
-    } catch {}
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 

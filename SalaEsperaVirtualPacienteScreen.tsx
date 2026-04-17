@@ -16,14 +16,17 @@ import {
 import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { io, Socket } from 'socket.io-client';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { RootStackParamList } from './navigation/types';
-import { apiUrl, BACKEND_URL } from './config/backend';
+import { apiUrl } from './config/backend';
+import { useSocketEvent } from './hooks/useSocketEvent';
+import { useSocketRoom } from './hooks/useSocketRoom';
+import { useAuth } from './providers/AuthProvider';
+import { getAuthToken } from './utils/session';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
@@ -109,35 +112,12 @@ const parseDateMs = (value: string | null | undefined) => {
   return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
 };
 
-const getAuthToken = async (): Promise<string> => {
-  try {
-    if (Platform.OS === 'web') {
-      return (
-        localStorage.getItem(AUTH_TOKEN_KEY) ||
-        localStorage.getItem(LEGACY_TOKEN_KEY) ||
-        ''
-      ).trim();
-    }
-
-    const secureToken =
-      (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-      (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-    if (secureToken && secureToken.trim()) return secureToken.trim();
-
-    const asyncToken =
-      (await AsyncStorage.getItem(AUTH_TOKEN_KEY)) ||
-      (await AsyncStorage.getItem(LEGACY_TOKEN_KEY));
-    return String(asyncToken || '').trim();
-  } catch {
-    return '';
-  }
-};
-
 const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'SalaEsperaVirtualPaciente'>>();
+  const { signOut } = useAuth();
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -168,7 +148,6 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const signalPulse = useRef(new Animated.Value(0.35)).current;
   const panelTranslateX = useRef(new Animated.Value(430)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
-  const socketRef = useRef<Socket | null>(null);
   const requestedCitaId = String(route.params?.citaId || '').trim();
 
   useEffect(() => {
@@ -410,41 +389,17 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     loadVideoRoom();
   }, [selectedCitaId]);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      let mounted = true;
-      const initSocket = async () => {
-        const token = await getAuthToken();
-        if (!mounted || !token) return;
+  useSocketRoom('cita', selectedCitaId, Boolean(selectedCitaId));
 
-        const socket = io(BACKEND_URL, {
-          transports: ['websocket'],
-          auth: { token },
-        });
-        socketRef.current = socket;
-
-        socket.on('cita_actualizada', (payload: any) => {
-          const citaId = String(payload?.citaId || '').trim();
-          if (!citaId || citaId !== String(selectedCitaId || '').trim()) return;
-          const videoSala = payload?.videoSala;
-          if (videoSala && mounted) {
-            setRoomJoinUrl(String(videoSala?.joinUrl || '').trim());
-            setRoomStatus(String(videoSala?.estado || '').trim().toLowerCase());
-          }
-        });
-      };
-
-      initSocket();
-      return () => {
-        mounted = false;
-        if (socketRef.current) {
-          socketRef.current.removeAllListeners();
-          socketRef.current.disconnect();
-          socketRef.current = null;
-        }
-      };
-    }, [selectedCitaId])
-  );
+  useSocketEvent('cita_actualizada', (payload: any) => {
+    const citaId = String(payload?.citaId || '').trim();
+    if (!citaId || citaId !== String(selectedCitaId || '').trim()) return;
+    const videoSala = payload?.videoSala;
+    if (videoSala) {
+      setRoomJoinUrl(String(videoSala?.joinUrl || '').trim());
+      setRoomStatus(String(videoSala?.estado || '').trim().toLowerCase());
+    }
+  });
 
   const enterVideoRoom = async () => {
     if (!nextCita?.citaid) {
@@ -630,25 +585,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   }, [nextCita?.medico?.fotoUrl]);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    await AsyncStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-
-    try {
-      if (Platform.OS === 'web') {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(LEGACY_TOKEN_KEY);
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-      } else {
-        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
-        await SecureStore.deleteItemAsync(STORAGE_KEY);
-      }
-    } catch {}
-
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 

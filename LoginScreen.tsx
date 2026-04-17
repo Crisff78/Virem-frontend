@@ -19,8 +19,8 @@ import * as SecureStore from 'expo-secure-store';
 import { RootStackParamList } from './navigation/types';
 import { apiUrl, BACKEND_URL } from './config/backend';
 import { isValidEmail } from './utils/validation';
-import { requestJson } from './utils/api';
-import { saveSession } from './utils/session';
+import { apiClient } from './utils/api';
+import { useAuth } from './providers/AuthProvider';
 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -71,6 +71,7 @@ async function getCachedMedicoProfileByEmail(email: string) {
 
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
+  const { signIn } = useAuth<any>();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -100,8 +101,7 @@ const LoginScreen: React.FC = () => {
     console.log('Email:', emailTrim);
 
     try {
-      const data = await requestJson<any>('/api/auth/login', {
-        method: 'POST',
+      const data = await apiClient.post<any>('/api/auth/login', {
         body: { email: emailTrim, password },
       });
 
@@ -124,8 +124,7 @@ const LoginScreen: React.FC = () => {
           }
           : userProfile;
 
-      // Guardar sesion sin bloquear navegacion
-      await saveSession(token, mergedProfile);
+      await signIn(token, mergedProfile);
       const rolid = Number(mergedProfile?.rolid);
       const targetRoute: keyof RootStackParamList =
         rolid === 3 ? 'AdminPanel' : rolid === 2 ? 'DashboardMedico' : 'DashboardPaciente';
