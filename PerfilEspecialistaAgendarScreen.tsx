@@ -12,8 +12,6 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,29 +19,15 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { DoctorRouteSnapshot, RootStackParamList } from './navigation/types';
-import { apiUrl } from './config/backend';
+import { useAuth } from './providers/AuthProvider';
+import { apiClient } from './utils/api';
+import { usePatientSessionProfile, type PatientSessionUser } from './hooks/usePatientSessionProfile';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
-const STORAGE_KEY = 'user';
-const LEGACY_USER_STORAGE_KEY = 'userProfile';
-const AUTH_TOKEN_KEY = 'authToken';
-const LEGACY_TOKEN_KEY = 'token';
-
-type User = {
-  id?: number | string;
-  usuarioid?: number | string;
-  nombres?: string;
-  apellidos?: string;
-  nombre?: string;
-  apellido?: string;
-  firstName?: string;
-  lastName?: string;
-  plan?: string;
-  fotoUrl?: string;
-};
+type User = PatientSessionUser;
 
 type DoctorProfile = {
   id: string;
@@ -81,15 +65,6 @@ type AgendaSlot = {
   horaFin: string;
   modalidad: 'presencial' | 'virtual';
   slotMinutos: number;
-};
-
-const parseUser = (raw: string | null): User | null => {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
 };
 
 const normalizeText = (value: unknown) =>
@@ -272,35 +247,13 @@ const formatSlotHour = (isoValue: string) => {
   }).format(date);
 };
 
-const getAuthToken = async (): Promise<string> => {
-  try {
-    if (Platform.OS === 'web') {
-      return (
-        localStorage.getItem(AUTH_TOKEN_KEY) ||
-        localStorage.getItem(LEGACY_TOKEN_KEY) ||
-        ''
-      ).trim();
-    }
-
-    const secureToken =
-      (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-      (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-    if (secureToken && secureToken.trim()) return secureToken.trim();
-
-    const asyncToken =
-      (await AsyncStorage.getItem(AUTH_TOKEN_KEY)) ||
-      (await AsyncStorage.getItem(LEGACY_TOKEN_KEY));
-    return String(asyncToken || '').trim();
-  } catch {
-    return '';
-  }
-};
-
 const PerfilEspecialistaAgendarScreen: React.FC = () => {
 
   const { t } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'PerfilEspecialistaAgendar'>>();
+  const { signOut } = useAuth();
+  const { syncProfile } = usePatientSessionProfile();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [selectedDayOffset, setSelectedDayOffset] = useState(0);
@@ -367,12 +320,6 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
 
       setLoadingSlots(true);
       try {
-        const token = await getAuthToken();
-        if (!token) {
-          setAvailableSlots([]);
-          return;
-        }
-
         const query = new URLSearchParams();
         query.set('medicoId', doctorId);
         query.set('fecha', selectedDateIso);
@@ -381,12 +328,11 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
           query.set('modalidad', selectedModalidad);
         }
 
-        const response = await fetch(apiUrl(`/api/agenda/disponibilidades?${query.toString()}`), {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
+        const payload = await apiClient.get<any>('/api/agenda/disponibilidades', {
+          authenticated: true,
+          query: Object.fromEntries(query.entries()),
         });
-        const payload = await response.json().catch(() => null);
-        if (!(response.ok && payload?.success && Array.isArray(payload?.slots))) {
+        if (!(payload?.success && Array.isArray(payload?.slots))) {
           setAvailableSlots([]);
           return;
         }
@@ -464,88 +410,8 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        let sessionUser: User | null = null;
-
-        if (Platform.OS === 'web') {
-          const localStorageUser = parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY));
-          if (localStorageUser) sessionUser = localStorageUser;
-        }
-
-        if (!sessionUser) {
-          const secureStoreUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
-          if (secureStoreUser) sessionUser = secureStoreUser;
-        }
-
-        if (!sessionUser) {
-          const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
-          if (asyncUser) sessionUser = asyncUser;
-        }
-
-        sessionUser = ensurePatientSessionUser(sessionUser);
-
-        const token = await getAuthToken();
-        if (token) {
-          const profileResponse = await fetch(apiUrl('/api/users/me/paciente-profile'), {
-            method: 'GET',
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const profilePayload = await profileResponse.json().catch(() => null);
-          if (profileResponse.ok && profilePayload?.success && profilePayload?.profile) {
-            const profileUser = profilePayload.profile as User;
-            const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
-            const profileUserId = String((profileUser as any)?.usuarioid || (profileUser as any)?.id || '').trim();
-            if (cachedUserId && profileUserId && cachedUserId !== profileUserId) {
-              sessionUser = null;
-            }
-            sessionUser = {
-              ...(sessionUser || {}),
-              ...profileUser,
-              nombres: String((profileUser as any)?.nombres || '').trim(),
-              apellidos: String((profileUser as any)?.apellidos || '').trim(),
-              nombre: String((profileUser as any)?.nombres || (profileUser as any)?.nombre || '').trim(),
-              apellido: String((profileUser as any)?.apellidos || (profileUser as any)?.apellido || '').trim(),
-              fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
-            };
-          } else {
-            const response = await fetch(apiUrl('/api/auth/me'), {
-              method: 'GET',
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            const payload = await response.json().catch(() => null);
-            if (response.ok && payload?.success && payload?.user) {
-              const apiUser = payload.user as User;
-              const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
-              const apiUserId = String((apiUser as any)?.usuarioid || (apiUser as any)?.id || '').trim();
-              if (cachedUserId && apiUserId && cachedUserId !== apiUserId) {
-                sessionUser = null;
-              }
-              const apiRoleId = Number((apiUser as any)?.rolid ?? (apiUser as any)?.rolId ?? (apiUser as any)?.roleId);
-              if (apiRoleId === 2) {
-                sessionUser = null;
-              } else {
-                sessionUser = {
-                  ...(sessionUser || {}),
-                  ...apiUser,
-                  fotoUrl: sanitizeFotoUrl((apiUser as any)?.fotoUrl),
-                };
-              }
-            }
-          }
-
-          if (sessionUser) {
-            const rawNextUser = JSON.stringify(sessionUser);
-            await AsyncStorage.setItem(STORAGE_KEY, rawNextUser);
-            await AsyncStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-            if (Platform.OS === 'web') {
-              localStorage.setItem(STORAGE_KEY, rawNextUser);
-              localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-            } else {
-              await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
-            }
-          }
-        }
-
-        setUser(sessionUser);
+        const sessionUser = (await syncProfile()) as User | null;
+        setUser((ensurePatientSessionUser(sessionUser) as User | null) || null);
       } catch {
         setUser(null);
       } finally {
@@ -554,7 +420,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
     };
 
     loadUser();
-  }, []);
+  }, [syncProfile]);
 
   useEffect(() => {
     const loadDoctorFromBackend = async () => {
@@ -564,31 +430,20 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
         return;
       }
 
-      const token = await getAuthToken();
-      if (!token) {
-        setBackendDoctor(null);
-        return;
-      }
-
       setLoadingDoctor(true);
       try {
-        const response = await fetch(apiUrl(`/api/medicos/${doctorId}`), {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
+        const payload = await apiClient.get<any>(`/api/medicos/${doctorId}`, {
+          authenticated: true,
         });
-        const payload = await response.json().catch(() => null);
-
-        if (response.ok && payload?.success && payload?.medico) {
+        if (payload?.success && payload?.medico) {
           setBackendDoctor(mapBackendMedicoToProfile(payload.medico as BackendMedico, specialty));
           return;
         }
 
-        const fallbackResponse = await fetch(apiUrl('/api/medicos'), {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
+        const fallbackPayload = await apiClient.get<any>('/api/medicos', {
+          authenticated: true,
         });
-        const fallbackPayload = await fallbackResponse.json().catch(() => null);
-        if (fallbackResponse.ok && fallbackPayload?.success && Array.isArray(fallbackPayload?.medicos)) {
+        if (fallbackPayload?.success && Array.isArray(fallbackPayload?.medicos)) {
           const byId = fallbackPayload.medicos.find(
             (item: any) => String(item?.medicoid || '').trim() === doctorId
           );
@@ -638,25 +493,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   }, [user]);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    await AsyncStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-
-    try {
-      if (Platform.OS === 'web') {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(LEGACY_TOKEN_KEY);
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-      } else {
-        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
-        await SecureStore.deleteItemAsync(STORAGE_KEY);
-      }
-    } catch {}
-
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
@@ -666,12 +503,6 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
       return;
     }
 
-    const token = await getAuthToken();
-    if (!token) {
-      Alert.alert('Sesion expirada', 'Inicia sesion nuevamente para agendar tu cita.');
-      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-      return;
-    }
     const appointmentDate = new Date(selectedSlot.horaInicio);
     if (Number.isNaN(appointmentDate.getTime())) {
       Alert.alert('Horario invalido', 'Selecciona un horario valido.');
@@ -698,24 +529,11 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
         body.precio = parsedPrice;
       }
 
-      const response = await fetch(apiUrl('/api/agenda/me/citas'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
+      const payload = await apiClient.post<any>('/api/agenda/me/citas', {
+        authenticated: true,
+        body,
       });
-
-      const raw = await response.text();
-      let payload: any = null;
-      try {
-        payload = JSON.parse(raw);
-      } catch {
-        payload = null;
-      }
-
-      if (!response.ok || !payload?.success) {
+      if (!payload?.success) {
         Alert.alert('No se pudo agendar', payload?.message || 'Intenta nuevamente en unos minutos.');
         return;
       }

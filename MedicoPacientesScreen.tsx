@@ -12,34 +12,16 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
-import { apiUrl } from './config/backend';
+import { useAuth } from './providers/AuthProvider';
+import { apiClient } from './utils/api';
+import { useMedicoSessionProfile, type MedicoSessionUser } from './hooks/useMedicoSessionProfile';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
-const STORAGE_KEY = 'user';
-const LEGACY_USER_STORAGE_KEY = 'userProfile';
-const AUTH_TOKEN_KEY = 'authToken';
-const LEGACY_TOKEN_KEY = 'token';
-
-type SessionUser = {
-  id?: number | string;
-  usuarioid?: number | string;
-  email?: string;
-  nombreCompleto?: string;
-  especialidad?: string;
-  fotoUrl?: string;
-  medico?: {
-    nombreCompleto?: string;
-    especialidad?: string;
-    fotoUrl?: string;
-  };
-};
 
 type CitaItem = {
   citaid: string;
@@ -69,15 +51,6 @@ type SideItem = {
   route?: 'DashboardMedico' | 'MedicoCitas' | 'MedicoPacientes' | 'MedicoChat' | 'MedicoPerfil';
   active?: boolean;
   badge?: { text: string; color: string };
-};
-
-const parseJson = <T,>(raw: string | null): T | null => {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
 };
 
 const normalizeText = (value: unknown) =>
@@ -110,33 +83,11 @@ const formatDateTime = (value: string | null | undefined) => {
   }).format(date);
 };
 
-const getAuthToken = async (): Promise<string> => {
-  try {
-    if (Platform.OS === 'web') {
-      return (
-        localStorage.getItem(AUTH_TOKEN_KEY) ||
-        localStorage.getItem(LEGACY_TOKEN_KEY) ||
-        ''
-      ).trim();
-    }
-
-    const secureToken =
-      (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-      (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-    if (secureToken && secureToken.trim()) return secureToken.trim();
-
-    const asyncToken =
-      (await AsyncStorage.getItem(AUTH_TOKEN_KEY)) ||
-      (await AsyncStorage.getItem(LEGACY_TOKEN_KEY));
-    return String(asyncToken || '').trim();
-  } catch {
-    return '';
-  }
-};
-
 const MedicoPacientesScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [user, setUser] = useState<SessionUser | null>(null);
+  const { signOut } = useAuth();
+  const { syncProfile } = useMedicoSessionProfile();
+  const [user, setUser] = useState<MedicoSessionUser | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -145,71 +96,23 @@ const MedicoPacientesScreen: React.FC = () => {
   const loadUser = useCallback(async () => {
     setLoadingUser(true);
     try {
-      const rawStorageUser =
-        Platform.OS === 'web'
-          ? localStorage.getItem(LEGACY_USER_STORAGE_KEY)
-          : await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY);
-      const rawAsyncUser = await AsyncStorage.getItem(STORAGE_KEY);
-      let sessionUser = parseJson<SessionUser>(rawStorageUser) || parseJson<SessionUser>(rawAsyncUser);
-
-      const token = await getAuthToken();
-      if (token) {
-        const dashboardResponse = await fetch(apiUrl('/api/users/me/dashboard-medico'), {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const dashboardPayload = await dashboardResponse.json().catch(() => null);
-        if (dashboardResponse.ok && dashboardPayload?.success && dashboardPayload?.dashboard?.profile) {
-          const profile = dashboardPayload.dashboard.profile;
-          sessionUser = {
-            ...(sessionUser || {}),
-            nombreCompleto:
-              normalizeText(profile?.nombreCompleto || sessionUser?.nombreCompleto || sessionUser?.medico?.nombreCompleto),
-            especialidad:
-              normalizeText(profile?.especialidad || sessionUser?.especialidad || sessionUser?.medico?.especialidad),
-            fotoUrl: sanitizeFotoUrl(profile?.fotoUrl || sessionUser?.fotoUrl || sessionUser?.medico?.fotoUrl),
-          };
-        }
-      }
-
-      setUser(sessionUser);
-      if (sessionUser) {
-        const raw = JSON.stringify(sessionUser);
-        try {
-          await AsyncStorage.setItem(STORAGE_KEY, raw);
-          await AsyncStorage.setItem(LEGACY_USER_STORAGE_KEY, raw);
-        } catch {}
-        try {
-          if (Platform.OS === 'web') {
-            localStorage.setItem(STORAGE_KEY, raw);
-            localStorage.setItem(LEGACY_USER_STORAGE_KEY, raw);
-          } else {
-            await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, raw);
-          }
-        } catch {}
-      }
+      const nextUser = (await syncProfile()) as MedicoSessionUser | null;
+      setUser(nextUser);
     } catch {
       setUser(null);
     } finally {
       setLoadingUser(false);
     }
-  }, []);
+  }, [syncProfile]);
 
   const loadPatients = useCallback(async () => {
     setLoadingPatients(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        setPatients([]);
-        return;
-      }
-
-      const response = await fetch(apiUrl('/api/agenda/me/citas?scope=all&limit=400'), {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = await apiClient.get<any>('/api/agenda/me/citas', {
+        authenticated: true,
+        query: { scope: 'all', limit: 400 },
       });
-      const payload = await response.json().catch(() => null);
-      if (!(response.ok && payload?.success && Array.isArray(payload?.citas))) {
+      if (!(payload?.success && Array.isArray(payload?.citas))) {
         setPatients([]);
         return;
       }
@@ -329,22 +232,7 @@ const MedicoPacientesScreen: React.FC = () => {
   );
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    await AsyncStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-    try {
-      if (Platform.OS === 'web') {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(LEGACY_TOKEN_KEY);
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-      } else {
-        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
-      }
-    } catch {}
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 

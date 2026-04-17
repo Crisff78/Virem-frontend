@@ -14,13 +14,13 @@ import {
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
-import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
+import { usePatientPortalSession } from './hooks/usePatientPortalSession';
+import { resolveRemoteImageSource } from './utils/imageSources';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -59,7 +59,8 @@ const sanitizeFotoUrl = (value: unknown) => {
 const PacienteConfiguracionScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { language: appLanguage, setLanguage, t, tx } = useLanguage();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, refreshUser, signOut, fullName, planLabel, fotoUrl, hasProfilePhoto } =
+    usePatientPortalSession({ syncOnMount: false });
 
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -75,25 +76,8 @@ const PacienteConfiguracionScreen: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const loadUser = useCallback(async () => {
+  const loadSettings = useCallback(async () => {
     try {
-      if (Platform.OS === 'web') {
-        const webUser = ensurePatientSessionUser(parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY)));
-        if (webUser) {
-          setUser(webUser);
-        }
-      }
-
-      const secureUser = ensurePatientSessionUser(
-        parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY))
-      );
-      if (secureUser) {
-        setUser(secureUser);
-      } else {
-        const asyncUser = ensurePatientSessionUser(parseUser(await AsyncStorage.getItem(STORAGE_KEY)));
-        setUser(asyncUser);
-      }
-
       const savedSettingsRaw = await AsyncStorage.getItem(SETTINGS_KEY);
       if (savedSettingsRaw) {
         const saved = JSON.parse(savedSettingsRaw) as {
@@ -113,35 +97,23 @@ const PacienteConfiguracionScreen: React.FC = () => {
         }
       }
     } catch {
-      setUser(null);
+      // noop
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadUser();
-    }, [loadUser])
+      refreshUser().catch(() => undefined);
+      loadSettings();
+    }, [loadSettings, refreshUser])
   );
 
-  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
-
-  const planLabel = useMemo(() => {
-    const plan = (user?.plan || '').trim();
-    return plan ? `Paciente ${plan}` : 'Paciente';
-  }, [user]);
-
   const avatarSource: ImageSourcePropType = useMemo(() => {
-    const fotoUrl = sanitizeFotoUrl(user?.fotoUrl);
-    if (fotoUrl) {
-      return { uri: fotoUrl };
-    }
-    return DefaultAvatar;
-  }, [user?.fotoUrl]);
-  const hasProfilePhoto = useMemo(() => Boolean(sanitizeFotoUrl(user?.fotoUrl)), [user?.fotoUrl]);
+    return resolveRemoteImageSource(fotoUrl, DefaultAvatar);
+  }, [fotoUrl]);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('token');
-    await AsyncStorage.removeItem(STORAGE_KEY);
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 

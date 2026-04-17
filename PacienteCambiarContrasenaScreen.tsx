@@ -12,48 +12,23 @@ import {
   Platform,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
-import { apiUrl } from './config/backend';
-import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
+import { usePatientPortalSession } from './hooks/usePatientPortalSession';
+import { apiClient } from './utils/api';
+import { getApiErrorMessage, isAuthError } from './utils/apiErrors';
+import { resolveRemoteImageSource } from './utils/imageSources';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
-const STORAGE_KEY = 'user';
-const LEGACY_USER_STORAGE_KEY = 'userProfile';
-const AUTH_TOKEN_KEY = 'authToken';
-const LEGACY_TOKEN_KEY = 'token';
-
-type User = {
-  nombres?: string;
-  apellidos?: string;
-  nombre?: string;
-  apellido?: string;
-  firstName?: string;
-  lastName?: string;
-  fotoUrl?: string;
-  plan?: string;
-};
-
-const parseUser = (raw: string | null): User | null => {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-};
-
 const PacienteCambiarContrasenaScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { t, tx } = useLanguage();
-  const [user, setUser] = useState<User | null>(null);
+  const { signOut, fullName, planLabel, fotoUrl } = usePatientPortalSession();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -63,44 +38,9 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        if (Platform.OS === 'web') {
-          const webUser = ensurePatientSessionUser(parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY)));
-          if (webUser) {
-            setUser(webUser);
-            return;
-          }
-        }
-        const secureUser = ensurePatientSessionUser(
-          parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY))
-        );
-        if (secureUser) {
-          setUser(secureUser);
-          return;
-        }
-        setUser(ensurePatientSessionUser(parseUser(await AsyncStorage.getItem(STORAGE_KEY))));
-      } catch {
-        setUser(null);
-      }
-    };
-    loadUser();
-  }, []);
-
-  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
-
-  const planLabel = useMemo(() => {
-    const plan = (user?.plan || '').trim();
-    return plan ? `Paciente ${plan}` : 'Paciente';
-  }, [user]);
-
   const avatarSource: ImageSourcePropType = useMemo(() => {
-    if (user?.fotoUrl && user.fotoUrl.trim().length > 0) {
-      return { uri: user.fotoUrl.trim() };
-    }
-    return DefaultAvatar;
-  }, [user]);
+    return resolveRemoteImageSource(fotoUrl, DefaultAvatar);
+  }, [fotoUrl]);
 
   const passwordChecks = useMemo(() => {
     const hasMin = newPassword.length >= 8;
@@ -121,21 +61,6 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
     }
     return tx({ es: 'Fuerte', en: 'Strong', pt: 'Forte' });
   }, [passwordChecks.score, tx]);
-
-  const getAuthToken = async () => {
-    if (Platform.OS === 'web') {
-      const webToken = localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
-      return String(webToken || '').trim();
-    }
-
-    const secureToken =
-      (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-      (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-    if (secureToken) return String(secureToken).trim();
-
-    const asyncToken = await AsyncStorage.getItem(LEGACY_TOKEN_KEY);
-    return String(asyncToken || '').trim();
-  };
 
   const handleUpdatePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -174,46 +99,15 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
       return;
     }
 
-    const token = await getAuthToken();
-    if (!token) {
-      Alert.alert(
-        tx({ es: 'Sesion expirada', en: 'Session expired', pt: 'Sessao expirada' }),
-        tx({
-          es: 'Inicia sesion nuevamente para cambiar tu contrasena.',
-          en: 'Sign in again to change your password.',
-          pt: 'Faca login novamente para alterar sua senha.',
-        })
-      );
-      return;
-    }
-
     setSaving(true);
     try {
-      const response = await fetch(apiUrl('/api/users/me/password'), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      await apiClient.put<any>('/api/users/me/password', {
+        authenticated: true,
+        body: {
           currentPassword,
           newPassword,
-        }),
+        },
       });
-
-      const data = await response.json().catch(() => null);
-      if (!response.ok || !data?.success) {
-        Alert.alert(
-          tx({ es: 'Error', en: 'Error', pt: 'Erro' }),
-          data?.message ||
-            tx({
-              es: 'No se pudo actualizar la contrasena.',
-              en: 'Could not update password.',
-              pt: 'Nao foi possivel atualizar a senha.',
-            })
-        );
-        return;
-      }
 
       setCurrentPassword('');
       setNewPassword('');
@@ -227,14 +121,31 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
         }),
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
-    } catch {
+    } catch (error) {
+      if (isAuthError(error)) {
+        Alert.alert(
+          tx({ es: 'Sesion expirada', en: 'Session expired', pt: 'Sessao expirada' }),
+          tx({
+            es: 'Inicia sesion nuevamente para cambiar tu contrasena.',
+            en: 'Sign in again to change your password.',
+            pt: 'Faca login novamente para alterar sua senha.',
+          })
+        );
+        await signOut();
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
+      }
+
       Alert.alert(
-        tx({ es: 'Error de red', en: 'Network error', pt: 'Erro de rede' }),
-        tx({
-          es: 'No se pudo conectar al servidor.',
-          en: 'Could not connect to the server.',
-          pt: 'Nao foi possivel conectar ao servidor.',
-        })
+        tx({ es: 'Error', en: 'Error', pt: 'Erro' }),
+        getApiErrorMessage(
+          error,
+          tx({
+            es: 'No se pudo actualizar la contrasena.',
+            en: 'Could not update password.',
+            pt: 'Nao foi possivel atualizar a senha.',
+          })
+        )
       );
     } finally {
       setSaving(false);
@@ -242,17 +153,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    if (Platform.OS === 'web') {
-      localStorage.removeItem(AUTH_TOKEN_KEY);
-      localStorage.removeItem(LEGACY_TOKEN_KEY);
-      localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-    } else {
-      await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-      await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
-      await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
-    }
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 

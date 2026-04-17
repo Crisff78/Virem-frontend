@@ -15,12 +15,11 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './navigation/types';
-import { apiUrl } from './config/backend';
+import { useAuth } from './providers/AuthProvider';
+import { apiClient } from './utils/api';
 
 // Nota: si usas Expo, comenta los imports de abajo y usa:
 // import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,6 +27,7 @@ import { apiUrl } from './config/backend';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useLanguage } from './localization/LanguageContext';
+import { usePatientSessionProfile, type PatientSessionUser } from './hooks/usePatientSessionProfile';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
@@ -36,21 +36,7 @@ const ViremLogo = require('./assets/imagenes/descarga.png');
 // ./assets/imagenes/avatar-default.png
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
-const STORAGE_KEY = 'user';
-const LEGACY_USER_STORAGE_KEY = 'userProfile';
-const AUTH_TOKEN_KEY = 'authToken';
-const LEGACY_TOKEN_KEY = 'token';
 const MIN_REFRESH_INTERVAL_MS = 15000;
-
-const parseUser = (raw: string | null): User | null => {
-  if (!raw) return null;
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-};
 
 const normalizeString = (value: unknown) =>
   String(value || '')
@@ -64,41 +50,12 @@ const sanitizeFotoUrl = (value: unknown) => {
   return clean;
 };
 
-const extractUserId = (value: unknown) => {
-  const source = (value || {}) as Record<string, unknown>;
-  return normalizeString(source.usuarioid || source.id);
-};
-
 const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
   const clean = sanitizeFotoUrl(value);
   if (clean) {
     return { uri: clean };
   }
   return DefaultAvatar;
-};
-
-const getAuthToken = async (): Promise<string> => {
-  try {
-    if (Platform.OS === 'web') {
-      return (
-        localStorage.getItem(AUTH_TOKEN_KEY) ||
-        localStorage.getItem(LEGACY_TOKEN_KEY) ||
-        ''
-      ).trim();
-    }
-
-    const secureToken =
-      (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-      (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-    if (secureToken && secureToken.trim()) return secureToken.trim();
-
-    const asyncToken =
-      (await AsyncStorage.getItem(AUTH_TOKEN_KEY)) ||
-      (await AsyncStorage.getItem(LEGACY_TOKEN_KEY));
-    return String(asyncToken || '').trim();
-  } catch {
-    return '';
-  }
 };
 
 const formatDateTime = (value: string | null) => {
@@ -313,6 +270,8 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ name, spec, avatar, onReserve }
 /* ===================== PANTALLA ===================== */
 const DashboardPacienteScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { signOut } = useAuth();
+  const { syncProfile } = usePatientSessionProfile();
   const { width: viewportWidth } = useWindowDimensions();
   const { t, tx } = useLanguage();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
@@ -375,202 +334,51 @@ const DashboardPacienteScreen: React.FC = () => {
   const chatAnim = useRef(new Animated.Value(0)).current;
   const lastRefreshRef = useRef(0);
 
-  // Cargar y sincronizar usuario paciente desde storage + backend.
   const loadUser = useCallback(async () => {
     setLoadingUser(true);
     try {
-      const rawUserFromStorage =
-        Platform.OS === 'web'
-          ? localStorage.getItem(LEGACY_USER_STORAGE_KEY)
-          : await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY);
-      const rawUserFromAsync = await AsyncStorage.getItem(STORAGE_KEY);
-      let sessionUser = ensurePatientSessionUser(parseUser(rawUserFromStorage) || parseUser(rawUserFromAsync));
+      const sessionUser = (await syncProfile()) as PatientSessionUser | null;
+      setUser((ensurePatientSessionUser(sessionUser) as User | null) || null);
 
-      const rawTokenFromStorage =
-        Platform.OS === 'web'
-          ? localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY)
-          : (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-            (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-      const rawTokenFromAsync = await AsyncStorage.getItem(LEGACY_TOKEN_KEY);
-      const authToken = normalizeString(rawTokenFromStorage || rawTokenFromAsync);
+      setLoadingCitas(true);
+      try {
+        const [upcomingPayload, historyPayload] = await Promise.all([
+          apiClient.get<any>('/api/agenda/me/citas', {
+            authenticated: true,
+            query: { scope: 'upcoming', limit: 10 },
+          }),
+          apiClient.get<any>('/api/agenda/me/citas', {
+            authenticated: true,
+            query: { scope: 'history', limit: 10 },
+          }),
+        ]);
 
-      if (authToken) {
-        try {
-          const profileResponse = await fetch(apiUrl('/api/users/me/paciente-profile'), {
-            method: 'GET',
-            headers: { Authorization: `Bearer ${authToken}` },
-          });
-          const profilePayload = await profileResponse.json().catch(() => null);
-          if (profileResponse.ok && profilePayload?.success && profilePayload?.profile) {
-            const profileUser = profilePayload.profile as User;
-            const cachedUserId = extractUserId(sessionUser);
-            const profileUserId = extractUserId(profileUser);
-            const safeSessionUser =
-              cachedUserId && profileUserId && cachedUserId !== profileUserId ? null : sessionUser;
-
-            const mergedUser: User = {
-              ...(safeSessionUser || {}),
-              ...profileUser,
-              nombres: normalizeString(
-                (profileUser as any)?.nombres ||
-                  safeSessionUser?.nombres ||
-                  safeSessionUser?.nombre ||
-                  (profileUser as any)?.nombre
-              ),
-              apellidos: normalizeString(
-                (profileUser as any)?.apellidos ||
-                  safeSessionUser?.apellidos ||
-                  safeSessionUser?.apellido ||
-                  (profileUser as any)?.apellido
-              ),
-              nombre: normalizeString(
-                (profileUser as any)?.nombre || (profileUser as any)?.nombres || safeSessionUser?.nombre
-              ),
-              apellido: normalizeString(
-                (profileUser as any)?.apellido || (profileUser as any)?.apellidos || safeSessionUser?.apellido
-              ),
-              fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
-              email: normalizeString((profileUser as any)?.email || safeSessionUser?.email),
-              telefono: normalizeString((profileUser as any)?.telefono || (safeSessionUser as any)?.telefono),
-              cedula: normalizeString((profileUser as any)?.cedula || (safeSessionUser as any)?.cedula),
-              genero: normalizeString((profileUser as any)?.genero || (safeSessionUser as any)?.genero),
-              fechanacimiento: normalizeString(
-                (profileUser as any)?.fechanacimiento || (safeSessionUser as any)?.fechanacimiento
-              ),
-            };
-
-            sessionUser = mergedUser;
-            const rawNextUser = JSON.stringify(mergedUser);
-
-            try {
-              await AsyncStorage.setItem(STORAGE_KEY, rawNextUser);
-              await AsyncStorage.setItem('user', rawNextUser);
-            } catch {}
-
-            try {
-              if (Platform.OS === 'web') {
-                localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-                localStorage.setItem('user', rawNextUser);
-              } else {
-                await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
-              }
-            } catch {}
-          } else {
-            const response = await fetch(apiUrl('/api/auth/me'), {
-              method: 'GET',
-              headers: { Authorization: `Bearer ${authToken}` },
-            });
-            const payload = await response.json().catch(() => null);
-
-            if (response.ok && payload?.success && payload?.user) {
-              const apiUser = payload.user as User;
-              const cachedUserId = extractUserId(sessionUser);
-              const apiUserId = extractUserId(apiUser);
-              const safeSessionUser =
-                cachedUserId && apiUserId && cachedUserId !== apiUserId ? null : sessionUser;
-
-              const apiRoleId = Number((apiUser as any)?.rolid ?? (apiUser as any)?.rolId ?? (apiUser as any)?.roleId);
-              if (apiRoleId !== 2) {
-                const mergedUser: User = {
-                  ...(safeSessionUser || {}),
-                  ...apiUser,
-                  nombres: normalizeString(
-                    apiUser?.nombres || safeSessionUser?.nombres || safeSessionUser?.nombre || apiUser?.nombre
-                  ),
-                  apellidos: normalizeString(
-                    apiUser?.apellidos || safeSessionUser?.apellidos || safeSessionUser?.apellido || apiUser?.apellido
-                  ),
-                  nombre: normalizeString(apiUser?.nombre || apiUser?.nombres || safeSessionUser?.nombre),
-                  apellido: normalizeString(apiUser?.apellido || apiUser?.apellidos || safeSessionUser?.apellido),
-                  fotoUrl: sanitizeFotoUrl(apiUser?.fotoUrl),
-                  email: normalizeString(apiUser?.email || safeSessionUser?.email),
-                  telefono: normalizeString((apiUser as any)?.telefono || (safeSessionUser as any)?.telefono),
-                  cedula: normalizeString((apiUser as any)?.cedula || (safeSessionUser as any)?.cedula),
-                  genero: normalizeString((apiUser as any)?.genero || (safeSessionUser as any)?.genero),
-                  fechanacimiento: normalizeString(
-                    (apiUser as any)?.fechanacimiento || (safeSessionUser as any)?.fechanacimiento
-                  ),
-                };
-
-                sessionUser = mergedUser;
-                const rawNextUser = JSON.stringify(mergedUser);
-
-                try {
-                  await AsyncStorage.setItem(STORAGE_KEY, rawNextUser);
-                  await AsyncStorage.setItem('user', rawNextUser);
-                } catch {}
-
-                try {
-                  if (Platform.OS === 'web') {
-                    localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-                    localStorage.setItem('user', rawNextUser);
-                  } else {
-                    await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
-                  }
-                } catch {}
-              } else {
-                sessionUser = null;
-              }
-            }
-          }
-        } catch {
-          // Fallback silencioso a storage.
-        }
-
-        setLoadingCitas(true);
-        try {
-          const [upcomingResponse, historyResponse] = await Promise.all([
-            fetch(apiUrl('/api/agenda/me/citas?scope=upcoming&limit=10'), {
-              method: 'GET',
-              headers: { Authorization: `Bearer ${authToken}` },
-            }),
-            fetch(apiUrl('/api/agenda/me/citas?scope=history&limit=10'), {
-              method: 'GET',
-              headers: { Authorization: `Bearer ${authToken}` },
-            }),
-          ]);
-
-          const upcomingPayload = await upcomingResponse.json().catch(() => null);
-          const historyPayload = await historyResponse.json().catch(() => null);
-
-          if (
-            upcomingResponse.ok &&
-            upcomingPayload?.success &&
-            Array.isArray(upcomingPayload?.citas)
-          ) {
-            setUpcomingCitas(sortCitasByStartAsc(upcomingPayload.citas as CitaItem[]));
-          } else {
-            setUpcomingCitas([]);
-          }
-
-          if (
-            historyResponse.ok &&
-            historyPayload?.success &&
-            Array.isArray(historyPayload?.citas)
-          ) {
-            setHistoryCitas(historyPayload.citas as CitaItem[]);
-          } else {
-            setHistoryCitas([]);
-          }
-        } catch {
+        if (upcomingPayload?.success && Array.isArray(upcomingPayload?.citas)) {
+          setUpcomingCitas(sortCitasByStartAsc(upcomingPayload.citas as CitaItem[]));
+        } else {
           setUpcomingCitas([]);
-          setHistoryCitas([]);
-        } finally {
-          setLoadingCitas(false);
         }
-      } else {
+
+        if (historyPayload?.success && Array.isArray(historyPayload?.citas)) {
+          setHistoryCitas(historyPayload.citas as CitaItem[]);
+        } else {
+          setHistoryCitas([]);
+        }
+      } catch {
         setUpcomingCitas([]);
         setHistoryCitas([]);
+      } finally {
         setLoadingCitas(false);
       }
-
-      setUser(sessionUser);
     } catch {
       setUser(null);
+      setUpcomingCitas([]);
+      setHistoryCitas([]);
+      setLoadingCitas(false);
     } finally {
       setLoadingUser(false);
     }
-  }, []);
+  }, [syncProfile]);
 
   useFocusEffect(
     useCallback(() => {
@@ -659,25 +467,7 @@ const DashboardPacienteScreen: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    await AsyncStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-
-    try {
-      if (Platform.OS === 'web') {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(LEGACY_TOKEN_KEY);
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-      } else {
-        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
-        await SecureStore.deleteItemAsync(STORAGE_KEY);
-      }
-    } catch {}
-
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
@@ -775,29 +565,17 @@ const DashboardPacienteScreen: React.FC = () => {
 
     setWorkingCitaId(citaId);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        Alert.alert('Sesion expirada', 'Inicia sesion nuevamente.');
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-        return;
-      }
-
       const currentStart = cita?.fechaHoraInicio ? new Date(cita.fechaHoraInicio) : new Date();
       const nextStart = new Date(currentStart.getTime() + 24 * 60 * 60 * 1000);
 
-      const response = await fetch(apiUrl(`/api/agenda/me/citas/${citaId}/reprogramar`), {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const payload = await apiClient.patch<any>(`/api/agenda/me/citas/${citaId}/reprogramar`, {
+        authenticated: true,
+        body: {
           fechaHoraInicio: nextStart.toISOString(),
           motivo: 'Reprogramada desde dashboard paciente',
-        }),
+        },
       });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.success) {
+      if (!payload?.success) {
         Alert.alert('No se pudo posponer', payload?.message || 'Intenta nuevamente.');
         return;
       }

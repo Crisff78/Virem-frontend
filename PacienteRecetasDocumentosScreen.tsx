@@ -12,15 +12,14 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import { useLanguage } from './localization/LanguageContext';
+import { usePatientPortalSession } from './hooks/usePatientPortalSession';
 import type { RootStackParamList } from './navigation/types';
-import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
+import { resolveRemoteImageSource } from './utils/imageSources';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -196,56 +195,14 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [user, setUser] = useState<User | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
-
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        if (Platform.OS === 'web') {
-          const localStorageUser = ensurePatientSessionUser(
-            parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY))
-          );
-          if (localStorageUser) {
-            setUser(localStorageUser);
-            return;
-          }
-        }
-        const secureStoreUser = ensurePatientSessionUser(
-          parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY))
-        );
-        if (secureStoreUser) {
-          setUser(secureStoreUser);
-          return;
-        }
-        const asyncUser = ensurePatientSessionUser(parseUser(await AsyncStorage.getItem(STORAGE_KEY)));
-        setUser(asyncUser);
-      } catch {
-        setUser(null);
-      } finally {
-        setLoadingUser(false);
-      }
-    };
-    loadUser();
-  }, []);
-
-  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
-
-  const planLabel = useMemo(() => {
-    const plan = (user?.plan || '').trim();
-    return plan ? `Paciente ${plan}` : 'Paciente';
-  }, [user]);
+  const { user, loadingUser, signOut, fullName, planLabel, fotoUrl, hasProfilePhoto } = usePatientPortalSession();
 
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    const fotoUrl = sanitizeFotoUrl(user?.fotoUrl);
-    if (fotoUrl) return { uri: fotoUrl };
-    return DefaultAvatar;
-  }, [user?.fotoUrl]);
-  const hasProfilePhoto = useMemo(() => Boolean(sanitizeFotoUrl(user?.fotoUrl)), [user?.fotoUrl]);
+    return resolveRemoteImageSource(fotoUrl, DefaultAvatar);
+  }, [fotoUrl]);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('token');
-    await AsyncStorage.removeItem(STORAGE_KEY);
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 

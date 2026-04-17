@@ -13,25 +13,21 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import { useLanguage } from './localization/LanguageContext';
+import { usePatientPortalSession } from './hooks/usePatientPortalSession';
 import type { RootStackParamList } from './navigation/types';
-import { apiUrl } from './config/backend';
-import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
+import { apiClient } from './utils/api';
+import { getApiErrorMessage, isAuthError } from './utils/apiErrors';
+import { resolveRemoteImageSource } from './utils/imageSources';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
-const STORAGE_KEY = 'user';
-const LEGACY_USER_STORAGE_KEY = 'userProfile';
-const AUTH_TOKEN_KEY = 'authToken';
-const LEGACY_TOKEN_KEY = 'token';
 const MIN_REFRESH_INTERVAL_MS = 15000;
 
 const colors = {
@@ -218,8 +214,16 @@ const PacientePerfilScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [user, setUser] = useState<User | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const {
+    user,
+    loadingUser,
+    refreshUser,
+    persistUser: persistSessionUser,
+    signOut,
+    planLabel,
+    fotoUrl,
+    hasProfilePhoto,
+  } = usePatientPortalSession({ syncOnMount: false });
   const [saving, setSaving] = useState(false);
   const [medicalOpen, setMedicalOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
@@ -248,112 +252,6 @@ const PacientePerfilScreen: React.FC = () => {
     confirmPassword: '',
   });
 
-  const getAuthToken = useCallback(async () => {
-    const storageToken =
-      Platform.OS === 'web'
-        ? localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY)
-        : (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-          (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-    const asyncToken =
-      (await AsyncStorage.getItem(AUTH_TOKEN_KEY)) ||
-      (await AsyncStorage.getItem(LEGACY_TOKEN_KEY));
-    return normalizeValue(storageToken || asyncToken);
-  }, []);
-
-  const loadUser = useCallback(async () => {
-    setLoadingUser(true);
-    try {
-      const rawUserFromStorage =
-        Platform.OS === 'web'
-          ? localStorage.getItem(LEGACY_USER_STORAGE_KEY)
-          : await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY);
-      const rawUserFromAsync = await AsyncStorage.getItem(STORAGE_KEY);
-      const storageUser = ensurePatientSessionUser(parseUser(rawUserFromStorage) || parseUser(rawUserFromAsync));
-      const token = await getAuthToken();
-
-      let nextUser = storageUser;
-      if (token) {
-        try {
-          const response = await fetch(apiUrl('/api/users/me/paciente-profile'), {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          const payload = await response.json().catch(() => null);
-          if (response.ok && payload?.success && payload?.profile) {
-            const profile = payload.profile;
-            nextUser = {
-              ...(storageUser || {}),
-              email: normalizeValue(profile.email || storageUser?.email),
-              nombres: normalizeValue(profile.nombres || storageUser?.nombres),
-              apellidos: normalizeValue(profile.apellidos || storageUser?.apellidos),
-              nombre: normalizeValue(profile.nombres || storageUser?.nombre),
-              apellido: normalizeValue(profile.apellidos || storageUser?.apellido),
-              fechanacimiento: normalizeValue(profile.fechanacimiento || storageUser?.fechanacimiento),
-              genero: normalizeValue(profile.genero || storageUser?.genero),
-              cedula: normalizeValue(profile.cedula || storageUser?.cedula),
-              telefono: normalizeValue(profile.telefono || storageUser?.telefono),
-              direccion: normalizeValue(profile.direccion || storageUser?.direccion),
-              tipoSangre: normalizeValue(profile.tipoSangre || storageUser?.tipoSangre),
-              alergias: normalizeValue(profile.alergias || storageUser?.alergias),
-              medicamentos: normalizeValue(profile.medicamentos || storageUser?.medicamentos),
-              antecedentes: normalizeValue(profile.antecedentes || storageUser?.antecedentes),
-              contactoEmergenciaNombre: normalizeValue(
-                profile.contactoEmergenciaNombre || storageUser?.contactoEmergenciaNombre
-              ),
-              contactoEmergenciaTelefono: normalizeValue(
-                profile.contactoEmergenciaTelefono || storageUser?.contactoEmergenciaTelefono
-              ),
-              contactoEmergenciaParentesco: normalizeValue(
-                profile.contactoEmergenciaParentesco || storageUser?.contactoEmergenciaParentesco
-              ),
-              fotoUrl: sanitizeFotoUrl(profile.fotoUrl || storageUser?.fotoUrl),
-              recibirEmail: Boolean(
-                Object.prototype.hasOwnProperty.call(profile, 'recibirEmail')
-                  ? profile.recibirEmail
-                  : storageUser?.recibirEmail ?? true
-              ),
-              recibirSMS: Boolean(
-                Object.prototype.hasOwnProperty.call(profile, 'recibirSMS')
-                  ? profile.recibirSMS
-                  : storageUser?.recibirSMS ?? true
-              ),
-              compartirHistorial: Boolean(
-                Object.prototype.hasOwnProperty.call(profile, 'compartirHistorial')
-                  ? profile.compartirHistorial
-                  : storageUser?.compartirHistorial ?? false
-              ),
-            };
-          }
-        } catch {
-          // Fallback to local storage.
-        }
-      }
-
-      setUser(nextUser);
-      if (nextUser) {
-        const raw = JSON.stringify(nextUser);
-        try {
-          await AsyncStorage.setItem(STORAGE_KEY, raw);
-          await AsyncStorage.setItem('user', raw);
-        } catch {}
-        try {
-          if (Platform.OS === 'web') {
-            localStorage.setItem(LEGACY_USER_STORAGE_KEY, raw);
-            localStorage.setItem('user', raw);
-          } else {
-            await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, raw);
-          }
-        } catch {}
-      }
-    } catch {
-      setUser(null);
-    } finally {
-      setLoadingUser(false);
-    }
-  }, [getAuthToken]);
-
   useFocusEffect(
     useCallback(() => {
       const now = Date.now();
@@ -361,8 +259,8 @@ const PacientePerfilScreen: React.FC = () => {
         return;
       }
       lastRefreshRef.current = now;
-      loadUser();
-    }, [loadUser])
+      refreshUser().catch(() => undefined);
+    }, [refreshUser])
   );
 
   useEffect(() => {
@@ -395,24 +293,14 @@ const PacientePerfilScreen: React.FC = () => {
     }));
   }, [user]);
 
-  const fullName = useMemo(() => {
-    const name = `${form.nombres} ${form.apellidos}`.trim();
-    return name || getPatientDisplayName(user, 'Paciente');
-  }, [form.apellidos, form.nombres, user]);
-
-  const planLabel = useMemo(() => {
-    const plan = (user?.plan || '').trim();
-    return plan ? `Paciente ${plan}` : 'Paciente';
-  }, [user?.plan]);
+  const fullName = useMemo(() => `${form.nombres} ${form.apellidos}`.trim() || 'Paciente', [
+    form.apellidos,
+    form.nombres,
+  ]);
 
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    const fotoUrl = sanitizeFotoUrl(user?.fotoUrl);
-    if (fotoUrl) {
-      return { uri: fotoUrl };
-    }
-    return DefaultAvatar;
-  }, [user?.fotoUrl]);
-  const hasProfilePhoto = useMemo(() => Boolean(sanitizeFotoUrl(user?.fotoUrl)), [user?.fotoUrl]);
+    return resolveRemoteImageSource(fotoUrl, DefaultAvatar);
+  }, [fotoUrl]);
   const requiresSensitiveConfirmation = useMemo(() => {
     if (!user) return false;
 
@@ -444,38 +332,8 @@ const PacientePerfilScreen: React.FC = () => {
   }, [form.tipoSangre]);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    await AsyncStorage.removeItem('user');
-    if (Platform.OS === 'web') {
-      localStorage.removeItem(LEGACY_TOKEN_KEY);
-      localStorage.removeItem(AUTH_TOKEN_KEY);
-      localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-      localStorage.removeItem('user');
-    } else {
-      await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
-      await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-      await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
-    }
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  };
-
-  const persistUser = async (nextUser: User) => {
-    const raw = JSON.stringify(nextUser);
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, raw);
-      await AsyncStorage.setItem('user', raw);
-    } catch {}
-    try {
-      await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, raw);
-    } catch {}
-    if (Platform.OS === 'web') {
-      try {
-        (globalThis as any).localStorage?.setItem(LEGACY_USER_STORAGE_KEY, raw);
-        (globalThis as any).localStorage?.setItem('user', raw);
-      } catch {}
-    }
   };
 
   const handlePickProfilePhoto = async () => {
@@ -501,23 +359,12 @@ const PacientePerfilScreen: React.FC = () => {
       const uri = await toWebDataUrl(baseUri);
       if (!uri) return;
 
-      const token = await getAuthToken();
-      if (!token) {
-        Alert.alert('Sesion expirada', 'Inicia sesion nuevamente para actualizar tu foto.');
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-        return;
-      }
-
-      const response = await fetch(apiUrl('/api/users/me/profile'), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ fotoUrl: uri }),
+      const payload = await apiClient.put<any>('/api/users/me/profile', {
+        authenticated: true,
+        body: { fotoUrl: uri },
       });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.success) {
+
+      if (!payload?.success) {
         Alert.alert('Error', payload?.message || 'No se pudo guardar la foto en el servidor.');
         return;
       }
@@ -525,11 +372,17 @@ const PacientePerfilScreen: React.FC = () => {
       const finalUri = sanitizeFotoUrl(payload?.profile?.fotoUrl || uri);
       const nextUser: User = { ...(user || {}), fotoUrl: uri };
       nextUser.fotoUrl = finalUri;
-      setUser(nextUser);
-      await persistUser(nextUser);
+      await persistSessionUser(nextUser);
       Alert.alert('Foto actualizada', 'Tu foto de perfil fue actualizada.');
-    } catch {
-      Alert.alert('Error', 'No se pudo actualizar la foto de perfil.');
+    } catch (error) {
+      if (isAuthError(error)) {
+        Alert.alert('Sesion expirada', 'Inicia sesion nuevamente para actualizar tu foto.');
+        await signOut();
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
+      }
+
+      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo actualizar la foto de perfil.'));
     }
   };
 
@@ -549,20 +402,9 @@ const PacientePerfilScreen: React.FC = () => {
 
     setSaving(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        Alert.alert('Sesion expirada', 'Inicia sesion nuevamente para guardar tus cambios.');
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-        return;
-      }
-
-      const response = await fetch(apiUrl('/api/users/me/paciente-profile'), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const payload = await apiClient.put<any>('/api/users/me/paciente-profile', {
+        authenticated: true,
+        body: {
           nombres: normalizeValue(form.nombres),
           apellidos: normalizeValue(form.apellidos),
           email: normalizeValue(form.email).toLowerCase(),
@@ -582,11 +424,10 @@ const PacientePerfilScreen: React.FC = () => {
           recibirSMS: Boolean(form.recibirSMS),
           compartirHistorial: Boolean(form.compartirHistorial),
           confirmPassword,
-        }),
+        },
       });
 
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.success || !payload?.profile) {
+      if (!payload?.success || !payload?.profile) {
         Alert.alert('Error', payload?.message || 'No se pudo guardar el perfil.');
         return;
       }
@@ -617,12 +458,18 @@ const PacientePerfilScreen: React.FC = () => {
         compartirHistorial: Boolean(profile.compartirHistorial),
       };
 
-      setUser(nextUser);
       setForm((prev) => ({ ...prev, confirmPassword: '' }));
-      await persistUser(nextUser);
+      await persistSessionUser(nextUser);
       Alert.alert('Perfil actualizado', 'Tus datos de paciente fueron guardados correctamente.');
-    } catch {
-      Alert.alert('Error de red', 'No se pudo conectar con el backend para guardar el perfil.');
+    } catch (error) {
+      if (isAuthError(error)) {
+        Alert.alert('Sesion expirada', 'Inicia sesion nuevamente para guardar tus cambios.');
+        await signOut();
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
+      }
+
+      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo guardar el perfil.'));
     } finally {
       setSaving(false);
     }

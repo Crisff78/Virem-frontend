@@ -11,8 +11,6 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -20,8 +18,9 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { DoctorRouteSnapshot, RootStackParamList } from './navigation/types';
-import { apiUrl } from './config/backend';
-import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
+import { usePatientPortalSession } from './hooks/usePatientPortalSession';
+import { apiClient } from './utils/api';
+import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -29,24 +28,6 @@ const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 const Doctor1: ImageSourcePropType = DefaultAvatar;
 const Doctor2: ImageSourcePropType = DefaultAvatar;
 const Doctor3: ImageSourcePropType = DefaultAvatar;
-
-const STORAGE_KEY = 'user';
-const LEGACY_USER_STORAGE_KEY = 'userProfile';
-const AUTH_TOKEN_KEY = 'authToken';
-const LEGACY_TOKEN_KEY = 'token';
-
-type User = {
-  id?: number | string;
-  usuarioid?: number | string;
-  nombres?: string;
-  apellidos?: string;
-  nombre?: string;
-  apellido?: string;
-  firstName?: string;
-  lastName?: string;
-  plan?: string;
-  fotoUrl?: string;
-};
 
 type BackendMedico = {
   medicoid?: string;
@@ -76,15 +57,6 @@ type Doctor = {
 };
 type AvailabilityFilter = 'today' | 'week' | 'weekend';
 
-const parseUser = (raw: string | null): User | null => {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-};
-
 const normalizeText = (value: unknown) =>
   String(value || '')
     .normalize('NFD')
@@ -93,50 +65,11 @@ const normalizeText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = String(value || '').trim();
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
-
-const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
-  const clean = sanitizeFotoUrl(value);
-  if (clean) {
-    return { uri: clean };
-  }
-  return DefaultAvatar;
-};
-
 const matchesSpecialty = (doctorSpecialty: unknown, selectedSpecialty: unknown) => {
   const doctorKey = normalizeText(doctorSpecialty);
   const selectedKey = normalizeText(selectedSpecialty);
   if (!doctorKey || !selectedKey) return false;
   return doctorKey === selectedKey || doctorKey.includes(selectedKey) || selectedKey.includes(doctorKey);
-};
-
-const getAuthToken = async (): Promise<string> => {
-  try {
-    if (Platform.OS === 'web') {
-      return (
-        localStorage.getItem(AUTH_TOKEN_KEY) ||
-        localStorage.getItem(LEGACY_TOKEN_KEY) ||
-        ''
-      ).trim();
-    }
-
-    const secureToken =
-      (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-      (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-    if (secureToken && secureToken.trim()) return secureToken.trim();
-
-    const asyncToken =
-      (await AsyncStorage.getItem(AUTH_TOKEN_KEY)) ||
-      (await AsyncStorage.getItem(LEGACY_TOKEN_KEY));
-    return String(asyncToken || '').trim();
-  } catch {
-    return '';
-  }
 };
 
 const doctorsBySpecialty: Record<string, Doctor[]> = {
@@ -361,8 +294,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
   const { t, tx } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'EspecialistasPorEspecialidad'>>();
-  const [user, setUser] = useState<User | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const { user, loadingUser, signOut, fullName, planLabel, fotoUrl } = usePatientPortalSession();
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('today');
   const [ratingMin, setRatingMin] = useState<'4.5' | '4.0' | null>('4.5');
   const [backendDoctors, setBackendDoctors] = useState<Doctor[]>([]);
@@ -410,116 +342,13 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
   }, [currentPage, totalPages]);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        let sessionUser: User | null = null;
-
-        if (Platform.OS === 'web') {
-          const localStorageUser = parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY));
-          if (localStorageUser) sessionUser = localStorageUser;
-        }
-
-        if (!sessionUser) {
-          const secureStoreUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
-          if (secureStoreUser) sessionUser = secureStoreUser;
-        }
-
-        if (!sessionUser) {
-          const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
-          if (asyncUser) sessionUser = asyncUser;
-        }
-
-        sessionUser = ensurePatientSessionUser(sessionUser);
-
-        const token = await getAuthToken();
-        if (token) {
-          const profileResponse = await fetch(apiUrl('/api/users/me/paciente-profile'), {
-            method: 'GET',
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const profilePayload = await profileResponse.json().catch(() => null);
-          if (profileResponse.ok && profilePayload?.success && profilePayload?.profile) {
-            const profileUser = profilePayload.profile as User;
-            const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
-            const profileUserId = String((profileUser as any)?.usuarioid || (profileUser as any)?.id || '').trim();
-            if (cachedUserId && profileUserId && cachedUserId !== profileUserId) {
-              sessionUser = null;
-            }
-            sessionUser = {
-              ...(sessionUser || {}),
-              ...profileUser,
-              nombres: String((profileUser as any)?.nombres || '').trim(),
-              apellidos: String((profileUser as any)?.apellidos || '').trim(),
-              nombre: String((profileUser as any)?.nombres || (profileUser as any)?.nombre || '').trim(),
-              apellido: String((profileUser as any)?.apellidos || (profileUser as any)?.apellido || '').trim(),
-              fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
-            };
-          } else {
-            const response = await fetch(apiUrl('/api/auth/me'), {
-              method: 'GET',
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            const payload = await response.json().catch(() => null);
-            if (response.ok && payload?.success && payload?.user) {
-              const apiUser = payload.user as User;
-              const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
-              const apiUserId = String((apiUser as any)?.usuarioid || (apiUser as any)?.id || '').trim();
-              if (cachedUserId && apiUserId && cachedUserId !== apiUserId) {
-                sessionUser = null;
-              }
-              const apiRoleId = Number((apiUser as any)?.rolid ?? (apiUser as any)?.rolId ?? (apiUser as any)?.roleId);
-              if (apiRoleId === 2) {
-                sessionUser = null;
-              } else {
-                sessionUser = {
-                  ...(sessionUser || {}),
-                  ...apiUser,
-                  fotoUrl: sanitizeFotoUrl((apiUser as any)?.fotoUrl),
-                };
-              }
-            }
-          }
-
-          if (sessionUser) {
-            const rawNextUser = JSON.stringify(sessionUser);
-            await AsyncStorage.setItem(STORAGE_KEY, rawNextUser);
-            await AsyncStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-            if (Platform.OS === 'web') {
-              localStorage.setItem(STORAGE_KEY, rawNextUser);
-              localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-            } else {
-              await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
-            }
-          }
-        }
-
-        setUser(sessionUser);
-      } catch {
-        setUser(null);
-      } finally {
-        setLoadingUser(false);
-      }
-    };
-
-    loadUser();
-  }, []);
-
-  useEffect(() => {
     const loadDoctors = async () => {
       setLoadingDoctors(true);
       try {
-        const token = await getAuthToken();
-        if (!token) {
-          setBackendDoctors([]);
-          return;
-        }
-
-        const response = await fetch(apiUrl('/api/medicos'), {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
+        const payload = await apiClient.get<any>('/api/medicos', {
+          authenticated: true,
         });
-        const payload = await response.json().catch(() => null);
-        if (!(response.ok && payload?.success && Array.isArray(payload?.medicos))) {
+        if (!(payload?.success && Array.isArray(payload?.medicos))) {
           setBackendDoctors([]);
           return;
         }
@@ -527,7 +356,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
         const mapped = payload.medicos.map((item: BackendMedico, index: number) => {
           const name = String(item?.nombreCompleto || '').trim() || `Medico ${index + 1}`;
           const especialidad = String(item?.especialidad || '').trim() || 'Medicina General';
-          const fotoUrl = sanitizeFotoUrl(item?.fotoUrl);
+          const fotoUrl = sanitizeRemoteImageUrl(item?.fotoUrl);
           return {
             id: String(item?.medicoid || `med-${index + 1}`),
             name,
@@ -539,7 +368,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
             price: 'N/D',
             tags: [especialidad, item?.telefono ? `Tel: ${String(item.telefono)}` : 'Consulta virtual'],
             availability: ['today', 'week', 'weekend'],
-            image: resolveAvatarSource(fotoUrl),
+            image: resolveRemoteImageSource(fotoUrl, DefaultAvatar),
             fotoUrl: fotoUrl || null,
             availableNow: true,
             verified: true,
@@ -556,37 +385,12 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
     loadDoctors();
   }, []);
 
-  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
-
-  const planLabel = useMemo(() => {
-    const plan = (user?.plan || '').trim();
-    return plan ? `Paciente ${plan}` : 'Paciente';
-  }, [user]);
-
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    return resolveAvatarSource(user?.fotoUrl);
-  }, [user]);
+    return resolveRemoteImageSource(fotoUrl, DefaultAvatar);
+  }, [fotoUrl]);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    await AsyncStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-
-    try {
-      if (Platform.OS === 'web') {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(LEGACY_TOKEN_KEY);
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-      } else {
-        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
-        await SecureStore.deleteItemAsync(STORAGE_KEY);
-      }
-    } catch {}
-
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 

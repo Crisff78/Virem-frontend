@@ -11,38 +11,22 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import type { RootStackParamList } from './navigation/types';
-import { apiUrl } from './config/backend';
+import { useAuth } from './providers/AuthProvider';
+import { apiClient } from './utils/api';
 
 import { useLanguage } from './localization/LanguageContext';
+import { usePatientSessionProfile, type PatientSessionUser } from './hooks/usePatientSessionProfile';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
-const STORAGE_KEY = 'user';
-const LEGACY_USER_STORAGE_KEY = 'userProfile';
-const AUTH_TOKEN_KEY = 'authToken';
-const LEGACY_TOKEN_KEY = 'token';
-
-type User = {
-  id?: number | string;
-  usuarioid?: number | string;
-  nombres?: string;
-  apellidos?: string;
-  nombre?: string;
-  apellido?: string;
-  firstName?: string;
-  lastName?: string;
-  plan?: string;
-  fotoUrl?: string;
-};
+type User = PatientSessionUser;
 
 type SpecialtyItem = {
   icon: string;
@@ -56,15 +40,6 @@ type SpecialtyCardProps = {
   label: string;
   description: string;
   onPress: () => void;
-};
-
-const parseUser = (raw: string | null): User | null => {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
 };
 
 const normalizeText = (value: unknown) =>
@@ -134,30 +109,6 @@ const getSpecialtyDescription = (specialtyName: string, totalMedicos: number) =>
   return 'Consulta medica especializada';
 };
 
-const getAuthToken = async (): Promise<string> => {
-  try {
-    if (Platform.OS === 'web') {
-      return (
-        localStorage.getItem(AUTH_TOKEN_KEY) ||
-        localStorage.getItem(LEGACY_TOKEN_KEY) ||
-        ''
-      ).trim();
-    }
-
-    const secureToken =
-      (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-      (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-    if (secureToken && secureToken.trim()) return secureToken.trim();
-
-    const asyncToken =
-      (await AsyncStorage.getItem(AUTH_TOKEN_KEY)) ||
-      (await AsyncStorage.getItem(LEGACY_TOKEN_KEY));
-    return String(asyncToken || '').trim();
-  } catch {
-    return '';
-  }
-};
-
 const SpecialtyCard: React.FC<SpecialtyCardProps> = ({ icon, label, description, onPress }) => (
   <SpecialtyCardInner icon={icon} label={label} description={description} onPress={onPress} />
 );
@@ -198,6 +149,8 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { signOut } = useAuth();
+  const { syncProfile } = usePatientSessionProfile();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [searchText, setSearchText] = useState('');
@@ -207,88 +160,8 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        let sessionUser: User | null = null;
-
-        if (Platform.OS === 'web') {
-          const localStorageUser = parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY));
-          if (localStorageUser) sessionUser = localStorageUser;
-        }
-
-        if (!sessionUser) {
-          const secureStoreUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
-          if (secureStoreUser) sessionUser = secureStoreUser;
-        }
-
-        if (!sessionUser) {
-          const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
-          if (asyncUser) sessionUser = asyncUser;
-        }
-
-        sessionUser = ensurePatientSessionUser(sessionUser);
-
-        const token = await getAuthToken();
-        if (token) {
-          const profileResponse = await fetch(apiUrl('/api/users/me/paciente-profile'), {
-            method: 'GET',
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const profilePayload = await profileResponse.json().catch(() => null);
-          if (profileResponse.ok && profilePayload?.success && profilePayload?.profile) {
-            const profileUser = profilePayload.profile as User;
-            const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
-            const profileUserId = String((profileUser as any)?.usuarioid || (profileUser as any)?.id || '').trim();
-            if (cachedUserId && profileUserId && cachedUserId !== profileUserId) {
-              sessionUser = null;
-            }
-            sessionUser = {
-              ...(sessionUser || {}),
-              ...profileUser,
-              nombres: String((profileUser as any)?.nombres || '').trim(),
-              apellidos: String((profileUser as any)?.apellidos || '').trim(),
-              nombre: String((profileUser as any)?.nombres || (profileUser as any)?.nombre || '').trim(),
-              apellido: String((profileUser as any)?.apellidos || (profileUser as any)?.apellido || '').trim(),
-              fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
-            };
-          } else {
-            const response = await fetch(apiUrl('/api/auth/me'), {
-              method: 'GET',
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            const payload = await response.json().catch(() => null);
-            if (response.ok && payload?.success && payload?.user) {
-              const apiUser = payload.user as User;
-              const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
-              const apiUserId = String((apiUser as any)?.usuarioid || (apiUser as any)?.id || '').trim();
-              if (cachedUserId && apiUserId && cachedUserId !== apiUserId) {
-                sessionUser = null;
-              }
-              const apiRoleId = Number((apiUser as any)?.rolid ?? (apiUser as any)?.rolId ?? (apiUser as any)?.roleId);
-              if (apiRoleId === 2) {
-                sessionUser = null;
-              } else {
-                sessionUser = {
-                  ...(sessionUser || {}),
-                  ...apiUser,
-                  fotoUrl: sanitizeFotoUrl((apiUser as any)?.fotoUrl),
-                };
-              }
-            }
-          }
-
-          if (sessionUser) {
-            const rawNextUser = JSON.stringify(sessionUser);
-            await AsyncStorage.setItem(STORAGE_KEY, rawNextUser);
-            await AsyncStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-            if (Platform.OS === 'web') {
-              localStorage.setItem(STORAGE_KEY, rawNextUser);
-              localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-            } else {
-              await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
-            }
-          }
-        }
-
-        setUser(sessionUser);
+        const sessionUser = (await syncProfile()) as User | null;
+        setUser((ensurePatientSessionUser(sessionUser) as User | null) || null);
       } catch {
         setUser(null);
       } finally {
@@ -297,26 +170,16 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
     };
 
     loadUser();
-  }, []);
+  }, [syncProfile]);
 
   useEffect(() => {
     const loadSpecialties = async () => {
       setLoadingSpecialties(true);
       try {
-        const token = await getAuthToken();
-        if (!token) {
-          setSpecialtyList(FALLBACK_SPECIALTIES);
-          return;
-        }
-
-        const byCatalogResponse = await fetch(apiUrl('/api/medicos/especialidades'), {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
+        const byCatalogPayload = await apiClient.get<any>('/api/medicos/especialidades', {
+          authenticated: true,
         });
-        const byCatalogPayload = await byCatalogResponse.json().catch(() => null);
-
         if (
-          byCatalogResponse.ok &&
           byCatalogPayload?.success &&
           Array.isArray(byCatalogPayload?.especialidades)
         ) {
@@ -341,13 +204,10 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
           }
         }
 
-        const byMedicosResponse = await fetch(apiUrl('/api/medicos'), {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
+        const byMedicosPayload = await apiClient.get<any>('/api/medicos', {
+          authenticated: true,
         });
-        const byMedicosPayload = await byMedicosResponse.json().catch(() => null);
-
-        if (byMedicosResponse.ok && byMedicosPayload?.success && Array.isArray(byMedicosPayload?.medicos)) {
+        if (byMedicosPayload?.success && Array.isArray(byMedicosPayload?.medicos)) {
           const counts = new Map<string, number>();
           for (const medico of byMedicosPayload.medicos) {
             const name = String(medico?.especialidad || 'Medicina General').trim() || 'Medicina General';
@@ -403,25 +263,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
   }, [searchText, specialtyList]);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    await AsyncStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-
-    try {
-      if (Platform.OS === 'web') {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(LEGACY_TOKEN_KEY);
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-      } else {
-        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
-        await SecureStore.deleteItemAsync(STORAGE_KEY);
-      }
-    } catch { }
-
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
