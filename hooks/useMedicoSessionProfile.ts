@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { useAuth } from '../providers/AuthProvider';
 import { apiClient } from '../utils/api';
@@ -14,10 +14,18 @@ export type MedicoSessionUser = {
     email?: string;
     nombreCompleto?: string;
     especialidad?: string;
+    fechanacimiento?: string;
+    genero?: string;
+    cedula?: string;
+    telefono?: string;
     fotoUrl?: string;
     medico?: {
         nombreCompleto?: string;
         especialidad?: string;
+        fechanacimiento?: string;
+        genero?: string;
+        cedula?: string;
+        telefono?: string;
         fotoUrl?: string;
     };
 };
@@ -33,6 +41,34 @@ const sanitizeFotoUrl = (value: unknown) => {
     if (clean.toLowerCase().startsWith('blob:')) return '';
     return clean;
 };
+
+const toComparableUser = (user: MedicoSessionUser | null) => ({
+    id: normalizeText(user?.id),
+    usuarioid: normalizeText(user?.usuarioid),
+    email: normalizeText(user?.email).toLowerCase(),
+    nombreCompleto: normalizeText(user?.nombreCompleto),
+    especialidad: normalizeText(user?.especialidad),
+    fechanacimiento: normalizeText(user?.fechanacimiento),
+    genero: normalizeText(user?.genero),
+    cedula: normalizeText(user?.cedula),
+    telefono: normalizeText(user?.telefono),
+    fotoUrl: sanitizeFotoUrl(user?.fotoUrl),
+    medico: {
+        nombreCompleto: normalizeText(user?.medico?.nombreCompleto),
+        especialidad: normalizeText(user?.medico?.especialidad),
+        fechanacimiento: normalizeText(user?.medico?.fechanacimiento),
+        genero: normalizeText(user?.medico?.genero),
+        cedula: normalizeText(user?.medico?.cedula),
+        telefono: normalizeText(user?.medico?.telefono),
+        fotoUrl: sanitizeFotoUrl(user?.medico?.fotoUrl),
+    },
+});
+
+const areUsersEquivalent = (
+    left: MedicoSessionUser | null,
+    right: MedicoSessionUser | null
+) =>
+    JSON.stringify(toComparableUser(left)) === JSON.stringify(toComparableUser(right));
 
 const mergeCachedProfile = (
     sessionUser: MedicoSessionUser | null,
@@ -51,6 +87,20 @@ const mergeCachedProfile = (
                 sessionUser?.medico?.especialidad ||
                 cachedProfile?.especialidad
         ),
+        fechanacimiento: normalizeText(
+            sessionUser?.fechanacimiento ||
+                sessionUser?.medico?.fechanacimiento ||
+                cachedProfile?.fechanacimiento
+        ),
+        genero: normalizeText(
+            sessionUser?.genero || sessionUser?.medico?.genero || cachedProfile?.genero
+        ),
+        cedula: normalizeText(
+            sessionUser?.cedula || sessionUser?.medico?.cedula || cachedProfile?.cedula
+        ),
+        telefono: normalizeText(
+            sessionUser?.telefono || sessionUser?.medico?.telefono || cachedProfile?.telefono
+        ),
         fotoUrl: sanitizeFotoUrl(
             sessionUser?.fotoUrl || sessionUser?.medico?.fotoUrl || cachedProfile?.fotoUrl
         ),
@@ -61,9 +111,14 @@ export function useMedicoSessionProfile() {
     const { user, updateUser } = useAuth<Record<string, unknown>>();
 
     const sessionUser = (user as MedicoSessionUser | null) || null;
+    const sessionUserRef = useRef<MedicoSessionUser | null>(sessionUser);
+
+    useEffect(() => {
+        sessionUserRef.current = sessionUser;
+    }, [sessionUser]);
 
     const syncProfile = useCallback(async () => {
-        let nextUser = sessionUser;
+        let nextUser = sessionUserRef.current;
         const email = normalizeText(nextUser?.email).toLowerCase();
         const cacheMap = await readMedicoProfileCacheMap();
         const cachedProfile = email ? cacheMap[email] || null : null;
@@ -115,11 +170,37 @@ export function useMedicoSessionProfile() {
             const profilePayload = await apiClient.get<any>('/api/users/me/profile', {
                 authenticated: true,
             });
-            const serverFoto = sanitizeFotoUrl(profilePayload?.profile?.fotoUrl || '');
-            if (serverFoto) {
+            const profile = (profilePayload?.profile || null) as Record<string, unknown> | null;
+            if (profile) {
                 nextUser = {
                     ...(nextUser || {}),
-                    fotoUrl: serverFoto,
+                    nombreCompleto: normalizeText(
+                        profile?.nombreCompleto ||
+                            nextUser?.nombreCompleto ||
+                            nextUser?.medico?.nombreCompleto
+                    ),
+                    especialidad: normalizeText(
+                        profile?.especialidad ||
+                            nextUser?.especialidad ||
+                            nextUser?.medico?.especialidad
+                    ),
+                    fechanacimiento: normalizeText(
+                        profile?.fechanacimiento ||
+                            nextUser?.fechanacimiento ||
+                            nextUser?.medico?.fechanacimiento
+                    ),
+                    genero: normalizeText(
+                        profile?.genero || nextUser?.genero || nextUser?.medico?.genero
+                    ),
+                    cedula: normalizeText(
+                        profile?.cedula || nextUser?.cedula || nextUser?.medico?.cedula
+                    ),
+                    telefono: normalizeText(
+                        profile?.telefono || nextUser?.telefono || nextUser?.medico?.telefono
+                    ),
+                    fotoUrl: sanitizeFotoUrl(
+                        profile?.fotoUrl || nextUser?.fotoUrl || nextUser?.medico?.fotoUrl
+                    ),
                 };
             }
         } catch {
@@ -160,6 +241,26 @@ export function useMedicoSessionProfile() {
                         nextUser?.medico?.especialidad ||
                         cacheMap[finalEmail]?.especialidad
                 ),
+                fechanacimiento: normalizeText(
+                    nextUser?.fechanacimiento ||
+                        nextUser?.medico?.fechanacimiento ||
+                        cacheMap[finalEmail]?.fechanacimiento
+                ),
+                genero: normalizeText(
+                    nextUser?.genero ||
+                        nextUser?.medico?.genero ||
+                        cacheMap[finalEmail]?.genero
+                ),
+                cedula: normalizeText(
+                    nextUser?.cedula ||
+                        nextUser?.medico?.cedula ||
+                        cacheMap[finalEmail]?.cedula
+                ),
+                telefono: normalizeText(
+                    nextUser?.telefono ||
+                        nextUser?.medico?.telefono ||
+                        cacheMap[finalEmail]?.telefono
+                ),
                 fotoUrl: sanitizeFotoUrl(
                     nextUser?.fotoUrl ||
                         nextUser?.medico?.fotoUrl ||
@@ -169,12 +270,12 @@ export function useMedicoSessionProfile() {
             await writeMedicoProfileCacheMap(cacheMap);
         }
 
-        if (nextUser) {
+        if (nextUser && !areUsersEquivalent(sessionUserRef.current, nextUser)) {
             await updateUser(nextUser as Record<string, unknown>);
         }
 
         return nextUser;
-    }, [sessionUser, updateUser]);
+    }, [updateUser]);
 
     return {
         sessionUser,

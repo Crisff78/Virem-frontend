@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,23 +11,18 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
-import { apiUrl } from './config/backend';
+import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
+import { apiClient } from './utils/api';
+import { getApiErrorMessage, isAuthError } from './utils/apiErrors';
+import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
-
-const LEGACY_USER_STORAGE_KEY = 'userProfile';
-const MEDICO_CACHE_BY_EMAIL_KEY = 'medicoProfileByEmail';
-const ASYNC_USER_KEY = 'user';
-const ASYNC_TOKEN_KEY = 'token';
-const AUTH_TOKEN_KEY = 'authToken';
 
 const colors = {
   primary: '#137fec',
@@ -60,16 +55,6 @@ type SessionUser = {
   };
 };
 
-type CachedMedicoProfile = {
-  nombreCompleto?: string;
-  especialidad?: string;
-  fechanacimiento?: string;
-  genero?: string;
-  cedula?: string;
-  telefono?: string;
-  fotoUrl?: string;
-};
-
 type MedicoProfile = {
   email: string;
   nombreCompleto: string;
@@ -100,26 +85,10 @@ const EMPTY_PROFILE: MedicoProfile = {
   fotoUrl: '',
 };
 
-const parseJson = <T,>(raw: string | null): T | null => {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
-};
-
 const normalizeValue = (value: unknown) =>
   String(value || '')
     .replace(/\s+/g, ' ')
     .trim();
-
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = normalizeValue(value);
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
 
 const buildPersistentPhotoUri = (asset: ImagePicker.ImagePickerAsset | undefined): string => {
   if (!asset) return '';
@@ -184,43 +153,15 @@ const formatPhone = (value: string) => {
 
   return normalizeValue(value);
 };
-
-const getInitialProfileFromWeb = (): { user: SessionUser | null; profile: MedicoProfile } => {
-  if (Platform.OS !== 'web') {
-    return { user: null, profile: EMPTY_PROFILE };
-  }
-
-  try {
-    const rawUser = localStorage.getItem(LEGACY_USER_STORAGE_KEY);
-    const sessionUser = parseJson<SessionUser>(rawUser);
-    const email = normalizeValue(sessionUser?.email).toLowerCase();
-    const rawCache = localStorage.getItem(MEDICO_CACHE_BY_EMAIL_KEY);
-    const cacheMap = parseJson<Record<string, CachedMedicoProfile>>(rawCache) || {};
-    const cached = email ? cacheMap[email] || null : null;
-    return { user: sessionUser, profile: buildProfile(sessionUser, cached) };
-  } catch {
-    return { user: null, profile: EMPTY_PROFILE };
-  }
-};
-
-const buildProfile = (
-  user: SessionUser | null,
-  cached: CachedMedicoProfile | null
-): MedicoProfile => ({
+const buildProfile = (user: SessionUser | null): MedicoProfile => ({
   email: normalizeValue(user?.email),
-  nombreCompleto: normalizeValue(
-    user?.nombreCompleto || user?.medico?.nombreCompleto || cached?.nombreCompleto
-  ),
-  especialidad: normalizeValue(
-    user?.especialidad || user?.medico?.especialidad || cached?.especialidad
-  ),
-  fechanacimiento: normalizeValue(
-    user?.fechanacimiento || user?.medico?.fechanacimiento || cached?.fechanacimiento
-  ),
-  genero: normalizeValue(user?.genero || user?.medico?.genero || cached?.genero),
-  cedula: normalizeValue(user?.cedula || user?.medico?.cedula || cached?.cedula),
-  telefono: normalizeValue(user?.telefono || user?.medico?.telefono || cached?.telefono),
-  fotoUrl: sanitizeFotoUrl(user?.fotoUrl || user?.medico?.fotoUrl || cached?.fotoUrl),
+  nombreCompleto: normalizeValue(user?.nombreCompleto || user?.medico?.nombreCompleto),
+  especialidad: normalizeValue(user?.especialidad || user?.medico?.especialidad),
+  fechanacimiento: normalizeValue(user?.fechanacimiento || user?.medico?.fechanacimiento),
+  genero: normalizeValue(user?.genero || user?.medico?.genero),
+  cedula: normalizeValue(user?.cedula || user?.medico?.cedula),
+  telefono: normalizeValue(user?.telefono || user?.medico?.telefono),
+  fotoUrl: sanitizeRemoteImageUrl(user?.fotoUrl || user?.medico?.fotoUrl),
 });
 
 const VerifiedField: React.FC<{
@@ -238,183 +179,50 @@ const VerifiedField: React.FC<{
 
 const MedicoPerfilScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const initialWebData = useMemo(() => getInitialProfileFromWeb(), []);
+  const {
+    user,
+    loadingUser: loadingSessionUser,
+    refreshUser,
+    persistUser,
+    signOut,
+    fotoUrl,
+  } = useMedicoPortalSession({ syncOnMount: false });
   const [loading, setLoading] = useState(false);
   const [savingPhoto, setSavingPhoto] = useState(false);
-  const [rawUser, setRawUser] = useState<SessionUser | null>(initialWebData.user);
-  const [profile, setProfile] = useState<MedicoProfile>(initialWebData.profile);
+  const [profile, setProfile] = useState<MedicoProfile>(EMPTY_PROFILE);
 
   const avatarSource: ImageSourcePropType = useMemo(() => {
-    if (profile.fotoUrl) return { uri: profile.fotoUrl };
-    return DefaultAvatar;
-  }, [profile.fotoUrl]);
+    return resolveRemoteImageSource(profile.fotoUrl || fotoUrl, DefaultAvatar);
+  }, [fotoUrl, profile.fotoUrl]);
+
+  useEffect(() => {
+    setProfile(buildProfile((user as SessionUser | null) || null));
+  }, [user]);
+
+  const handleAuthExpired = useCallback(
+    async (message = 'Inicia sesion nuevamente para continuar.') => {
+      Alert.alert('Sesion expirada', message);
+      await signOut();
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+    },
+    [navigation, signOut]
+  );
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
-
     try {
-      const rawUserFromStorage =
-        Platform.OS === 'web'
-          ? localStorage.getItem(LEGACY_USER_STORAGE_KEY)
-          : await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY);
-      const authTokenFromStorage =
-        Platform.OS === 'web'
-          ? localStorage.getItem(AUTH_TOKEN_KEY)
-          : await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
-
-      const fallbackUserRaw = parseJson<SessionUser>(await AsyncStorage.getItem(ASYNC_USER_KEY));
-      let sessionUser = parseJson<SessionUser>(rawUserFromStorage) || fallbackUserRaw;
-      const authToken = normalizeValue(authTokenFromStorage || (await AsyncStorage.getItem(ASYNC_TOKEN_KEY)));
-      let email = normalizeValue(sessionUser?.email).toLowerCase();
-
-      const rawCache =
-        Platform.OS === 'web'
-          ? localStorage.getItem(MEDICO_CACHE_BY_EMAIL_KEY)
-          : await SecureStore.getItemAsync(MEDICO_CACHE_BY_EMAIL_KEY);
-      const cacheMap = parseJson<Record<string, CachedMedicoProfile>>(rawCache) || {};
-      let cached = email ? cacheMap[email] || null : null;
-
-      if (authToken) {
-        try {
-          const response = await fetch(apiUrl('/api/auth/me'), {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-            },
-          });
-
-          const payload = await response.json().catch(() => null);
-          if (response.ok && payload?.success && payload?.user) {
-            const apiUser = payload.user as SessionUser;
-            const apiHasFotoUrl = Object.prototype.hasOwnProperty.call(apiUser || {}, 'fotoUrl');
-            sessionUser = {
-              ...(sessionUser || {}),
-              ...apiUser,
-              fotoUrl: apiHasFotoUrl
-                ? sanitizeFotoUrl((apiUser as any)?.fotoUrl)
-                : sanitizeFotoUrl(sessionUser?.fotoUrl),
-            };
-            email = normalizeValue(sessionUser?.email).toLowerCase();
-
-            const rawNextUser = JSON.stringify(sessionUser);
-            try {
-              await AsyncStorage.setItem(ASYNC_USER_KEY, rawNextUser);
-            } catch {}
-
-            try {
-              if (Platform.OS === 'web') {
-                localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-              } else {
-                await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
-              }
-            } catch {}
-
-            if (email) {
-              const mergedCache: CachedMedicoProfile = {
-                ...(cacheMap[email] || {}),
-                nombreCompleto: normalizeValue(
-                  sessionUser?.nombreCompleto || sessionUser?.medico?.nombreCompleto || cacheMap[email]?.nombreCompleto
-                ),
-                especialidad: normalizeValue(
-                  sessionUser?.especialidad || sessionUser?.medico?.especialidad || cacheMap[email]?.especialidad
-                ),
-                fechanacimiento: normalizeValue(
-                  sessionUser?.fechanacimiento || sessionUser?.medico?.fechanacimiento || cacheMap[email]?.fechanacimiento
-                ),
-                genero: normalizeValue(
-                  sessionUser?.genero || sessionUser?.medico?.genero || cacheMap[email]?.genero
-                ),
-                cedula: normalizeValue(
-                  sessionUser?.cedula || sessionUser?.medico?.cedula || cacheMap[email]?.cedula
-                ),
-                telefono: normalizeValue(
-                  sessionUser?.telefono || sessionUser?.medico?.telefono || cacheMap[email]?.telefono
-                ),
-                fotoUrl: normalizeValue(
-                  sanitizeFotoUrl(
-                  sessionUser?.fotoUrl || sessionUser?.medico?.fotoUrl || cacheMap[email]?.fotoUrl
-                  )
-                ),
-              };
-              cacheMap[email] = mergedCache;
-              cached = mergedCache;
-
-              const rawCacheNext = JSON.stringify(cacheMap);
-              try {
-                if (Platform.OS === 'web') {
-                  localStorage.setItem(MEDICO_CACHE_BY_EMAIL_KEY, rawCacheNext);
-                } else {
-                  await SecureStore.setItemAsync(MEDICO_CACHE_BY_EMAIL_KEY, rawCacheNext);
-                }
-              } catch {}
-            }
-          }
-        } catch {}
-
-        try {
-          const profileResponse = await fetch(apiUrl('/api/users/me/profile'), {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-            },
-          });
-          const profilePayload = await profileResponse.json().catch(() => null);
-          const serverFoto = sanitizeFotoUrl(profilePayload?.profile?.fotoUrl || '');
-          if (serverFoto) {
-            sessionUser = {
-              ...(sessionUser || {}),
-              fotoUrl: serverFoto,
-            };
-
-            const rawNextUser = JSON.stringify(sessionUser);
-            try {
-              await AsyncStorage.setItem(ASYNC_USER_KEY, rawNextUser);
-            } catch {}
-
-            try {
-              if (Platform.OS === 'web') {
-                localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-              } else {
-                await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
-              }
-            } catch {}
-          }
-        } catch {}
+      const nextUser = (await refreshUser()) as SessionUser | null;
+      setProfile(buildProfile(nextUser));
+    } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthExpired();
+        return;
       }
-
-      const currentFoto = sanitizeFotoUrl(sessionUser?.fotoUrl || sessionUser?.medico?.fotoUrl);
-      const cachedFoto = sanitizeFotoUrl(cached?.fotoUrl);
-      if (authToken && email && !currentFoto && cachedFoto) {
-        try {
-          const syncResponse = await fetch(apiUrl('/api/users/me/profile'), {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({ fotoUrl: cachedFoto }),
-          });
-          const syncPayload = await syncResponse.json().catch(() => null);
-          if (syncResponse.ok && syncPayload?.success) {
-            const syncedFoto = sanitizeFotoUrl(syncPayload?.profile?.fotoUrl || cachedFoto);
-            sessionUser = { ...(sessionUser || {}), fotoUrl: syncedFoto };
-            cacheMap[email] = {
-              ...(cacheMap[email] || {}),
-              fotoUrl: syncedFoto,
-            };
-          }
-        } catch {}
-      }
-
-      setRawUser(sessionUser);
-      setProfile(buildProfile(sessionUser, cached));
-    } catch {
-      setRawUser(null);
-      setProfile(buildProfile(null, null));
+      setProfile(buildProfile((user as SessionUser | null) || null));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [handleAuthExpired, refreshUser, user]);
 
   useFocusEffect(
     useCallback(() => {
@@ -422,91 +230,35 @@ const MedicoPerfilScreen: React.FC = () => {
     }, [loadProfile])
   );
 
-  const getAuthToken = useCallback(async () => {
-    const storageToken =
-      Platform.OS === 'web'
-        ? localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem(ASYNC_TOKEN_KEY)
-        : (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-          (await SecureStore.getItemAsync(ASYNC_TOKEN_KEY));
-    const asyncToken = await AsyncStorage.getItem(ASYNC_TOKEN_KEY);
-    return normalizeValue(storageToken || asyncToken);
-  }, []);
-
   const persistProfilePhoto = useCallback(
     async (uri: string) => {
       const cleanUri = normalizeValue(uri);
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('Inicia sesion nuevamente para guardar tu foto.');
-      }
-
-      const response = await fetch(apiUrl('/api/users/me/profile'), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ fotoUrl: cleanUri }),
+      const payload = await apiClient.put<any>('/api/users/me/profile', {
+        authenticated: true,
+        body: { fotoUrl: cleanUri },
       });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.success) {
+      if (!payload?.success) {
         throw new Error(payload?.message || 'No se pudo guardar la foto en el servidor.');
       }
 
-      const finalUri = sanitizeFotoUrl(payload?.profile?.fotoUrl || cleanUri);
-      const email = normalizeValue(rawUser?.email).toLowerCase();
+      const finalUri = sanitizeRemoteImageUrl(payload?.profile?.fotoUrl || cleanUri);
       const nextUser: SessionUser = {
-        ...(rawUser || {}),
+        ...(user || {}),
+        email: normalizeValue(user?.email || profile.email),
+        nombreCompleto: normalizeValue(user?.nombreCompleto || user?.medico?.nombreCompleto || profile.nombreCompleto),
+        especialidad: normalizeValue(user?.especialidad || user?.medico?.especialidad || profile.especialidad),
+        fechanacimiento: normalizeValue(user?.fechanacimiento || user?.medico?.fechanacimiento || profile.fechanacimiento),
+        genero: normalizeValue(user?.genero || user?.medico?.genero || profile.genero),
+        cedula: normalizeValue(user?.cedula || user?.medico?.cedula || profile.cedula),
+        telefono: normalizeValue(user?.telefono || user?.medico?.telefono || profile.telefono),
         fotoUrl: finalUri,
       };
 
-      const rawNextUser = JSON.stringify(nextUser);
-      try {
-        await AsyncStorage.setItem(ASYNC_USER_KEY, rawNextUser);
-      } catch {}
-
-      try {
-        if (Platform.OS === 'web') {
-          localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-        } else {
-          await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
-        }
-      } catch {}
-
-      if (email) {
-        try {
-          const rawCache =
-            Platform.OS === 'web'
-              ? localStorage.getItem(MEDICO_CACHE_BY_EMAIL_KEY)
-              : await SecureStore.getItemAsync(MEDICO_CACHE_BY_EMAIL_KEY);
-          const cacheMap = parseJson<Record<string, CachedMedicoProfile>>(rawCache) || {};
-          const prev = cacheMap[email] || {};
-
-          cacheMap[email] = {
-            ...prev,
-            nombreCompleto: profile.nombreCompleto || prev.nombreCompleto,
-            especialidad: profile.especialidad || prev.especialidad,
-            fechanacimiento: profile.fechanacimiento || prev.fechanacimiento,
-            genero: profile.genero || prev.genero,
-            cedula: profile.cedula || prev.cedula,
-            telefono: profile.telefono || prev.telefono,
-            fotoUrl: finalUri,
-          };
-
-          const rawCacheNext = JSON.stringify(cacheMap);
-          if (Platform.OS === 'web') {
-            localStorage.setItem(MEDICO_CACHE_BY_EMAIL_KEY, rawCacheNext);
-          } else {
-            await SecureStore.setItemAsync(MEDICO_CACHE_BY_EMAIL_KEY, rawCacheNext);
-          }
-        } catch {}
-      }
-
-      setRawUser(nextUser);
-      setProfile((prev) => ({ ...prev, fotoUrl: finalUri }));
+      await persistUser(nextUser);
+      setProfile(buildProfile(nextUser));
       return { savedOnServer: true };
     },
-    [getAuthToken, profile, rawUser]
+    [persistUser, profile, user]
   );
 
   const handlePickPhoto = useCallback(async () => {
@@ -536,33 +288,20 @@ const MedicoPerfilScreen: React.FC = () => {
       await persistProfilePhoto(uri);
       Alert.alert('Foto actualizada', 'La foto del perfil medico se guardo correctamente.');
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'No se pudo actualizar la foto del perfil.');
+      if (isAuthError(error)) {
+        await handleAuthExpired('Inicia sesion nuevamente para guardar tu foto.');
+        return;
+      }
+      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo actualizar la foto del perfil.'));
     } finally {
       setSavingPhoto(false);
     }
-  }, [persistProfilePhoto]);
+  }, [handleAuthExpired, persistProfilePhoto]);
 
   const handleLogout = useCallback(async () => {
-    try {
-      await AsyncStorage.removeItem(ASYNC_TOKEN_KEY);
-      await AsyncStorage.removeItem(ASYNC_USER_KEY);
-      await AsyncStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-
-      if (Platform.OS === 'web') {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(ASYNC_TOKEN_KEY);
-        localStorage.removeItem(LEGACY_USER_STORAGE_KEY);
-        localStorage.removeItem(ASYNC_USER_KEY);
-      } else {
-        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(ASYNC_TOKEN_KEY);
-        await SecureStore.deleteItemAsync(LEGACY_USER_STORAGE_KEY);
-        await SecureStore.deleteItemAsync(ASYNC_USER_KEY);
-      }
-    } catch {}
-
+    await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
+  }, [navigation, signOut]);
 
   const dateText = useMemo(
     () =>
@@ -659,7 +398,9 @@ const MedicoPerfilScreen: React.FC = () => {
                 <Text style={styles.pageSubtitle}>
                   Aqui puedes ver tus datos verificados y actualizar tu foto de perfil.
                 </Text>
-                {loading ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+                {loading || loadingSessionUser ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : null}
               </View>
             </View>
             <View style={styles.headerRight}>

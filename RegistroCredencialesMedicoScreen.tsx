@@ -1,9 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useMemo, useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
 import {
   Alert,
   ScrollView,
@@ -17,16 +15,17 @@ import {
   Platform,
 } from 'react-native';
 import { RootStackParamList, DatosPersonalesMedico } from './navigation/types';
-import { BACKEND_URL, apiUrl } from './config/backend';
+import { BACKEND_URL } from './config/backend';
+import { ApiError, apiClient } from './utils/api';
+import { getApiErrorMessage } from './utils/apiErrors';
+import { cacheMedicoProfileByEmail } from './utils/medicoProfileCache';
+import { clearMedicoDraft, readMedicoDraft } from './utils/medicoRegistrationDraft';
 import { isStrongPassword, isValidEmail, passwordChecks } from './utils/validation';
 
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'RegistroCredencialesMedico'>;
 type RegistroMedicoRouteProp = RouteProp<RootStackParamList, 'RegistroCredencialesMedico'>;
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
-const MEDICO_CACHE_BY_EMAIL_KEY = 'medicoProfileByEmail';
-const MEDICO_DRAFT_PREFIX = 'medicoRegDraft:';
-
 const colors = {
   primary: '#137fec',
   backgroundLight: '#F6FAFD',
@@ -64,113 +63,6 @@ function showAlert(title: string, message: string) {
     Alert.alert(title, message);
   }
 }
-
-const cacheMedicoProfile = async (
-  email: string,
-  nombreCompleto: string,
-  especialidad: string,
-  fotoUrl?: string,
-  cedula?: string,
-  telefono?: string,
-  genero?: string,
-  fechanacimiento?: string
-) => {
-  const key = String(email || '').trim().toLowerCase();
-  if (!key) return;
-
-  try {
-    const raw =
-      Platform.OS === 'web'
-        ? localStorage.getItem(MEDICO_CACHE_BY_EMAIL_KEY)
-        : await SecureStore.getItemAsync(MEDICO_CACHE_BY_EMAIL_KEY);
-
-    let map: Record<
-      string,
-      {
-        nombreCompleto: string;
-        especialidad: string;
-        fotoUrl?: string;
-        cedula?: string;
-        telefono?: string;
-        genero?: string;
-        fechanacimiento?: string;
-      }
-    > = {};
-    if (raw) {
-      try {
-        map = JSON.parse(raw);
-      } catch {
-        map = {};
-      }
-    }
-
-    map[key] = {
-      nombreCompleto: String(nombreCompleto || '').trim(),
-      especialidad: String(especialidad || '').trim(),
-      fotoUrl: String(fotoUrl || '').trim() || undefined,
-      cedula: String(cedula || '').trim() || undefined,
-      telefono: String(telefono || '').trim() || undefined,
-      genero: String(genero || '').trim() || undefined,
-      fechanacimiento: String(fechanacimiento || '').trim() || undefined,
-    };
-
-    const next = JSON.stringify(map);
-    if (Platform.OS === 'web') {
-      localStorage.setItem(MEDICO_CACHE_BY_EMAIL_KEY, next);
-    } else {
-      await SecureStore.setItemAsync(MEDICO_CACHE_BY_EMAIL_KEY, next);
-    }
-  } catch {
-    // Non-blocking cache failure
-  }
-};
-
-const readMedicoDraft = async (draftKey?: string) => {
-  const key = String(draftKey || '').trim();
-  if (!key || !key.startsWith(MEDICO_DRAFT_PREFIX)) return null;
-
-  try {
-    let raw: string | null = null;
-
-    if (Platform.OS === 'web') {
-      raw = localStorage.getItem(key);
-    } else {
-      try {
-        raw = await SecureStore.getItemAsync(key);
-      } catch {
-        raw = null;
-      }
-    }
-
-    if (!raw) {
-      raw = await AsyncStorage.getItem(key);
-    }
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-    return parsed as Record<string, any>;
-  } catch {
-    return null;
-  }
-};
-
-const clearMedicoDraft = async (draftKey?: string) => {
-  const key = String(draftKey || '').trim();
-  if (!key || !key.startsWith(MEDICO_DRAFT_PREFIX)) return;
-
-  try {
-    await AsyncStorage.removeItem(key);
-  } catch {}
-
-  try {
-    if (Platform.OS === 'web') {
-      localStorage.removeItem(key);
-    } else {
-      await SecureStore.deleteItemAsync(key);
-    }
-  } catch {}
-};
 
 const RegistroCredencialesMedicoScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
@@ -258,30 +150,25 @@ const RegistroCredencialesMedicoScreen: React.FC = () => {
         password: String(password),
       };
 
-      const response = await fetch(apiUrl('/api/auth/register-medico'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyCompleto),
+      const res = await apiClient.post<any>('/api/auth/register-medico', {
+        body: bodyCompleto,
       });
 
-      const res = await response.json().catch(() => null);
-
-      if (!response.ok || !res?.success) {
+      if (!res?.success) {
         const detalle = res?.error ? `\n\nDetalle: ${res.error}` : '';
-        showAlert('Error', (res?.message || `Fallo (HTTP ${response.status}).`) + detalle);
+        showAlert('Error', (res?.message || 'No se pudo completar el registro.') + detalle);
         return;
       }
 
-      await cacheMedicoProfile(
-        emailTrim,
-        bodyCompleto.nombreCompleto,
-        bodyCompleto.especialidad,
-        bodyCompleto.fotoUrl,
-        bodyCompleto.cedula,
-        bodyCompleto.telefono,
-        bodyCompleto.genero,
-        bodyCompleto.fechanacimiento
-      );
+      await cacheMedicoProfileByEmail(emailTrim, {
+        nombreCompleto: bodyCompleto.nombreCompleto,
+        especialidad: bodyCompleto.especialidad,
+        fotoUrl: bodyCompleto.fotoUrl,
+        cedula: bodyCompleto.cedula,
+        telefono: bodyCompleto.telefono,
+        genero: bodyCompleto.genero,
+        fechanacimiento: bodyCompleto.fechanacimiento,
+      });
       await clearMedicoDraft(dm.draftKey);
 
       if (res?.requiresAdminApproval) {
@@ -295,7 +182,18 @@ const RegistroCredencialesMedicoScreen: React.FC = () => {
       }
       navigation.replace('Login');
     } catch (error) {
-      showAlert('Error de Red', `No se pudo conectar al servidor.\n\nBackend actual: ${BACKEND_URL}`);
+      const detail =
+        error instanceof ApiError &&
+        error.data &&
+        typeof error.data === 'object' &&
+        typeof (error.data as Record<string, any>).error === 'string'
+          ? `\n\nDetalle: ${(error.data as Record<string, any>).error}`
+          : '';
+      const fallback = `No se pudo conectar al servidor.\n\nBackend actual: ${BACKEND_URL}`;
+      showAlert(
+        error instanceof ApiError ? 'Error' : 'Error de Red',
+        `${getApiErrorMessage(error, fallback)}${detail}`.trim()
+      );
     } finally {
       setIsLoading(false);
     }

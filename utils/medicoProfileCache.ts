@@ -6,8 +6,14 @@ export const MEDICO_CACHE_BY_EMAIL_KEY = 'medicoProfileByEmail';
 export type CachedMedicoProfile = {
     nombreCompleto?: string;
     especialidad?: string;
+    fechanacimiento?: string;
+    genero?: string;
+    cedula?: string;
+    telefono?: string;
     fotoUrl?: string;
 };
+
+const normalizeString = (value: unknown) => String(value || '').trim();
 
 const parseJson = <T,>(raw: string | null): T | null => {
     if (!raw) return null;
@@ -43,4 +49,25 @@ export async function writeMedicoProfileCacheMap(
     } catch {
         // noop
     }
+}
+
+export async function cacheMedicoProfileByEmail(
+    email: string,
+    profile: CachedMedicoProfile
+) {
+    const key = normalizeString(email).toLowerCase();
+    if (!key) return;
+
+    const cacheMap = await readMedicoProfileCacheMap();
+    cacheMap[key] = {
+        nombreCompleto: normalizeString(profile.nombreCompleto) || undefined,
+        especialidad: normalizeString(profile.especialidad) || undefined,
+        fechanacimiento: normalizeString(profile.fechanacimiento) || undefined,
+        genero: normalizeString(profile.genero) || undefined,
+        cedula: normalizeString(profile.cedula) || undefined,
+        telefono: normalizeString(profile.telefono) || undefined,
+        fotoUrl: normalizeString(profile.fotoUrl) || undefined,
+    };
+
+    await writeMedicoProfileCacheMap(cacheMap);
 }

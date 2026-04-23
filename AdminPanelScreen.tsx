@@ -9,16 +9,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
-import { apiUrl } from './config/backend';
-
-const AUTH_TOKEN_KEY = 'authToken';
-const LEGACY_TOKEN_KEY = 'token';
+import { useAuth } from './providers/AuthProvider';
+import { ApiError, apiClient } from './utils/api';
+import { getApiErrorMessage } from './utils/apiErrors';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'AdminPanel'>;
 
@@ -61,29 +58,8 @@ const normalizeText = (value: unknown) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const getAuthToken = async (): Promise<string> => {
-  try {
-    if (Platform.OS === 'web') {
-      return (
-        localStorage.getItem(AUTH_TOKEN_KEY) ||
-        localStorage.getItem(LEGACY_TOKEN_KEY) ||
-        ''
-      ).trim();
-    }
-
-    const secureToken =
-      (await SecureStore.getItemAsync(AUTH_TOKEN_KEY)) ||
-      (await SecureStore.getItemAsync(LEGACY_TOKEN_KEY));
-    if (secureToken?.trim()) return secureToken.trim();
-
-    const asyncToken =
-      (await AsyncStorage.getItem(AUTH_TOKEN_KEY)) ||
-      (await AsyncStorage.getItem(LEGACY_TOKEN_KEY));
-    return String(asyncToken || '').trim();
-  } catch {
-    return '';
-  }
-};
+const isAdminAccessError = (error: unknown) =>
+  error instanceof ApiError && (error.status === 401 || error.status === 403);
 
 const toInt = (value: unknown) => {
   const parsed = Number(value);
@@ -92,79 +68,87 @@ const toInt = (value: unknown) => {
 
 const AdminPanelScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
+  const { isAuthenticated, isReady, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState('');
   const [panel, setPanel] = useState<PanelStats | null>(null);
   const [pendingDoctors, setPendingDoctors] = useState<PendingMedico[]>([]);
   const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
 
+  const handleAuthExpired = useCallback(
+    async (message = 'Inicia sesion nuevamente para continuar.') => {
+      Alert.alert('Acceso denegado', message);
+      await signOut();
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+    },
+    [navigation, signOut]
+  );
+
   const refresh = useCallback(async () => {
+    if (!isReady) return;
+
+    if (!isAuthenticated) {
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+      return;
+    }
+
     setLoading(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-        return;
-      }
-
       const [panelRes, doctorsRes, reviewsRes] = await Promise.all([
-        fetch(apiUrl('/api/admin/panel'), {
-          headers: { Authorization: `Bearer ${token}` },
+        apiClient.get<any>('/api/admin/panel', {
+          authenticated: true,
         }),
-        fetch(apiUrl('/api/admin/medicos/pendientes?limit=40'), {
-          headers: { Authorization: `Bearer ${token}` },
+        apiClient.get<any>('/api/admin/medicos/pendientes', {
+          authenticated: true,
+          query: { limit: 40 },
         }),
-        fetch(apiUrl('/api/admin/valoraciones/pendientes?limit=40'), {
-          headers: { Authorization: `Bearer ${token}` },
+        apiClient.get<any>('/api/admin/valoraciones/pendientes', {
+          authenticated: true,
+          query: { limit: 40 },
         }),
       ]);
 
-      const panelPayload = await panelRes.json().catch(() => null);
-      const doctorsPayload = await doctorsRes.json().catch(() => null);
-      const reviewsPayload = await reviewsRes.json().catch(() => null);
-
-      if (!panelRes.ok || !panelPayload?.success) {
-        Alert.alert('Acceso denegado', panelPayload?.message || 'No se pudo abrir panel admin.');
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+      if (!panelRes?.success) {
+        await handleAuthExpired(panelRes?.message || 'No se pudo abrir panel admin.');
         return;
       }
 
-      setPanel(panelPayload?.panel || null);
-      setPendingDoctors(Array.isArray(doctorsPayload?.pendientes) ? doctorsPayload.pendientes : []);
+      setPanel(panelRes?.panel || null);
+      setPendingDoctors(Array.isArray(doctorsRes?.pendientes) ? doctorsRes.pendientes : []);
       setPendingReviews(
-        Array.isArray(reviewsPayload?.valoraciones) ? reviewsPayload.valoraciones : []
+        Array.isArray(reviewsRes?.valoraciones) ? reviewsRes.valoraciones : []
       );
-    } catch {
-      Alert.alert('Error', 'No se pudo cargar el panel administrativo.');
+    } catch (error) {
+      if (isAdminAccessError(error)) {
+        await handleAuthExpired(
+          getApiErrorMessage(error, 'Tu sesion expiro o no tienes permisos de administrador.')
+        );
+        return;
+      }
+      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo cargar el panel administrativo.'));
     } finally {
       setLoading(false);
     }
-  }, [navigation]);
+  }, [handleAuthExpired, isAuthenticated, isReady, navigation]);
 
   useFocusEffect(
     useCallback(() => {
+      if (!isReady) return;
       refresh();
-    }, [refresh])
+    }, [isReady, refresh])
   );
 
   const handleLogout = useCallback(async () => {
-    await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-    if (Platform.OS === 'web') {
-      localStorage.removeItem(LEGACY_TOKEN_KEY);
-      localStorage.removeItem(AUTH_TOKEN_KEY);
-    } else {
-      await SecureStore.deleteItemAsync(LEGACY_TOKEN_KEY);
-      await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
+    try {
+      await signOut();
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+    } catch {
+      Alert.alert('Error', 'No se pudo cerrar la sesion. Intenta nuevamente.');
     }
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  }, [navigation]);
+  }, [navigation, signOut]);
 
   const moderateDoctor = useCallback(
     async (usuarioid: number, action: 'aprobar' | 'rechazar') => {
-      const token = await getAuthToken();
-      if (!token) return;
-
       setWorkingId(`${action}-${usuarioid}`);
       try {
         const endpoint =
@@ -172,70 +156,69 @@ const AdminPanelScreen: React.FC = () => {
             ? `/api/admin/medicos/${usuarioid}/aprobar`
             : `/api/admin/medicos/${usuarioid}/rechazar`;
 
-        const response = await fetch(apiUrl(endpoint), {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
+        const payload = await apiClient.patch<any>(endpoint, {
+          authenticated: true,
+          body: {
             comentario:
               action === 'aprobar'
                 ? 'Documentos verificados por administrador.'
                 : 'Solicitud rechazada por validacion administrativa.',
-          }),
+          },
         });
 
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.success) {
+        if (!payload?.success) {
           Alert.alert('No se pudo procesar', payload?.message || 'Intenta nuevamente.');
           return;
         }
 
         Alert.alert('Actualizado', payload?.message || 'Operacion completada.');
         await refresh();
-      } catch {
-        Alert.alert('Error', 'No se pudo procesar la solicitud.');
+      } catch (error) {
+        if (isAdminAccessError(error)) {
+          await handleAuthExpired(
+            getApiErrorMessage(error, 'Tu sesion expiro o no tienes permisos de administrador.')
+          );
+          return;
+        }
+        Alert.alert('Error', getApiErrorMessage(error, 'No se pudo procesar la solicitud.'));
       } finally {
         setWorkingId('');
       }
     },
-    [refresh]
+    [handleAuthExpired, refresh]
   );
 
   const moderateReview = useCallback(
     async (valoracionId: number, action: 'aprobar' | 'rechazar') => {
-      const token = await getAuthToken();
-      if (!token) return;
-
       setWorkingId(`${action}-review-${valoracionId}`);
       try {
-        const response = await fetch(
-          apiUrl(`/api/admin/valoraciones/${valoracionId}/moderar`),
+        const payload = await apiClient.patch<any>(
+          `/api/admin/valoraciones/${valoracionId}/moderar`,
           {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ accion: action }),
+            authenticated: true,
+            body: { accion: action },
           }
         );
 
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.success) {
+        if (!payload?.success) {
           Alert.alert('No se pudo moderar', payload?.message || 'Intenta nuevamente.');
           return;
         }
 
         await refresh();
-      } catch {
-        Alert.alert('Error', 'No se pudo moderar la valoracion.');
+      } catch (error) {
+        if (isAdminAccessError(error)) {
+          await handleAuthExpired(
+            getApiErrorMessage(error, 'Tu sesion expiro o no tienes permisos de administrador.')
+          );
+          return;
+        }
+        Alert.alert('Error', getApiErrorMessage(error, 'No se pudo moderar la valoracion.'));
       } finally {
         setWorkingId('');
       }
     },
-    [refresh]
+    [handleAuthExpired, refresh]
   );
 
   const stats = useMemo(() => {

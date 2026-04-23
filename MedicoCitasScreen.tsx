@@ -13,37 +13,18 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
-import { apiUrl } from './config/backend';
+import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 import { useSocketEvent } from './hooks/useSocketEvent';
-import { useAuth } from './providers/AuthProvider';
-import { getAuthToken } from './utils/session';
+import { apiClient } from './utils/api';
+import { getApiErrorMessage, isAuthError } from './utils/apiErrors';
+import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
-const STORAGE_KEY = 'user';
-const LEGACY_USER_STORAGE_KEY = 'userProfile';
-const AUTH_TOKEN_KEY = 'authToken';
-const LEGACY_TOKEN_KEY = 'token';
-
-type SessionUser = {
-  id?: number | string;
-  usuarioid?: number | string;
-  email?: string;
-  nombreCompleto?: string;
-  especialidad?: string;
-  fotoUrl?: string;
-  medico?: {
-    nombreCompleto?: string;
-    especialidad?: string;
-    fotoUrl?: string;
-  };
-};
 
 type CitaItem = {
   citaid: string;
@@ -82,26 +63,10 @@ type SideItem = {
   badge?: { text: string; color: string };
 };
 
-const parseJson = <T,>(raw: string | null): T | null => {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
-};
-
 const normalizeText = (value: unknown) =>
   String(value || '')
     .replace(/\s+/g, ' ')
     .trim();
-
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = normalizeText(value);
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
 
 const parseDateMs = (value: string | null | undefined) => {
   if (!value) return Number.POSITIVE_INFINITY;
@@ -141,9 +106,8 @@ const toHourMinute = (value: string | null | undefined) => {
 
 const MedicoCitasScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { signOut } = useAuth();
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const { loadingUser, refreshUser, signOut, doctorName, doctorSpec, fotoUrl } =
+    useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
   const [loadingCitas, setLoadingCitas] = useState(false);
   const [loadingDisponibilidades, setLoadingDisponibilidades] = useState(false);
   const [savingDisponibilidad, setSavingDisponibilidad] = useState(false);
@@ -160,106 +124,49 @@ const MedicoCitasScreen: React.FC = () => {
   const [dispBloqueado, setDispBloqueado] = useState(false);
   const lastRefreshRef = React.useRef(0);
 
-  const loadUser = useCallback(async () => {
-    setLoadingUser(true);
-    try {
-      const rawStorageUser =
-        Platform.OS === 'web'
-          ? localStorage.getItem(LEGACY_USER_STORAGE_KEY)
-          : await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY);
-      const rawAsyncUser = await AsyncStorage.getItem(STORAGE_KEY);
-      let sessionUser = parseJson<SessionUser>(rawStorageUser) || parseJson<SessionUser>(rawAsyncUser);
-
-      const token = await getAuthToken();
-      if (token) {
-        const dashboardResponse = await fetch(apiUrl('/api/users/me/dashboard-medico'), {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const dashboardPayload = await dashboardResponse.json().catch(() => null);
-        if (dashboardResponse.ok && dashboardPayload?.success && dashboardPayload?.dashboard?.profile) {
-          const profile = dashboardPayload.dashboard.profile;
-          sessionUser = {
-            ...(sessionUser || {}),
-            nombreCompleto:
-              normalizeText(profile?.nombreCompleto || sessionUser?.nombreCompleto || sessionUser?.medico?.nombreCompleto),
-            especialidad:
-              normalizeText(profile?.especialidad || sessionUser?.especialidad || sessionUser?.medico?.especialidad),
-            fotoUrl: sanitizeFotoUrl(profile?.fotoUrl || sessionUser?.fotoUrl || sessionUser?.medico?.fotoUrl),
-          };
-        }
-      }
-
-      setUser(sessionUser);
-      if (sessionUser) {
-        const raw = JSON.stringify(sessionUser);
-        try {
-          await AsyncStorage.setItem(STORAGE_KEY, raw);
-          await AsyncStorage.setItem(LEGACY_USER_STORAGE_KEY, raw);
-        } catch {}
-        try {
-          if (Platform.OS === 'web') {
-            localStorage.setItem(STORAGE_KEY, raw);
-            localStorage.setItem(LEGACY_USER_STORAGE_KEY, raw);
-          } else {
-            await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, raw);
-          }
-        } catch {}
-      }
-    } catch {
-      setUser(null);
-    } finally {
-      setLoadingUser(false);
-    }
-  }, []);
+  const handleAuthExpired = useCallback(
+    async (message = 'Inicia sesion nuevamente.') => {
+      Alert.alert('Sesion expirada', message);
+      await signOut();
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+    },
+    [navigation, signOut]
+  );
 
   const loadCitas = useCallback(async () => {
     setLoadingCitas(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        setCitas([]);
-        return;
-      }
-
-      const response = await fetch(apiUrl('/api/agenda/me/citas?scope=all&limit=160'), {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = await apiClient.get<any>('/api/agenda/me/citas', {
+        authenticated: true,
+        query: { scope: 'all', limit: 160 },
       });
-      const payload = await response.json().catch(() => null);
-      if (response.ok && payload?.success && Array.isArray(payload?.citas)) {
+      if (payload?.success && Array.isArray(payload?.citas)) {
         setCitas(payload.citas as CitaItem[]);
       } else {
         setCitas([]);
       }
-    } catch {
+    } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthExpired();
+        return;
+      }
       setCitas([]);
     } finally {
       setLoadingCitas(false);
     }
-  }, []);
+  }, [handleAuthExpired]);
 
   const loadDisponibilidades = useCallback(async () => {
     setLoadingDisponibilidades(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        setDisponibilidades([]);
-        return;
-      }
-
       const now = new Date();
       const from = toIsoDate(now);
       const to = toIsoDate(new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000));
-      const response = await fetch(
-        apiUrl(`/api/agenda/medico/me/disponibilidades?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
-        {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const payload = await response.json().catch(() => null);
-      if (!(response.ok && payload?.success && Array.isArray(payload?.disponibilidades))) {
+      const payload = await apiClient.get<any>('/api/agenda/medico/me/disponibilidades', {
+        authenticated: true,
+        query: { from, to },
+      });
+      if (!(payload?.success && Array.isArray(payload?.disponibilidades))) {
         setDisponibilidades([]);
         return;
       }
@@ -290,12 +197,16 @@ const MedicoCitasScreen: React.FC = () => {
         .sort((a, b) => parseDateMs(a.fechaInicio) - parseDateMs(b.fechaInicio));
 
       setDisponibilidades(normalized);
-    } catch {
+    } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthExpired();
+        return;
+      }
       setDisponibilidades([]);
     } finally {
       setLoadingDisponibilidades(false);
     }
-  }, []);
+  }, [handleAuthExpired]);
 
   useFocusEffect(
     useCallback(() => {
@@ -304,10 +215,10 @@ const MedicoCitasScreen: React.FC = () => {
         return;
       }
       lastRefreshRef.current = now;
-      loadUser();
+      refreshUser().catch(() => undefined);
       loadCitas();
       loadDisponibilidades();
-    }, [loadCitas, loadDisponibilidades, loadUser])
+    }, [loadCitas, loadDisponibilidades, refreshUser])
   );
 
   const upsertCita = useCallback((nextCita: CitaItem) => {
@@ -338,24 +249,9 @@ const MedicoCitasScreen: React.FC = () => {
   useSocketEvent('cita_cancelada', handleRealtimeCitaEvent);
   useSocketEvent('cita_reprogramada', handleRealtimeCitaEvent);
 
-  const doctorName = useMemo(() => {
-    const base = normalizeText(user?.nombreCompleto || user?.medico?.nombreCompleto);
-    if (!base) return 'Doctor';
-    const lowered = base.toLowerCase();
-    if (lowered.startsWith('dr ') || lowered.startsWith('dr.')) return base;
-    return `Dr. ${base}`;
-  }, [user?.medico?.nombreCompleto, user?.nombreCompleto]);
-
-  const doctorSpec = useMemo(
-    () => normalizeText(user?.especialidad || user?.medico?.especialidad) || 'Especialidad no definida',
-    [user?.especialidad, user?.medico?.especialidad]
-  );
-
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    const foto = sanitizeFotoUrl(user?.fotoUrl || user?.medico?.fotoUrl);
-    if (foto) return { uri: foto };
-    return DefaultAvatar;
-  }, [user?.fotoUrl, user?.medico?.fotoUrl]);
+    return resolveRemoteImageSource(fotoUrl, DefaultAvatar);
+  }, [fotoUrl]);
 
   const filteredCitas = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
@@ -420,13 +316,7 @@ const MedicoCitasScreen: React.FC = () => {
 
     setSavingDisponibilidad(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        Alert.alert('Sesion expirada', 'Inicia sesion nuevamente.');
-        return;
-      }
-
-      const payload = {
+      const body = {
         fecha: dispFecha,
         horaInicio: dispHoraInicio,
         horaFin: dispHoraFin,
@@ -438,27 +328,28 @@ const MedicoCitasScreen: React.FC = () => {
       const endpoint = editingDisponibilidadId
         ? `/api/agenda/medico/me/disponibilidades/${editingDisponibilidadId}`
         : '/api/agenda/medico/me/disponibilidades';
-      const method = editingDisponibilidadId ? 'PUT' : 'POST';
 
-      const response = await fetch(apiUrl(endpoint), {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok || !body?.success) {
-        Alert.alert('No se pudo guardar', body?.message || 'Revisa los datos e intenta nuevamente.');
+      const responseBody = editingDisponibilidadId
+        ? await apiClient.put<any>(endpoint, { authenticated: true, body })
+        : await apiClient.post<any>(endpoint, { authenticated: true, body });
+
+      if (!responseBody?.success) {
+        Alert.alert(
+          'No se pudo guardar',
+          responseBody?.message || 'Revisa los datos e intenta nuevamente.'
+        );
         return;
       }
 
       await loadDisponibilidades();
       resetDisponibilidadForm();
       Alert.alert('Disponibilidad guardada', 'El bloque horario se actualizo correctamente.');
-    } catch {
-      Alert.alert('Error', 'No se pudo guardar la disponibilidad.');
+    } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthExpired();
+        return;
+      }
+      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo guardar la disponibilidad.'));
     } finally {
       setSavingDisponibilidad(false);
     }
@@ -470,6 +361,7 @@ const MedicoCitasScreen: React.FC = () => {
     dispModalidad,
     dispSlotMinutos,
     editingDisponibilidadId,
+    handleAuthExpired,
     loadDisponibilidades,
     resetDisponibilidadForm,
   ]);
@@ -478,22 +370,14 @@ const MedicoCitasScreen: React.FC = () => {
     async (item: DisponibilidadItem) => {
       setWorkingCitaId(`disp-block-${item.id}`);
       try {
-        const token = await getAuthToken();
-        if (!token) {
-          Alert.alert('Sesion expirada', 'Inicia sesion nuevamente.');
-          return;
-        }
-
-        const response = await fetch(apiUrl(`/api/agenda/medico/me/disponibilidades/${item.id}/bloquear`), {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ bloqueado: !item.bloqueado }),
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.success) {
+        const payload = await apiClient.patch<any>(
+          `/api/agenda/medico/me/disponibilidades/${item.id}/bloquear`,
+          {
+            authenticated: true,
+            body: { bloqueado: !item.bloqueado },
+          }
+        );
+        if (!payload?.success) {
           Alert.alert('No se pudo actualizar', payload?.message || 'Intenta nuevamente.');
           return;
         }
@@ -501,37 +385,30 @@ const MedicoCitasScreen: React.FC = () => {
         setDisponibilidades((prev) =>
           prev.map((row) => (row.id === item.id ? { ...row, bloqueado: !row.bloqueado } : row))
         );
-      } catch {
-        Alert.alert('Error', 'No se pudo actualizar el bloqueo.');
+      } catch (error) {
+        if (isAuthError(error)) {
+          await handleAuthExpired();
+          return;
+        }
+        Alert.alert('Error', getApiErrorMessage(error, 'No se pudo actualizar el bloqueo.'));
       } finally {
         setWorkingCitaId('');
       }
     },
-    []
+    [handleAuthExpired]
   );
 
   const toggleActivoDisponibilidad = useCallback(
     async (item: DisponibilidadItem) => {
       setWorkingCitaId(`disp-active-${item.id}`);
       try {
-        const token = await getAuthToken();
-        if (!token) {
-          Alert.alert('Sesion expirada', 'Inicia sesion nuevamente.');
-          return;
-        }
-
-        const response = await fetch(apiUrl(`/api/agenda/medico/me/disponibilidades/${item.id}`), {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
+        const payload = await apiClient.put<any>(`/api/agenda/medico/me/disponibilidades/${item.id}`, {
+          authenticated: true,
+          body: {
             activo: !item.activo,
-          }),
+          },
         });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.success) {
+        if (!payload?.success) {
           Alert.alert('No se pudo actualizar', payload?.message || 'Intenta nuevamente.');
           return;
         }
@@ -539,13 +416,17 @@ const MedicoCitasScreen: React.FC = () => {
         setDisponibilidades((prev) =>
           prev.map((row) => (row.id === item.id ? { ...row, activo: !row.activo } : row))
         );
-      } catch {
-        Alert.alert('Error', 'No se pudo actualizar el estado.');
+      } catch (error) {
+        if (isAuthError(error)) {
+          await handleAuthExpired();
+          return;
+        }
+        Alert.alert('Error', getApiErrorMessage(error, 'No se pudo actualizar el estado.'));
       } finally {
         setWorkingCitaId('');
       }
     },
-    []
+    [handleAuthExpired]
   );
 
   const dateText = useMemo(
@@ -571,12 +452,6 @@ const MedicoCitasScreen: React.FC = () => {
     async (cita: CitaItem, action: 'complete' | 'cancel' | 'reschedule') => {
       setWorkingCitaId(cita.citaid);
       try {
-        const token = await getAuthToken();
-        if (!token) {
-          Alert.alert('Sesion expirada', 'Inicia sesion nuevamente.');
-          return;
-        }
-
         let endpoint = '';
         let body: Record<string, unknown> = {};
         if (action === 'reschedule') {
@@ -600,16 +475,11 @@ const MedicoCitasScreen: React.FC = () => {
           };
         }
 
-        const response = await fetch(apiUrl(endpoint), {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(body),
+        const payload = await apiClient.patch<any>(endpoint, {
+          authenticated: true,
+          body,
         });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.success) {
+        if (!payload?.success) {
           Alert.alert('No se pudo actualizar', payload?.message || 'Ocurrio un error.');
           return;
         }
@@ -619,13 +489,17 @@ const MedicoCitasScreen: React.FC = () => {
         } else {
           await loadCitas();
         }
-      } catch {
-        Alert.alert('Error', 'No se pudo completar la accion.');
+      } catch (error) {
+        if (isAuthError(error)) {
+          await handleAuthExpired();
+          return;
+        }
+        Alert.alert('Error', getApiErrorMessage(error, 'No se pudo completar la accion.'));
       } finally {
         setWorkingCitaId('');
       }
     },
-    [loadCitas, upsertCita]
+    [handleAuthExpired, loadCitas, upsertCita]
   );
 
   const openVideoSala = useCallback(async (cita: CitaItem) => {
@@ -636,21 +510,10 @@ const MedicoCitasScreen: React.FC = () => {
 
     setWorkingCitaId(cita.citaid);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        Alert.alert('Sesion expirada', 'Inicia sesion nuevamente.');
-        return;
-      }
-
-      const response = await fetch(apiUrl(`/api/agenda/me/citas/${cita.citaid}/video-sala/abrir`), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+      const payload = await apiClient.post<any>(`/api/agenda/me/citas/${cita.citaid}/video-sala/abrir`, {
+        authenticated: true,
       });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.success || !payload?.videoSala?.joinUrl) {
+      if (!payload?.success || !payload?.videoSala?.joinUrl) {
         Alert.alert('No disponible', payload?.message || 'No se pudo abrir la videollamada.');
         return;
       }
@@ -671,12 +534,16 @@ const MedicoCitasScreen: React.FC = () => {
       } else {
         await Linking.openURL(joinUrl);
       }
-    } catch {
-      Alert.alert('Error', 'No se pudo abrir la videollamada.');
+    } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthExpired();
+        return;
+      }
+      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo abrir la videollamada.'));
     } finally {
       setWorkingCitaId('');
     }
-  }, []);
+  }, [handleAuthExpired]);
 
   const showDetails = (cita: CitaItem) => {
     Alert.alert(

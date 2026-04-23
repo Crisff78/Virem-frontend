@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   Alert,
   Image,
@@ -10,13 +10,12 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-
-import * as SecureStore from 'expo-secure-store';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { RootStackParamList } from './navigation/types';
+import { useAuth } from './providers/AuthProvider';
 
 type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -39,45 +38,25 @@ const CATEGORY_ITEMS = [
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
-  const [patientName, setPatientName] = useState(DEFAULT_PATIENT_NAME);
+  const { signOut, user } = useAuth<Record<string, any>>();
 
   const { width } = useWindowDimensions();
   const isWideLayout = width >= 1024;
 
-  useEffect(() => {
-    let isMounted = true;
+  const patientName = useMemo(() => {
+    const profile = (user || {}) as Record<string, string>;
+    const fullName = (
+      profile.nombreCompleto ||
+      [
+        profile.nombres || profile.nombre || profile.firstName || profile.name,
+        profile.apellidos || profile.lastName || profile.surname,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    ).trim();
 
-    const loadProfile = async () => {
-      try {
-        const storedProfile = await SecureStore.getItemAsync('userProfile');
-        if (!storedProfile) return;
-
-        const profile = JSON.parse(storedProfile) as Record<string, string>;
-
-        const fullName = (
-          profile.nombreCompleto ||
-          [
-            profile.nombres || profile.nombre || profile.firstName || profile.name,
-            profile.apellidos || profile.lastName || profile.surname,
-          ]
-            .filter(Boolean)
-            .join(' ')
-        ).trim();
-
-        if (fullName && isMounted) {
-          setPatientName(fullName);
-        }
-      } catch {
-        // Mantiene el nombre por defecto si falla
-      }
-    };
-
-    loadProfile();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    return fullName || DEFAULT_PATIENT_NAME;
+  }, [user]);
 
   const mainContainerStyle = useMemo(
     () => [styles.mainLayout, !isWideLayout && styles.mainLayoutStacked],
@@ -86,9 +65,7 @@ const HomeScreen: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await SecureStore.deleteItemAsync('authToken');
-      await SecureStore.deleteItemAsync('userProfile');
-
+      await signOut();
       navigation.reset({
         index: 0,
         routes: [{ name: 'Login' }],
