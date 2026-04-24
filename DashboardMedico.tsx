@@ -10,6 +10,7 @@ import {
   Image,
   TextInput,
   Platform,
+  Linking,
   useWindowDimensions,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
@@ -18,6 +19,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './navigation/types';
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
+import { getApiErrorMessage } from './utils/apiErrors';
 import { useMedicoSessionProfile, type MedicoSessionUser } from './hooks/useMedicoSessionProfile';
 
 // ✅ Expo:
@@ -109,6 +111,7 @@ type MedicoUpcomingCita = {
   citaid: string;
   fechaHoraInicio: string | null;
   estado: string;
+  modalidad?: string;
   paciente: {
     pacienteid: string;
     nombreCompleto: string;
@@ -271,6 +274,7 @@ const DashboardMedico: React.FC = () => {
   const [upcomingCitas, setUpcomingCitas] = useState<MedicoUpcomingCita[]>([]);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
+  const [openingCitaId, setOpeningCitaId] = useState('');
   const lastRefreshRef = useRef(0);
 
   const loadDashboardData = useCallback(async () => {
@@ -351,11 +355,12 @@ const DashboardMedico: React.FC = () => {
         citaid: String(item?.citaid || ''),
         fechaHoraInicio: item?.fechaHoraInicio || null,
         estado: String(item?.estado || 'Pendiente'),
+        modalidad: String(item?.modalidad || ''),
         paciente: {
           pacienteid: String(item?.paciente?.pacienteid || ''),
           nombreCompleto: String(item?.paciente?.nombreCompleto || 'Paciente'),
         },
-      }));
+      })).filter((item) => String(item?.modalidad || '').toLowerCase() === 'virtual');
 
       mapped.sort((a, b) => parseDateMs(a?.fechaHoraInicio) - parseDateMs(b?.fechaHoraInicio));
       setUpcomingCitas(mapped);
@@ -464,19 +469,38 @@ const DashboardMedico: React.FC = () => {
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
 
-  const handleVideoCall = () => {
+  const handleVideoCall = async () => {
     const nextAgenda = upcomingCitas[0] || null;
     if (!nextAgenda) {
       Alert.alert('Videollamada', 'No tienes citas disponibles para iniciar en este momento.');
       return;
     }
 
-    Alert.alert(
-      'Videollamada lista',
-      `Paciente: ${nextAgenda.paciente?.nombreCompleto || 'Paciente'}\nHora: ${formatDateTime(
-        nextAgenda.fechaHoraInicio
-      )}\nEstado: ${nextAgenda.estado}`
-    );
+    setOpeningCitaId(nextAgenda.citaid);
+    try {
+      const payload = await apiClient.post<any>(
+        `/api/agenda/me/citas/${nextAgenda.citaid}/video-sala/abrir`,
+        { authenticated: true }
+      );
+      const joinUrl = String(payload?.videoSala?.joinUrl || '').trim();
+      if (!payload?.success || !joinUrl) {
+        Alert.alert('No disponible', payload?.message || 'No se pudo abrir la videollamada.');
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        const webOpen = (globalThis as any)?.open;
+        if (typeof webOpen === 'function') {
+          const opened = webOpen(joinUrl, '_blank');
+          if (opened) return;
+        }
+      }
+      await Linking.openURL(joinUrl);
+    } catch (error) {
+      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo abrir la videollamada.'));
+    } finally {
+      setOpeningCitaId('');
+    }
   };
 
   if (!profileReady) {
@@ -614,11 +638,21 @@ const DashboardMedico: React.FC = () => {
 
             <TouchableOpacity
               activeOpacity={0.9}
-              style={[styles.bannerBtn, !nextCita ? styles.bannerBtnDisabled : null]}
+              style={[
+                styles.bannerBtn,
+                (!nextCita || openingCitaId === nextCita?.citaid) ? styles.bannerBtnDisabled : null,
+              ]}
               onPress={handleVideoCall}
+              disabled={!nextCita || openingCitaId === nextCita?.citaid}
             >
               <MaterialIcons name="videocam" size={20} color="#fff" />
-              <Text style={styles.bannerBtnText}>{nextCita ? 'Iniciar Videollamada' : 'Sin cita activa'}</Text>
+              <Text style={styles.bannerBtnText}>
+                {openingCitaId === nextCita?.citaid
+                  ? 'Abriendo...'
+                  : nextCita
+                    ? 'Iniciar Videollamada'
+                    : 'Sin cita activa'}
+              </Text>
             </TouchableOpacity>
           </View>
 

@@ -125,86 +125,77 @@ export function useMedicoSessionProfile() {
 
         nextUser = mergeCachedProfile(nextUser, cachedProfile);
 
-        try {
-            const dashboardPayload = await apiClient.get<any>('/api/users/me/dashboard-medico', {
+        const [dashboardPayload, authPayload, profilePayload] = await Promise.all([
+            apiClient.get<any>('/api/users/me/dashboard-medico', {
                 authenticated: true,
-            });
-            if (dashboardPayload?.success && dashboardPayload?.dashboard?.profile) {
-                const profile = dashboardPayload.dashboard.profile;
-                nextUser = {
-                    ...(nextUser || {}),
-                    nombreCompleto: normalizeText(
-                        profile?.nombreCompleto ||
-                            nextUser?.nombreCompleto ||
-                            nextUser?.medico?.nombreCompleto
-                    ),
-                    especialidad: normalizeText(
-                        profile?.especialidad ||
-                            nextUser?.especialidad ||
-                            nextUser?.medico?.especialidad
-                    ),
-                    fotoUrl: sanitizeFotoUrl(
-                        profile?.fotoUrl || nextUser?.fotoUrl || nextUser?.medico?.fotoUrl
-                    ),
-                };
-            }
-        } catch {
-            // noop
+            }).catch(() => null),
+            apiClient.get<any>('/api/auth/me', {
+                authenticated: true,
+            }).catch(() => null),
+            apiClient.get<any>('/api/users/me/profile', {
+                authenticated: true,
+            }).catch(() => null),
+        ]);
+
+        if (dashboardPayload?.success && dashboardPayload?.dashboard?.profile) {
+            const profile = dashboardPayload.dashboard.profile;
+            nextUser = {
+                ...(nextUser || {}),
+                nombreCompleto: normalizeText(
+                    profile?.nombreCompleto ||
+                        nextUser?.nombreCompleto ||
+                        nextUser?.medico?.nombreCompleto
+                ),
+                especialidad: normalizeText(
+                    profile?.especialidad ||
+                        nextUser?.especialidad ||
+                        nextUser?.medico?.especialidad
+                ),
+                fotoUrl: sanitizeFotoUrl(
+                    profile?.fotoUrl || nextUser?.fotoUrl || nextUser?.medico?.fotoUrl
+                ),
+            };
         }
 
-        try {
-            const authPayload = await apiClient.get<any>('/api/auth/me', {
-                authenticated: true,
-            });
-            if (authPayload?.success && authPayload?.user) {
-                nextUser = {
-                    ...(nextUser || {}),
-                    ...(authPayload.user as MedicoSessionUser),
-                };
-            }
-        } catch {
-            // noop
+        if (authPayload?.success && authPayload?.user) {
+            nextUser = {
+                ...(nextUser || {}),
+                ...(authPayload.user as MedicoSessionUser),
+            };
         }
 
-        try {
-            const profilePayload = await apiClient.get<any>('/api/users/me/profile', {
-                authenticated: true,
-            });
-            const profile = (profilePayload?.profile || null) as Record<string, unknown> | null;
-            if (profile) {
-                nextUser = {
-                    ...(nextUser || {}),
-                    nombreCompleto: normalizeText(
-                        profile?.nombreCompleto ||
-                            nextUser?.nombreCompleto ||
-                            nextUser?.medico?.nombreCompleto
-                    ),
-                    especialidad: normalizeText(
-                        profile?.especialidad ||
-                            nextUser?.especialidad ||
-                            nextUser?.medico?.especialidad
-                    ),
-                    fechanacimiento: normalizeText(
-                        profile?.fechanacimiento ||
-                            nextUser?.fechanacimiento ||
-                            nextUser?.medico?.fechanacimiento
-                    ),
-                    genero: normalizeText(
-                        profile?.genero || nextUser?.genero || nextUser?.medico?.genero
-                    ),
-                    cedula: normalizeText(
-                        profile?.cedula || nextUser?.cedula || nextUser?.medico?.cedula
-                    ),
-                    telefono: normalizeText(
-                        profile?.telefono || nextUser?.telefono || nextUser?.medico?.telefono
-                    ),
-                    fotoUrl: sanitizeFotoUrl(
-                        profile?.fotoUrl || nextUser?.fotoUrl || nextUser?.medico?.fotoUrl
-                    ),
-                };
-            }
-        } catch {
-            // noop
+        const profile = (profilePayload?.profile || null) as Record<string, unknown> | null;
+        if (profile) {
+            nextUser = {
+                ...(nextUser || {}),
+                nombreCompleto: normalizeText(
+                    profile?.nombreCompleto ||
+                        nextUser?.nombreCompleto ||
+                        nextUser?.medico?.nombreCompleto
+                ),
+                especialidad: normalizeText(
+                    profile?.especialidad ||
+                        nextUser?.especialidad ||
+                        nextUser?.medico?.especialidad
+                ),
+                fechanacimiento: normalizeText(
+                    profile?.fechanacimiento ||
+                        nextUser?.fechanacimiento ||
+                        nextUser?.medico?.fechanacimiento
+                ),
+                genero: normalizeText(
+                    profile?.genero || nextUser?.genero || nextUser?.medico?.genero
+                ),
+                cedula: normalizeText(
+                    profile?.cedula || nextUser?.cedula || nextUser?.medico?.cedula
+                ),
+                telefono: normalizeText(
+                    profile?.telefono || nextUser?.telefono || nextUser?.medico?.telefono
+                ),
+                fotoUrl: sanitizeFotoUrl(
+                    profile?.fotoUrl || nextUser?.fotoUrl || nextUser?.medico?.fotoUrl
+                ),
+            };
         }
 
         const nextEmail = normalizeText(nextUser?.email).toLowerCase();

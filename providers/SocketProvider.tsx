@@ -41,10 +41,12 @@ const SOCKET_CONNECT_TIMEOUT_MS = 5000;
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { token } = useAuth();
     const socketRef = useRef<Socket | null>(null);
+    const cleanupSocketListenersRef = useRef<(() => void) | null>(null);
     const tokenRef = useRef('');
     const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [lastError, setLastError] = useState('');
+    tokenRef.current = normalizeText(token);
 
     const bindSocketState = useCallback((nextSocket: Socket) => {
         const handleConnect = () => {
@@ -84,12 +86,25 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             });
             socketRef.current = nextSocket;
             setSocket(nextSocket);
-            bindSocketState(nextSocket);
+            cleanupSocketListenersRef.current = bindSocketState(nextSocket);
         }
 
         socketRef.current.auth = { token: cleanToken };
         return socketRef.current;
     }, [bindSocketState]);
+
+    const disposeSocket = useCallback(() => {
+        cleanupSocketListenersRef.current?.();
+        cleanupSocketListenersRef.current = null;
+
+        if (socketRef.current) {
+            socketRef.current.disconnect();
+            socketRef.current = null;
+        }
+
+        setSocket(null);
+        setIsConnected(false);
+    }, []);
 
     const ensureConnected = useCallback(async () => {
         const nextSocket = ensureSocket();
@@ -172,32 +187,28 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, []);
 
     useEffect(() => {
-        tokenRef.current = normalizeText(token);
+        const cleanToken = normalizeText(token);
 
-        if (!tokenRef.current) {
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-                socketRef.current = null;
-            }
-            setSocket(null);
-            setIsConnected(false);
+        if (!cleanToken) {
+            tokenRef.current = '';
+            disposeSocket();
             setLastError('');
             return;
         }
 
-        ensureConnected().catch(() => {
-            setIsConnected(false);
-        });
-    }, [ensureConnected, token]);
+        const currentAuthToken = normalizeText((socketRef.current?.auth as any)?.token);
+        if (socketRef.current && currentAuthToken !== cleanToken) {
+            disposeSocket();
+        }
+
+        tokenRef.current = cleanToken;
+    }, [disposeSocket, token]);
 
     useEffect(() => {
         return () => {
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-                socketRef.current = null;
-            }
+            disposeSocket();
         };
-    }, []);
+    }, [disposeSocket]);
 
     const value = useMemo<SocketContextValue>(
         () => ({

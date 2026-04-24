@@ -527,13 +527,11 @@ const MedicoCitasScreen: React.FC = () => {
       if (Platform.OS === 'web') {
         const webOpen = (globalThis as any)?.open;
         if (typeof webOpen === 'function') {
-          webOpen(joinUrl, '_blank');
-        } else {
-          await Linking.openURL(joinUrl);
+          const opened = webOpen(joinUrl, '_blank');
+          if (opened) return;
         }
-      } else {
-        await Linking.openURL(joinUrl);
       }
+      await Linking.openURL(joinUrl);
     } catch (error) {
       if (isAuthError(error)) {
         await handleAuthExpired();

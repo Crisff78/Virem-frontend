@@ -7,12 +7,17 @@ export function useSocketEvent<TPayload = any>(
     handler: (payload: TPayload) => void,
     enabled = true
 ) {
-    const { socket } = useSocket();
+    const { socket, ensureConnected } = useSocket();
     const handlerRef = useRef(handler);
 
     useEffect(() => {
         handlerRef.current = handler;
     }, [handler]);
+
+    useEffect(() => {
+        if (!enabled) return;
+        ensureConnected().catch(() => undefined);
+    }, [enabled, ensureConnected]);
 
     useEffect(() => {
         if (!socket || !enabled) return;

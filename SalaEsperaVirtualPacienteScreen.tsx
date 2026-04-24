@@ -396,8 +396,16 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     if (!citaId || citaId !== String(selectedCitaId || '').trim()) return;
     const videoSala = payload?.videoSala;
     if (videoSala) {
+      const nextStatus = String(videoSala?.estado || '').trim().toLowerCase();
       setRoomJoinUrl(String(videoSala?.joinUrl || '').trim());
-      setRoomStatus(String(videoSala?.estado || '').trim().toLowerCase());
+      setRoomStatus(nextStatus);
+      if (videoSala?.canJoin !== undefined) {
+        setRoomCanJoin(Boolean(videoSala.canJoin));
+      } else if (nextStatus === 'abierta') {
+        setRoomCanJoin(true);
+      } else if (nextStatus === 'finalizada') {
+        setRoomCanJoin(false);
+      }
     }
   });
 
@@ -433,13 +441,11 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
       if (Platform.OS === 'web') {
         const webOpen = (globalThis as any)?.open;
         if (typeof webOpen === 'function') {
-          webOpen(joinUrl, '_blank');
-        } else {
-          await Linking.openURL(joinUrl);
+          const opened = webOpen(joinUrl, '_blank');
+          if (opened) return;
         }
-      } else {
-        await Linking.openURL(joinUrl);
       }
+      await Linking.openURL(joinUrl);
     } catch {
       Alert.alert('Error', 'No se pudo abrir la videollamada.');
     } finally {

@@ -37,6 +37,12 @@ import PacienteCitasScreen from "./PacienteCitasScreen";
 import { LanguageProvider } from "./localization/LanguageContext";
 
 import { RootStackParamList } from "./navigation/types";
+import {
+  ADMIN_ROLE_ID,
+  MEDICO_ROLE_ID,
+  PACIENTE_ROLE_ID,
+  withRoleGuard,
+} from "./navigation/RoleGuard";
 import { AuthProvider } from "./providers/AuthProvider";
 import { SocketProvider } from "./providers/SocketProvider";
 
@@ -84,6 +90,28 @@ const linking = {
   },
 };
 
+const PatientDashboardScreen = withRoleGuard(DashboardPacienteScreen, [PACIENTE_ROLE_ID]);
+const PatientCitasScreen = withRoleGuard(PacienteCitasScreen, [PACIENTE_ROLE_ID]);
+const PatientChatScreen = withRoleGuard(PacienteChatScreen, [PACIENTE_ROLE_ID]);
+const PatientNotificacionesScreen = withRoleGuard(PacienteNotificacionesScreen, [PACIENTE_ROLE_ID]);
+const PatientRecetasDocumentosScreen = withRoleGuard(PacienteRecetasDocumentosScreen, [PACIENTE_ROLE_ID]);
+const PatientPerfilScreen = withRoleGuard(PacientePerfilScreen, [PACIENTE_ROLE_ID]);
+const PatientConfiguracionScreen = withRoleGuard(PacienteConfiguracionScreen, [PACIENTE_ROLE_ID]);
+const PatientCambiarContrasenaScreen = withRoleGuard(PacienteCambiarContrasenaScreen, [PACIENTE_ROLE_ID]);
+const PatientHistorialSesionesScreen = withRoleGuard(PacienteHistorialSesionesScreen, [PACIENTE_ROLE_ID]);
+const PatientNuevaConsultaScreen = withRoleGuard(NuevaConsultaPacienteScreen, [PACIENTE_ROLE_ID]);
+const PatientSalaEsperaScreen = withRoleGuard(SalaEsperaVirtualPacienteScreen, [PACIENTE_ROLE_ID]);
+const PatientEspecialistasScreen = withRoleGuard(EspecialistasPorEspecialidadScreen, [PACIENTE_ROLE_ID]);
+const PatientPerfilEspecialistaScreen = withRoleGuard(PerfilEspecialistaAgendarScreen, [PACIENTE_ROLE_ID]);
+
+const DoctorDashboardScreen = withRoleGuard(DashboardMedico, [MEDICO_ROLE_ID]);
+const DoctorCitasScreen = withRoleGuard(MedicoCitasScreen, [MEDICO_ROLE_ID]);
+const DoctorPacientesScreen = withRoleGuard(MedicoPacientesScreen, [MEDICO_ROLE_ID]);
+const DoctorChatScreen = withRoleGuard(MedicoChatScreen, [MEDICO_ROLE_ID]);
+const DoctorPerfilScreen = withRoleGuard(MedicoPerfilScreen, [MEDICO_ROLE_ID]);
+
+const AdminOnlyPanelScreen = withRoleGuard(AdminPanelScreen, [ADMIN_ROLE_ID]);
+
 const App: React.FC = () => {
   return (
     <SafeAreaProvider>
@@ -120,53 +148,53 @@ const App: React.FC = () => {
                     component={EstablecerNuevaContrasenaScreen}
                   />
 
-                  <Stack.Screen name="DashboardPaciente" component={DashboardPacienteScreen} />
-                  <Stack.Screen name="PacienteCitas" component={PacienteCitasScreen} />
-                  <Stack.Screen name="PacienteChat" component={PacienteChatScreen} />
+                  <Stack.Screen name="DashboardPaciente" component={PatientDashboardScreen} />
+                  <Stack.Screen name="PacienteCitas" component={PatientCitasScreen} />
+                  <Stack.Screen name="PacienteChat" component={PatientChatScreen} />
                   <Stack.Screen
                     name="PacienteNotificaciones"
-                    component={PacienteNotificacionesScreen}
+                    component={PatientNotificacionesScreen}
                   />
                   <Stack.Screen
                     name="PacienteRecetasDocumentos"
-                    component={PacienteRecetasDocumentosScreen}
+                    component={PatientRecetasDocumentosScreen}
                   />
-                  <Stack.Screen name="PacientePerfil" component={PacientePerfilScreen} />
+                  <Stack.Screen name="PacientePerfil" component={PatientPerfilScreen} />
                   <Stack.Screen
                     name="PacienteConfiguracion"
-                    component={PacienteConfiguracionScreen}
+                    component={PatientConfiguracionScreen}
                   />
                   <Stack.Screen
                     name="PacienteCambiarContrasena"
-                    component={PacienteCambiarContrasenaScreen}
+                    component={PatientCambiarContrasenaScreen}
                   />
                   <Stack.Screen
                     name="PacienteHistorialSesiones"
-                    component={PacienteHistorialSesionesScreen}
+                    component={PatientHistorialSesionesScreen}
                   />
                   <Stack.Screen
                     name="NuevaConsultaPaciente"
-                    component={NuevaConsultaPacienteScreen}
+                    component={PatientNuevaConsultaScreen}
                   />
                   <Stack.Screen
                     name="SalaEsperaVirtualPaciente"
-                    component={SalaEsperaVirtualPacienteScreen}
+                    component={PatientSalaEsperaScreen}
                   />
                   <Stack.Screen
                     name="EspecialistasPorEspecialidad"
-                    component={EspecialistasPorEspecialidadScreen}
+                    component={PatientEspecialistasScreen}
                   />
                   <Stack.Screen
                     name="PerfilEspecialistaAgendar"
-                    component={PerfilEspecialistaAgendarScreen}
+                    component={PatientPerfilEspecialistaScreen}
                   />
 
-                  <Stack.Screen name="DashboardMedico" component={DashboardMedico} />
-                  <Stack.Screen name="MedicoCitas" component={MedicoCitasScreen} />
-                  <Stack.Screen name="MedicoPacientes" component={MedicoPacientesScreen} />
-                  <Stack.Screen name="MedicoChat" component={MedicoChatScreen} />
-                  <Stack.Screen name="MedicoPerfil" component={MedicoPerfilScreen} />
-                  <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
+                  <Stack.Screen name="DashboardMedico" component={DoctorDashboardScreen} />
+                  <Stack.Screen name="MedicoCitas" component={DoctorCitasScreen} />
+                  <Stack.Screen name="MedicoPacientes" component={DoctorPacientesScreen} />
+                  <Stack.Screen name="MedicoChat" component={DoctorChatScreen} />
+                  <Stack.Screen name="MedicoPerfil" component={DoctorPerfilScreen} />
+                  <Stack.Screen name="AdminPanel" component={AdminOnlyPanelScreen} />
                 </Stack.Navigator>
               </NavigationContainer>
             </SafeAreaView>

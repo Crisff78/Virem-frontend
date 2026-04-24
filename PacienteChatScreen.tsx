@@ -313,12 +313,38 @@ const PacienteChatScreen: React.FC = () => {
     loadMessages(selectedChatId);
   }, [loadMessages, selectedChatId]);
 
+  const appendMessage = useCallback((conversationId: string, nextMessage: Message) => {
+    const cleanConversationId = normalizeText(conversationId);
+    if (!cleanConversationId || !nextMessage.id) return;
+
+    setMessagesByChat((prev) => {
+      const current = prev[cleanConversationId] || [];
+      if (current.some((message) => message.id === nextMessage.id)) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [cleanConversationId]: [...current, nextMessage],
+      };
+    });
+  }, []);
+
   useSocketRoom('conversation', selectedChatId, Boolean(selectedChatId));
 
   useSocketEvent('mensaje_nuevo', (payload: any) => {
     const conversationId = normalizeText(payload?.conversacionId);
     if (!conversationId) return;
-    const rawMessage = payload?.mensaje;
+    const rawMessage =
+      payload?.mensaje ||
+      (payload?.system && payload?.contenido
+        ? {
+            mensajeId: `system-${conversationId}-${normalizeText(payload.contenido)}`,
+            emisorTipo: 'sistema',
+            contenido: payload.contenido,
+            createdAt: new Date().toISOString(),
+          }
+        : null);
     if (conversationId === selectedChatId && rawMessage) {
       const sender = normalizeText(rawMessage?.emisorTipo).toLowerCase();
       const from = sender === 'paciente' ? 'me' : 'other';
@@ -329,15 +355,12 @@ const PacienteChatScreen: React.FC = () => {
         text: normalizeText(rawMessage?.contenido),
         time: formatTimeLabel(createdMs),
       };
-      setMessagesByChat((prev) => ({
-        ...prev,
-        [conversationId]: [...(prev[conversationId] || []), nextMessage],
-      }));
+      appendMessage(conversationId, nextMessage);
+      apiClient.patch(`/api/agenda/me/conversaciones/${conversationId}/leido`, {
+        authenticated: true,
+      }).catch(() => null);
     }
     scheduleContactsReload();
-    if (conversationId === selectedChatId) {
-      loadMessages(conversationId);
-    }
   });
 
   useSocketEvent('cita_actualizada', () => scheduleContactsReload());
@@ -420,10 +443,7 @@ const PacienteChatScreen: React.FC = () => {
         time: formatTimeLabel(createdAt),
       };
 
-      setMessagesByChat((prev) => ({
-        ...prev,
-        [selectedChat.id]: [...(prev[selectedChat.id] || []), nextMessage],
-      }));
+      appendMessage(selectedChat.id, nextMessage);
       setReply('');
       loadContacts();
     } catch {
