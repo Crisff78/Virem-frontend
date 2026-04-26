@@ -12,6 +12,7 @@ import {
   ScrollView,
   Switch,
   TextInput,
+  useWindowDimensions,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -118,6 +119,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'SalaEsperaVirtualPaciente'>>();
   const { signOut } = useAuth();
+  const { width: viewportWidth } = useWindowDimensions();
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -149,6 +151,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const panelTranslateX = useRef(new Animated.Value(430)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const requestedCitaId = String(route.params?.citaId || '').trim();
+  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
   useEffect(() => {
     const loadUser = async () => {
@@ -596,8 +599,8 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.sidebar}>
+    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
+      <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
         <View>
           <View style={styles.logoBox}>
             <Image source={ViremLogo} style={styles.logo} />
@@ -616,7 +619,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
             ) : null}
           </View>
 
-          <View style={styles.menu}>
+          <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
             <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('DashboardPaciente')}>
               <MaterialIcons name="grid-view" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.home')}</Text>
@@ -743,7 +746,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
           </View>
         ) : null}
 
-        <View style={styles.contentWrap}>
+        <View style={[styles.contentWrap, !isDesktopLayout && styles.contentWrapMobile]}>
           <View style={styles.centerCol}>
             <View style={styles.doctorAvatarWrap}>
               <Image source={doctorAvatarSource} style={styles.doctorAvatar} />
@@ -775,7 +778,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
             </Text>
           </View>
 
-          <View style={styles.rightCol}>
+          <View style={[styles.rightCol, !isDesktopLayout && styles.rightColMobile]}>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryTitle}>RESUMEN DE LA CITA</Text>
 
@@ -830,7 +833,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
               </View>
             </View>
 
-            <View style={styles.bottomActions}>
+            <View style={[styles.bottomActions, !isDesktopLayout && styles.bottomActionsMobile]}>
               <TouchableOpacity
                 style={[styles.joinBtn, (!nextCita || !roomCanJoin || openingRoom) && styles.disabledBtn]}
                 onPress={enterVideoRoom}
@@ -1080,6 +1083,9 @@ const styles = StyleSheet.create({
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
   },
+  containerMobile: {
+    flexDirection: 'column',
+  },
   sidebar: {
     width: Platform.OS === 'web' ? 280 : '100%',
     backgroundColor: colors.white,
@@ -1089,6 +1095,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eef2f7',
     padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
+  },
+  sidebarMobile: {
+    width: '100%',
+    borderRightWidth: 0,
+    borderBottomWidth: 1,
+    padding: 14,
   },
   logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
@@ -1127,6 +1139,10 @@ const styles = StyleSheet.create({
     flex: Platform.OS === 'web' ? 1 : 0,
     flexDirection: Platform.OS === 'web' ? 'column' : 'row',
     flexWrap: 'wrap',
+  },
+  menuMobile: {
+    flex: 0,
+    flexDirection: 'row',
   },
   menuItem: {
     flexDirection: 'row',
@@ -1295,6 +1311,10 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 10,
   },
+  contentWrapMobile: {
+    flexDirection: 'column',
+    paddingHorizontal: 14,
+  },
   centerCol: {
     flex: 1.4,
     alignItems: 'center',
@@ -1358,6 +1378,7 @@ const styles = StyleSheet.create({
     maxWidth: 380,
   },
   rightCol: { width: 360, justifyContent: 'space-between' },
+  rightColMobile: { width: '100%' },
   summaryCard: {
     backgroundColor: '#fff',
     borderWidth: 1,
@@ -1408,6 +1429,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bottomActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  bottomActionsMobile: { flexDirection: 'column' },
   joinBtn: {
     flex: 1.4,
     borderRadius: 10,

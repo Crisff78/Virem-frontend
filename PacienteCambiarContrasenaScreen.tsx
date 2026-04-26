@@ -10,6 +10,7 @@ import {
   TextInput,
   Image,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -29,6 +30,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { t, tx } = useLanguage();
   const { signOut, fullName, planLabel, fotoUrl } = usePatientPortalSession();
+  const { width: viewportWidth } = useWindowDimensions();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -37,6 +39,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
   const avatarSource: ImageSourcePropType = useMemo(() => {
     return resolveRemoteImageSource(fotoUrl, DefaultAvatar);
@@ -160,8 +163,8 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
   const indicatorColor = passwordChecks.score >= 3 ? '#16a34a' : passwordChecks.score >= 2 ? '#137fec' : '#f59e0b';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.sidebar}>
+    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
+      <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
         <View>
           <View style={styles.logoBox}>
             <Image source={ViremLogo} style={styles.logo} />
@@ -177,7 +180,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
             <Text style={styles.userPlan}>{planLabel}</Text>
           </View>
 
-          <View style={styles.menu}>
+          <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
             <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('DashboardPaciente')}>
               <MaterialIcons name="grid-view" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.home')}</Text>
@@ -223,7 +226,10 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
+      <ScrollView
+        style={[styles.main, !isDesktopLayout && styles.mainMobile]}
+        contentContainerStyle={{ paddingBottom: 30 }}
+      >
         <View style={styles.contentWrap}>
           <Text style={styles.pageTitle}>
             {tx({ es: 'Cambiar Contrasena', en: 'Change Password', pt: 'Alterar Senha' })}
@@ -368,6 +374,9 @@ const styles = StyleSheet.create({
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
   },
+  containerMobile: {
+    flexDirection: 'column',
+  },
   sidebar: {
     width: Platform.OS === 'web' ? 280 : '100%',
     backgroundColor: colors.white,
@@ -377,6 +386,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eef2f7',
     padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
+  },
+  sidebarMobile: {
+    width: '100%',
+    borderRightWidth: 0,
+    borderBottomWidth: 1,
+    padding: 14,
   },
   logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
@@ -392,6 +407,10 @@ const styles = StyleSheet.create({
     flex: Platform.OS === 'web' ? 1 : 0,
     flexDirection: Platform.OS === 'web' ? 'column' : 'row',
     flexWrap: 'wrap',
+  },
+  menuMobile: {
+    flex: 0,
+    flexDirection: 'row',
   },
   menuItemRow: {
     flexDirection: 'row',
@@ -419,6 +438,10 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
     paddingTop: Platform.OS === 'web' ? 18 : 12,
+  },
+  mainMobile: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
   },
   contentWrap: { maxWidth: 860, width: '100%', alignSelf: 'center' },
   pageTitle: { color: colors.dark, fontSize: 38, fontWeight: '900' },

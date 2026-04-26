@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
@@ -295,11 +296,13 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'EspecialistasPorEspecialidad'>>();
   const { user, loadingUser, signOut, fullName, planLabel, fotoUrl } = usePatientPortalSession();
+  const { width: viewportWidth } = useWindowDimensions();
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('today');
   const [ratingMin, setRatingMin] = useState<'4.5' | '4.0' | null>('4.5');
   const [backendDoctors, setBackendDoctors] = useState<Doctor[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
   const specialty = route.params?.specialty || 'Cardiologia';
   const doctors = useMemo(
@@ -395,8 +398,8 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.sidebar}>
+    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
+      <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
         <View>
           <View style={styles.logoBox}>
             <Image source={ViremLogo} style={styles.logo} />
@@ -415,7 +418,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
             ) : null}
           </View>
 
-          <View style={styles.menu}>
+          <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
             <TouchableOpacity
               style={styles.menuItemRow}
               onPress={() => navigation.navigate('DashboardPaciente')}
@@ -480,7 +483,10 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
+      <ScrollView
+        style={[styles.main, !isDesktopLayout && styles.mainMobile]}
+        contentContainerStyle={{ paddingBottom: 30 }}
+      >
         <View style={styles.header}>
           <View style={styles.searchBox}>
             <MaterialIcons name="search" size={20} color={colors.muted} />
@@ -519,8 +525,8 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
             : `Encontramos ${displayedDoctors.length} medicos disponibles para atenderte.`}
         </Text>
 
-        <View style={styles.layoutRow}>
-          <View style={styles.filtersCol}>
+        <View style={[styles.layoutRow, !isDesktopLayout && styles.layoutRowMobile]}>
+          <View style={[styles.filtersCol, !isDesktopLayout && styles.filtersColMobile]}>
             <View style={styles.filtersCard}>
               <View style={styles.filtersHeader}>
                 <Text style={styles.filtersTitle}>Filtros</Text>
@@ -580,8 +586,8 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
               </View>
             ) : (
               pagedDoctors.map((doc) => (
-                <View key={doc.id} style={styles.docCard}>
-                  <View style={styles.docLeft}>
+                <View key={doc.id} style={[styles.docCard, !isDesktopLayout && styles.docCardMobile]}>
+                  <View style={[styles.docLeft, !isDesktopLayout && styles.docLeftMobile]}>
                     <View style={styles.docImageWrap}>
                       <Image source={doc.image} style={styles.docImage} />
                       {doc.availableNow ? <View style={styles.docOnlineDot} /> : null}
@@ -610,7 +616,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
                     </View>
                   </View>
 
-                  <View style={styles.docRight}>
+                  <View style={[styles.docRight, !isDesktopLayout && styles.docRightMobile]}>
                     <Text style={styles.priceLabel}>Consulta desde</Text>
                     <Text style={styles.priceValue}>${doc.price}</Text>
                     <TouchableOpacity
@@ -691,6 +697,9 @@ const styles = StyleSheet.create({
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
   },
+  containerMobile: {
+    flexDirection: 'column',
+  },
   loaderWrap: {
     flex: 1,
     alignItems: 'center',
@@ -708,6 +717,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eef2f7',
     padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
+  },
+  sidebarMobile: {
+    width: '100%',
+    borderRightWidth: 0,
+    borderBottomWidth: 1,
+    padding: 14,
   },
   logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
@@ -731,6 +746,10 @@ const styles = StyleSheet.create({
     flex: Platform.OS === 'web' ? 1 : 0,
     flexDirection: Platform.OS === 'web' ? 'column' : 'row',
     flexWrap: 'wrap',
+  },
+  menuMobile: {
+    flex: 0,
+    flexDirection: 'row',
   },
   menuItemRow: {
     flexDirection: 'row',
@@ -763,6 +782,10 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
     paddingTop: Platform.OS === 'web' ? 18 : 12,
+  },
+  mainMobile: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
   },
   header: {
     flexDirection: 'row',
@@ -826,7 +849,9 @@ const styles = StyleSheet.create({
   },
 
   layoutRow: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
+  layoutRowMobile: { flexDirection: 'column' },
   filtersCol: { width: 240 },
+  filtersColMobile: { width: '100%' },
   resultsCol: { flex: 1 },
 
   filtersCard: {
@@ -888,7 +913,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  docCardMobile: {
+    flexDirection: 'column',
+  },
   docLeft: { flexDirection: 'row', gap: 12, flex: 1 },
+  docLeftMobile: {
+    flexDirection: 'column',
+  },
   docImageWrap: { width: 92, height: 92 },
   docImage: { width: '100%', height: '100%', borderRadius: 12 },
   docOnlineDot: {
@@ -912,6 +943,11 @@ const styles = StyleSheet.create({
   tagText: { color: colors.blue, fontSize: 10, fontWeight: '700' },
 
   docRight: { width: 160, alignItems: 'flex-end', justifyContent: 'space-between' },
+  docRightMobile: {
+    width: '100%',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
   priceLabel: {
     color: colors.muted,
     fontSize: 10,

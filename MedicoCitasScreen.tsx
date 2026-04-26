@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
@@ -108,6 +109,7 @@ const MedicoCitasScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { loadingUser, refreshUser, signOut, doctorName, doctorSpec, fotoUrl } =
     useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
+  const { width: viewportWidth } = useWindowDimensions();
   const [loadingCitas, setLoadingCitas] = useState(false);
   const [loadingDisponibilidades, setLoadingDisponibilidades] = useState(false);
   const [savingDisponibilidad, setSavingDisponibilidad] = useState(false);
@@ -123,6 +125,7 @@ const MedicoCitasScreen: React.FC = () => {
   const [dispSlotMinutos, setDispSlotMinutos] = useState<15 | 20 | 30 | 60>(30);
   const [dispBloqueado, setDispBloqueado] = useState(false);
   const lastRefreshRef = React.useRef(0);
+  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
   const handleAuthExpired = useCallback(
     async (message = 'Inicia sesion nuevamente.') => {
@@ -588,8 +591,8 @@ const MedicoCitasScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.sidebar}>
+    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
+      <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
         <View>
           <View style={styles.logoWrap}>
             <Image source={ViremLogo} style={styles.logo} />
@@ -605,7 +608,7 @@ const MedicoCitasScreen: React.FC = () => {
             <Text style={styles.userSpec}>{doctorSpec}</Text>
           </View>
 
-          <View style={styles.menu}>
+          <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
             {sideItems.map((item) => (
               <TouchableOpacity
                 key={item.label}
@@ -636,14 +639,17 @@ const MedicoCitasScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+      <ScrollView
+        style={styles.main}
+        contentContainerStyle={{ paddingBottom: 28 }}
+      >
         <View style={styles.headerWrap}>
-          <View style={styles.headerRow}>
+          <View style={[styles.headerRow, !isDesktopLayout && styles.headerRowMobile]}>
             <View style={styles.headerLeft}>
               <Text style={styles.pageTitle}>Agenda Medica</Text>
               <Text style={styles.pageSubtitle}>Administra tus citas y acciones de seguimiento.</Text>
             </View>
-            <View style={styles.headerRight}>
+            <View style={[styles.headerRight, !isDesktopLayout && styles.headerRightMobile]}>
               <Text style={styles.headerDate}>{dateText}</Text>
               <Text style={styles.headerTime}>{timeText}</Text>
             </View>
@@ -666,7 +672,7 @@ const MedicoCitasScreen: React.FC = () => {
           <Text style={styles.sectionCount}>{disponibilidades.length}</Text>
         </View>
         <View style={styles.sectionCard}>
-          <View style={styles.availabilityFormGrid}>
+          <View style={[styles.availabilityFormGrid, !isDesktopLayout && styles.availabilityFormGridMobile]}>
             <View style={styles.availabilityField}>
               <Text style={styles.availabilityLabel}>Fecha (YYYY-MM-DD)</Text>
               <TextInput
@@ -788,7 +794,10 @@ const MedicoCitasScreen: React.FC = () => {
             <ActivityIndicator size="small" color={colors.primary} />
           ) : disponibilidades.length ? (
             disponibilidades.slice(0, 40).map((item) => (
-              <View key={`disp-${item.id}`} style={styles.availabilityRow}>
+              <View
+                key={`disp-${item.id}`}
+                style={[styles.availabilityRow, !isDesktopLayout && styles.availabilityRowMobile]}
+              >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.historyName}>
                     {formatDateTime(item.fechaInicio)} - {formatDateTime(item.fechaFin)}
@@ -835,8 +844,8 @@ const MedicoCitasScreen: React.FC = () => {
             <ActivityIndicator size="small" color={colors.primary} />
           ) : upcomingCitas.length ? (
             upcomingCitas.map((cita) => (
-              <View key={cita.citaid} style={styles.citaCard}>
-                <View style={styles.citaTop}>
+                <View key={cita.citaid} style={styles.citaCard}>
+                  <View style={[styles.citaTop, !isDesktopLayout && styles.citaTopMobile]}>
                   <View style={styles.citaMeta}>
                     <Text style={styles.citaPatient}>{normalizeText(cita?.paciente?.nombreCompleto || 'Paciente')}</Text>
                     <Text style={styles.citaSub}>
@@ -976,6 +985,9 @@ const styles = StyleSheet.create({
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
   },
+  containerMobile: {
+    flexDirection: 'column',
+  },
   sidebar: {
     width: Platform.OS === 'web' ? 280 : '100%',
     backgroundColor: colors.white,
@@ -985,6 +997,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eef2f7',
     padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
+  },
+  sidebarMobile: {
+    width: '100%',
+    borderRightWidth: 0,
+    borderBottomWidth: 1,
+    padding: 14,
   },
   logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
@@ -1002,6 +1020,7 @@ const styles = StyleSheet.create({
   userName: { color: colors.dark, fontSize: 16, fontWeight: '800', textAlign: 'center' },
   userSpec: { color: colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 2 },
   menu: { marginTop: 12, gap: 6 },
+  menuMobile: { flexDirection: 'row', flexWrap: 'wrap' },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1043,8 +1062,13 @@ const styles = StyleSheet.create({
     alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-start',
     gap: 12,
   },
+  headerRowMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
   headerLeft: { flex: 1 },
   headerRight: { alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-start' },
+  headerRightMobile: { alignItems: 'flex-start' },
   headerDate: { color: colors.dark, fontSize: 14, fontWeight: '800' },
   headerTime: { color: colors.muted, fontSize: 12, marginTop: 2 },
   pageTitle: { color: colors.dark, fontSize: 30, fontWeight: '900' },
@@ -1067,6 +1091,9 @@ const styles = StyleSheet.create({
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     gap: 8,
     flexWrap: 'wrap',
+  },
+  availabilityFormGridMobile: {
+    flexDirection: 'column',
   },
   availabilityField: {
     flex: Platform.OS === 'web' ? 1 : 0,
@@ -1106,6 +1133,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  availabilityRowMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
   sectionHead: {
     marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     marginTop: 12,
@@ -1133,6 +1164,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   citaTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  citaTopMobile: { alignItems: 'flex-start' },
   citaMeta: { flex: 1 },
   citaPatient: { color: colors.dark, fontSize: 16, fontWeight: '900' },
   citaSub: { color: colors.primary, fontSize: 13, fontWeight: '700', marginTop: 1 },

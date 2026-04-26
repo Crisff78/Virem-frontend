@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
@@ -151,11 +152,14 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { signOut } = useAuth();
   const { syncProfile } = usePatientSessionProfile();
+  const { width: viewportWidth } = useWindowDimensions();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [specialtyList, setSpecialtyList] = useState<SpecialtyItem[]>(FALLBACK_SPECIALTIES);
   const [loadingSpecialties, setLoadingSpecialties] = useState(false);
+  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
+  const isTabletLayout = viewportWidth >= 720;
 
   useEffect(() => {
     const loadUser = async () => {
@@ -271,9 +275,15 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
     navigation.navigate('EspecialistasPorEspecialidad', { specialty: label });
   };
 
+  const specialtyColumnStyle = isDesktopLayout
+    ? styles.specialtyColumnDesktop
+    : isTabletLayout
+      ? styles.specialtyColumnTablet
+      : styles.specialtyColumnMobile;
+
   return (
-    <View style={styles.container}>
-      <View style={styles.sidebar}>
+    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
+      <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
         <View>
           <View style={styles.logoBox}>
             <Image source={ViremLogo} style={styles.logo} />
@@ -293,7 +303,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
             ) : null}
           </View>
 
-          <View style={styles.menu}>
+          <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
             <TouchableOpacity
               style={styles.menuItemRow}
               onPress={() => navigation.navigate('DashboardPaciente')}
@@ -366,7 +376,10 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
+      <ScrollView
+        style={[styles.main, !isDesktopLayout && styles.mainMobile]}
+        contentContainerStyle={{ paddingBottom: 30 }}
+      >
         <View style={styles.header}>
           <View style={styles.searchBox}>
             <MaterialIcons name="search" size={20} color={colors.muted} />
@@ -430,7 +443,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
 
         <View style={styles.specialtiesGrid}>
           {filteredSpecialties.map((item) => (
-            <View key={item.label} style={{ width: '24%', minWidth: 190 }}>
+            <View key={item.label} style={specialtyColumnStyle}>
               <SpecialtyCard
                 icon={item.icon}
                 label={item.label}
@@ -497,6 +510,9 @@ const styles = StyleSheet.create({
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
   },
+  containerMobile: {
+    flexDirection: 'column',
+  },
 
   sidebar: {
     width: Platform.OS === 'web' ? 280 : '100%',
@@ -507,6 +523,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eef2f7',
     padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
+  },
+  sidebarMobile: {
+    width: '100%',
+    borderRightWidth: 0,
+    borderBottomWidth: 1,
+    padding: 14,
   },
   logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
@@ -533,6 +555,10 @@ const styles = StyleSheet.create({
     flex: Platform.OS === 'web' ? 1 : 0,
     flexDirection: Platform.OS === 'web' ? 'column' : 'row',
     flexWrap: 'wrap',
+  },
+  menuMobile: {
+    flex: 0,
+    flexDirection: 'row',
   },
   menuItemRow: {
     flexDirection: 'row',
@@ -566,6 +592,10 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
     paddingTop: Platform.OS === 'web' ? 18 : 12,
+  },
+  mainMobile: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
   },
   header: {
     flexDirection: 'row',
@@ -673,6 +703,18 @@ const styles = StyleSheet.create({
   sectionLink: { color: colors.blue, fontWeight: '800', fontSize: 13 },
 
   specialtiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  specialtyColumnDesktop: {
+    width: '24%',
+    minWidth: 190,
+  },
+  specialtyColumnTablet: {
+    width: '48%',
+    minWidth: 0,
+  },
+  specialtyColumnMobile: {
+    width: '100%',
+    minWidth: 0,
+  },
   specialtyCard: {
     width: '24%',
     minWidth: 190,

@@ -9,6 +9,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
@@ -254,6 +255,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const route = useRoute<RouteProp<RootStackParamList, 'PerfilEspecialistaAgendar'>>();
   const { signOut } = useAuth();
   const { syncProfile } = usePatientSessionProfile();
+  const { width: viewportWidth } = useWindowDimensions();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [selectedDayOffset, setSelectedDayOffset] = useState(0);
@@ -264,6 +266,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const [loadingDoctor, setLoadingDoctor] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<AgendaSlot[]>([]);
+  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
   const specialty = route.params?.specialty || 'Cardiologia';
   const routeDoctorId = String(route.params?.doctorId || '').trim();
@@ -575,8 +578,8 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
     );
   }
   return (
-    <View style={styles.container}>
-      <View style={styles.sidebar}>
+    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
+      <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
         <View>
           <View style={styles.logoBox}>
             <Image source={ViremLogo} style={styles.logo} />
@@ -592,7 +595,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
             <Text style={styles.sidebarUserPlan}>{planLabel}</Text>
           </View>
 
-          <View style={styles.menu}>
+          <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
             <TouchableOpacity
               style={styles.menuItemRow}
               onPress={() => navigation.navigate('DashboardPaciente')}
@@ -666,7 +669,10 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
       </View>
 
       <View style={{ flex: 1 }}>
-        <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+        <ScrollView
+          style={[styles.main, !isDesktopLayout && styles.mainMobile]}
+          contentContainerStyle={{ paddingBottom: 28 }}
+        >
           <View style={styles.header}>
             <View style={styles.searchBox}>
               <MaterialIcons name="search" size={20} color={colors.muted} />
@@ -686,7 +692,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.breadcrumbRow}>
+          <View style={[styles.breadcrumbRow, !isDesktopLayout && styles.breadcrumbRowMobile]}>
             <TouchableOpacity onPress={() => navigation.navigate('DashboardPaciente')}>
               <Text style={styles.breadcrumbLink}>Inicio</Text>
             </TouchableOpacity>
@@ -702,10 +708,10 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
             <Text style={styles.breadcrumbCurrent}>{doctor.name}</Text>
           </View>
 
-          <View style={styles.contentRow}>
+          <View style={[styles.contentRow, !isDesktopLayout && styles.contentRowMobile]}>
             <View style={{ flex: 1 }}>
               <View style={styles.profileCard}>
-                <View style={styles.profileTop}>
+                <View style={[styles.profileTop, !isDesktopLayout && styles.profileTopMobile]}>
                   <View style={styles.docImageWrap}>
                     <Image source={doctor.image} style={styles.docImage} />
                     <View style={styles.onlineDot} />
@@ -760,7 +766,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
               </View>
             </View>
 
-            <View style={styles.bookingCol}>
+            <View style={[styles.bookingCol, !isDesktopLayout && styles.bookingColMobile]}>
               <View style={styles.bookingCard}>
                 <View style={styles.bookingTop}>
                   <Text style={styles.priceLabel}>Precio de consulta</Text>
@@ -793,7 +799,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                   </View>
 
                   <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Horarios disponibles</Text>
-                  <View style={styles.modeRow}>
+                    <View style={[styles.modeRow, !isDesktopLayout && styles.modeRowMobile]}>
                     {modalidadOptions.map((option) => (
                       <TouchableOpacity
                         key={option.id}
@@ -817,7 +823,11 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                       {availableTimes.map((item) => (
                         <TouchableOpacity
                           key={item.id}
-                          style={[styles.timeBtn, selectedTime === item.id && styles.timeBtnActive]}
+                          style={[
+                            styles.timeBtn,
+                            !isDesktopLayout && styles.timeBtnMobile,
+                            selectedTime === item.id && styles.timeBtnActive,
+                          ]}
                           onPress={() => setSelectedTime(item.id)}
                         >
                           <Text style={[styles.timeText, selectedTime === item.id && styles.timeTextActive]}>
@@ -876,6 +886,9 @@ const styles = StyleSheet.create({
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
   },
+  containerMobile: {
+    flexDirection: 'column',
+  },
   loaderWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
   loaderText: { marginTop: 8, color: colors.muted, fontWeight: '700' },
 
@@ -888,6 +901,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eef2f7',
     padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
+  },
+  sidebarMobile: {
+    width: '100%',
+    borderRightWidth: 0,
+    borderBottomWidth: 1,
+    padding: 14,
   },
   logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
@@ -925,6 +944,10 @@ const styles = StyleSheet.create({
     flex: Platform.OS === 'web' ? 1 : 0,
     flexDirection: Platform.OS === 'web' ? 'column' : 'row',
     flexWrap: 'wrap',
+  },
+  menuMobile: {
+    flex: 0,
+    flexDirection: 'row',
   },
   menuItemRow: {
     flexDirection: 'row',
@@ -1001,7 +1024,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
     paddingTop: Platform.OS === 'web' ? 18 : 12,
   },
+  mainMobile: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+  },
   breadcrumbRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, marginBottom: 12 },
+  breadcrumbRowMobile: { flexWrap: 'wrap' },
   breadcrumbLink: { color: colors.muted, fontSize: 12, fontWeight: '700' },
   breadcrumbCurrent: { color: colors.primary, fontSize: 12, fontWeight: '800' },
   contentRow: {
@@ -1009,7 +1037,11 @@ const styles = StyleSheet.create({
     gap: 16,
     alignItems: 'flex-start',
   },
+  contentRowMobile: {
+    flexDirection: 'column',
+  },
   bookingCol: { width: Platform.OS === 'web' ? 340 : '100%' },
+  bookingColMobile: { width: '100%' },
 
   profileCard: {
     backgroundColor: '#fff',
@@ -1020,6 +1052,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   profileTop: { flexDirection: 'row', gap: 14 },
+  profileTopMobile: { flexDirection: 'column' },
   docImageWrap: { width: 122, height: 122, position: 'relative' },
   docImage: { width: '100%', height: '100%', borderRadius: 16 },
   onlineDot: {
@@ -1109,6 +1142,7 @@ const styles = StyleSheet.create({
   dayTextActive: { color: '#fff' },
 
   modeRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
+  modeRowMobile: { flexWrap: 'wrap' },
   modeBtn: {
     flex: 1,
     borderWidth: 1,
@@ -1131,6 +1165,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
     backgroundColor: '#fff',
+  },
+  timeBtnMobile: {
+    width: '48%',
   },
   timeBtnActive: { borderColor: colors.blue, borderWidth: 2, backgroundColor: '#f2f8ff' },
   timeText: { color: colors.muted, fontWeight: '800', fontSize: 11 },

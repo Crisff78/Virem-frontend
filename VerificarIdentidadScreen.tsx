@@ -134,7 +134,10 @@ const VerificarIdentidadScreen: React.FC = () => {
                 body: { email: recipient },
             });
             if (data?.success) {
-                Alert.alert('Codigo reenviado', 'Revisa tu correo para el nuevo codigo.');
+                const suffix = data?.devCode
+                    ? `\n\nCodigo de desarrollo: ${String(data.devCode)}`
+                    : '';
+                Alert.alert('Codigo reenviado', `Revisa tu correo para el nuevo codigo.${suffix}`);
             } else {
                 Alert.alert('Error', data?.message || 'No se pudo reenviar el codigo.');
             }

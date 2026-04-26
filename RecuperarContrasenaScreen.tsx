@@ -172,17 +172,23 @@ const RecuperarContrasenaScreen: React.FC = () => {
 
     setIsLoading(true);
 
-    try {
-      const data = await requestJson<any>('/api/auth/recovery/send-code', {
-        method: 'POST',
-        body: { email: cleanedEmail },
-      });
+      try {
+        const data = await requestJson<any>('/api/auth/recovery/send-code', {
+          method: 'POST',
+          body: { email: cleanedEmail },
+        });
 
-      if (data?.success) {
-        navigation.navigate('VerificarIdentidad', { email: cleanedEmail });
-      } else {
-        Alert.alert('Error', data?.message || 'No se pudo enviar el codigo de recuperacion.');
-      }
+        if (data?.success) {
+          if (data?.devCode) {
+            Alert.alert(
+              'Codigo de desarrollo',
+              `Usa este codigo para continuar la recuperacion: ${String(data.devCode)}`
+            );
+          }
+          navigation.navigate('VerificarIdentidad', { email: cleanedEmail });
+        } else {
+          Alert.alert('Error', data?.message || 'No se pudo enviar el codigo de recuperacion.');
+        }
     } catch (error: any) {
       Alert.alert(
         'Error de Conexion',

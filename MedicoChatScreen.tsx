@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
@@ -96,6 +97,7 @@ const MedicoChatScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'MedicoChat'>>();
   const { user: sessionUser, updateUser, signOut } = useAuth<SessionUser>();
+  const { width: viewportWidth } = useWindowDimensions();
 
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingContacts, setLoadingContacts] = useState(false);
@@ -108,6 +110,7 @@ const MedicoChatScreen: React.FC = () => {
   const [messagesByChat, setMessagesByChat] = useState<Record<string, Message[]>>({});
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRefreshRef = useRef(0);
+  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
   const loadUser = useCallback(async () => {
     setLoadingUser(true);
@@ -463,8 +466,8 @@ const MedicoChatScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.sidebar}>
+    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
+      <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
         <View>
           <View style={styles.logoWrap}>
             <Image source={ViremLogo} style={styles.logo} />
@@ -480,7 +483,7 @@ const MedicoChatScreen: React.FC = () => {
             <Text style={styles.userSpec}>{doctorSpec}</Text>
           </View>
 
-          <View style={styles.menu}>
+          <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
             {sideItems.map((item) => (
               <TouchableOpacity
                 key={item.label}
@@ -514,20 +517,20 @@ const MedicoChatScreen: React.FC = () => {
 
       <View style={styles.main}>
         <View style={styles.headerWrap}>
-          <View style={styles.headerRow}>
+          <View style={[styles.headerRow, !isDesktopLayout && styles.headerRowMobile]}>
             <View style={styles.headerLeft}>
               <Text style={styles.pageTitle}>Mensajeria Medica</Text>
               <Text style={styles.pageSubtitle}>Comunicate rapido con pacientes agendados.</Text>
             </View>
-            <View style={styles.headerRight}>
+            <View style={[styles.headerRight, !isDesktopLayout && styles.headerRightMobile]}>
               <Text style={styles.headerDate}>{dateText}</Text>
               <Text style={styles.headerTime}>{timeText}</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.chatShell}>
-          <View style={styles.contactsPane}>
+        <View style={[styles.chatShell, !isDesktopLayout && styles.chatShellMobile]}>
+          <View style={[styles.contactsPane, !isDesktopLayout && styles.contactsPaneMobile]}>
             <View style={styles.searchRow}>
               <MaterialIcons name="search" size={18} color={colors.muted} />
               <TextInput
@@ -649,6 +652,9 @@ const styles = StyleSheet.create({
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
   },
+  containerMobile: {
+    flexDirection: 'column',
+  },
   loaderWrap: {
     flex: 1,
     alignItems: 'center',
@@ -666,6 +672,12 @@ const styles = StyleSheet.create({
     padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
   },
+  sidebarMobile: {
+    width: '100%',
+    borderRightWidth: 0,
+    borderBottomWidth: 1,
+    padding: 14,
+  },
   logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
   logoTitle: { color: colors.dark, fontSize: 20, fontWeight: '800' },
@@ -682,6 +694,7 @@ const styles = StyleSheet.create({
   userName: { color: colors.dark, fontSize: 15, fontWeight: '900', textAlign: 'center' },
   userSpec: { color: colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 2 },
   menu: { marginTop: 10, gap: 6 },
+  menuMobile: { flexDirection: 'row', flexWrap: 'wrap' },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -723,8 +736,13 @@ const styles = StyleSheet.create({
     alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-start',
     gap: 12,
   },
+  headerRowMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
   headerLeft: { flex: 1 },
   headerRight: { alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-start' },
+  headerRightMobile: { alignItems: 'flex-start' },
   headerDate: { color: colors.dark, fontSize: 14, fontWeight: '800' },
   headerTime: { color: colors.muted, fontSize: 12, marginTop: 2 },
   pageTitle: { color: colors.dark, fontSize: 30, fontWeight: '900' },
@@ -741,6 +759,9 @@ const styles = StyleSheet.create({
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     minHeight: 500,
   },
+  chatShellMobile: {
+    flexDirection: 'column',
+  },
   contactsPane: {
     width: Platform.OS === 'web' ? 320 : '100%',
     borderRightWidth: Platform.OS === 'web' ? 1 : 0,
@@ -749,6 +770,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e4edf7',
     padding: 12,
     backgroundColor: '#f8fbff',
+  },
+  contactsPaneMobile: {
+    width: '100%',
+    borderRightWidth: 0,
+    borderBottomWidth: 1,
+    maxHeight: 320,
   },
   searchRow: {
     flexDirection: 'row',
