@@ -15,6 +15,7 @@ import type { ImageSourcePropType } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
 import { usePacienteModule } from './navigation/PacienteModuleContext';
+import { apiClient } from "./utils/api";
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import { useLanguage } from './localization/LanguageContext';
@@ -199,6 +200,35 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
   const { isInsidePortal } = usePacienteModule();
   const { user, loadingUser, signOut, fullName, planLabel, fotoUrl, hasProfilePhoto } = usePatientPortalSession();
 
+  const [loading, setLoading] = useState(true);
+  const [dbRecetas, setDbRecetas] = useState<DocumentItem[]>([]);
+
+  useEffect(() => {
+    const fetchRecetas = async () => {
+      try {
+        const payload = await apiClient.get<any>("/api/paciente/me/recetas", { authenticated: true });
+        if (payload?.success && Array.isArray(payload.recetas)) {
+          const mapped = payload.recetas.map(r => ({
+            title: r.diagnostico || "Receta M�dica",
+            doctor: r.medico_nombre || "M�dico",
+            date: new Date(r.created_at).toLocaleDateString(),
+            icon: "picture-as-pdf",
+            tint: "#ef4444",
+            bg: "#fef2f2",
+            raw: JSON.stringify(r.medicamentos_json)
+          }));
+          setDbRecetas(mapped);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRecetas();
+  }, []);
+
+
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
     return resolveRemoteImageSource(fotoUrl, DefaultAvatar);
   }, [fotoUrl]);
@@ -331,7 +361,7 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
           Accede y descarga tu historial médico organizado por categorías.
         </Text>
 
-        <SectionBlock icon="description" title="Recetas Médicas" count="3 ARCHIVOS" items={recetas} />
+        <SectionBlock icon="description" title="Recetas Médicas" count="3 ARCHIVOS" items={dbRecetas.length > 0 ? dbRecetas : recetas} />
         <SectionBlock
           icon="verified"
           title="Certificados y Otros"

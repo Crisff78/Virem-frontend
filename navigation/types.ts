@@ -92,5 +92,8 @@ export type RootStackParamList = {
       }
     | undefined;
   MedicoPerfil: undefined;
+  MedicoHorarios: undefined;
+  MedicoFinanzas: undefined;
+  MedicoRecetas: undefined;
   AdminPanel: undefined;
 };

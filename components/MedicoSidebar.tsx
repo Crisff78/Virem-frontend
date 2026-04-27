@@ -31,8 +31,11 @@ type MenuItem = {
 const MENU_ITEMS: MenuItem[] = [
   { module: 'DashboardMedico', icon: 'dashboard', label: 'Dashboard' },
   { module: 'MedicoCitas', icon: 'calendar-today', label: 'Agenda' },
+  { module: 'MedicoHorarios', icon: 'schedule', label: 'Horarios' },
   { module: 'MedicoPacientes', icon: 'group', label: 'Pacientes' },
+  { module: 'MedicoRecetas', icon: 'description', label: 'Recetas y Órdenes' },
   { module: 'MedicoChat', icon: 'chat-bubble', label: 'Mensajes' },
+  { module: 'MedicoFinanzas', icon: 'account-balance-wallet', label: 'Finanzas' },
   { module: 'MedicoPerfil', icon: 'person', label: 'Perfil' },
 ];
 

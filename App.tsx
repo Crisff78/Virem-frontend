@@ -46,6 +46,7 @@ import {
   withRoleGuard,
 } from "./navigation/RoleGuard";
 import { AuthProvider } from "./providers/AuthProvider";
+import { ThemeProvider } from "./providers/ThemeContext";
 import { SocketProvider } from "./providers/SocketProvider";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -118,7 +119,7 @@ const App: React.FC = () => {
   return (
     <SafeAreaProvider>
       <LanguageProvider>
-        <AuthProvider>
+        <ThemeProvider><AuthProvider>
           <SocketProvider>
             <SafeAreaView style={styles.rootSafeArea} edges={["top", "left", "right"]}>
               <NavigationContainer linking={linking}>
@@ -201,7 +202,7 @@ const App: React.FC = () => {
               </NavigationContainer>
             </SafeAreaView>
           </SocketProvider>
-        </AuthProvider>
+        </AuthProvider></ThemeProvider>
       </LanguageProvider>
     </SafeAreaProvider>
   );

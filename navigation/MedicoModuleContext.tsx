@@ -13,6 +13,9 @@ export const MEDICO_PORTAL_MODULES = [
   'MedicoPacientes',
   'MedicoChat',
   'MedicoPerfil',
+  'MedicoHorarios',
+  'MedicoRecetas',
+  'MedicoFinanzas',
 ] as const;
 
 export type MedicoPortalModule = (typeof MEDICO_PORTAL_MODULES)[number];

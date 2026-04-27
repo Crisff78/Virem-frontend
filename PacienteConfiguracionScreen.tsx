@@ -18,6 +18,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
 import { usePacienteModule } from './navigation/PacienteModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTheme } from "./providers/ThemeContext";
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
@@ -122,15 +123,15 @@ const PacienteConfiguracionScreen: React.FC = () => {
 
   const languageLabel = useMemo(() => {
     if (appLanguage === 'en') return 'English (US)';
-    if (appLanguage === 'pt') return 'Português (BR)';
-    return 'Español (ES)';
+    if (appLanguage === 'pt') return 'Portuguï¿½s (BR)';
+    return 'Espaï¿½ol (ES)';
   }, [appLanguage]);
 
   const optionsMap = {
     language: [
-      { label: 'Español (ES)', value: 'es' as const },
+      { label: 'Espaï¿½ol (ES)', value: 'es' as const },
       { label: 'English (US)', value: 'en' as const },
-      { label: 'Português (BR)', value: 'pt' as const },
+      { label: 'Portuguï¿½s (BR)', value: 'pt' as const },
     ],
     timeFormat: ['24 horas', '12 horas'],
     timeZone: ['(GMT-04:00) Santo Domingo', '(GMT-05:00) Bogota', '(GMT-06:00) Ciudad de Mexico'],
@@ -189,12 +190,12 @@ const PacienteConfiguracionScreen: React.FC = () => {
     if (newPassword.length < 8) {
       Alert.alert(
         tx({
-          es: 'Contraseña débil',
+          es: 'Contraseï¿½a dï¿½bil',
           en: 'Weak password',
           pt: 'Senha fraca',
         }),
         tx({
-          es: 'La nueva contraseña debe tener al menos 8 caracteres.',
+          es: 'La nueva contraseï¿½a debe tener al menos 8 caracteres.',
           en: 'The new password must be at least 8 characters long.',
           pt: 'A nova senha deve ter pelo menos 8 caracteres.',
         })
@@ -210,7 +211,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
           pt: 'Nao coincide',
         }),
         tx({
-          es: 'La confirmación de contraseña no coincide.',
+          es: 'La confirmaciï¿½n de contraseï¿½a no coincide.',
           en: 'Password confirmation does not match.',
           pt: 'A confirmacao da senha nao coincide.',
         })
@@ -224,12 +225,12 @@ const PacienteConfiguracionScreen: React.FC = () => {
     setConfirmPassword('');
     Alert.alert(
       tx({
-        es: 'Contraseña actualizada',
+        es: 'Contraseï¿½a actualizada',
         en: 'Password updated',
         pt: 'Senha atualizada',
       }),
       tx({
-        es: 'Tu contraseña fue cambiada correctamente.',
+        es: 'Tu contraseï¿½a fue cambiada correctamente.',
         en: 'Your password was changed successfully.',
         pt: 'Sua senha foi alterada com sucesso.',
       })
@@ -546,7 +547,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
               {tx({
-                es: 'Cambiar contraseña',
+                es: 'Cambiar contraseï¿½a',
                 en: 'Change password',
                 pt: 'Alterar senha',
               })}
@@ -558,7 +559,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
               value={currentPassword}
               onChangeText={setCurrentPassword}
               placeholder={tx({
-                es: 'Contraseña actual',
+                es: 'Contraseï¿½a actual',
                 en: 'Current password',
                 pt: 'Senha atual',
               })}
@@ -570,7 +571,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
               value={newPassword}
               onChangeText={setNewPassword}
               placeholder={tx({
-                es: 'Nueva contraseña',
+                es: 'Nueva contraseï¿½a',
                 en: 'New password',
                 pt: 'Nova senha',
               })}
@@ -582,7 +583,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder={tx({
-                es: 'Confirmar contraseña',
+                es: 'Confirmar contraseï¿½a',
                 en: 'Confirm password',
                 pt: 'Confirmar senha',
               })}

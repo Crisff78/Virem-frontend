@@ -10,6 +10,9 @@ import MedicoCitasScreen from './MedicoCitasScreen';
 import MedicoPacientesScreen from './MedicoPacientesScreen';
 import MedicoChatScreen from './MedicoChatScreen';
 import MedicoPerfilScreen from './MedicoPerfilScreen';
+import MedicoHorariosScreen from './MedicoHorariosScreen';
+import MedicoFinanzasScreen from './MedicoFinanzasScreen';
+import MedicoRecetasScreen from './MedicoRecetasScreen';
 
 const MODULE_COMPONENTS: Record<MedicoPortalModule, React.ComponentType<any>> = {
   DashboardMedico: DashboardMedico,
@@ -17,6 +20,9 @@ const MODULE_COMPONENTS: Record<MedicoPortalModule, React.ComponentType<any>> = 
   MedicoPacientes: MedicoPacientesScreen,
   MedicoChat: MedicoChatScreen,
   MedicoPerfil: MedicoPerfilScreen,
+  MedicoHorarios: MedicoHorariosScreen,
+  MedicoRecetas: MedicoRecetasScreen,
+  MedicoFinanzas: MedicoFinanzasScreen,
 };
 
 /**
