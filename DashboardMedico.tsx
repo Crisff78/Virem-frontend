@@ -17,65 +17,110 @@ import type { ImageSourcePropType } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from './navigation/types';
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 import { getApiErrorMessage } from './utils/apiErrors';
 import { useMedicoSessionProfile, type MedicoSessionUser } from './hooks/useMedicoSessionProfile';
 
-// ✅ Expo:
-// import { MaterialIcons } from '@expo/vector-icons';
-
-// ✅ RN vector icons:
-import { MaterialIcons } from '@expo/vector-icons';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
-type MaterialIconName = keyof typeof MaterialIcons.glyphMap;
+type MaterialIconName = any;
 
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 const PatientAvatar: ImageSourcePropType = DefaultAvatar;
 
+// -------------------------------------------------------------
+// COLORES Y CONSTANTES (Renovados)
+// -------------------------------------------------------------
+const colors = {
+  primary: '#137fec',
+  bg: '#F6FAFD',
+  dark: '#0A1931',
+  blue: '#1A3D63',
+  green: '#22c55e',
+  red: '#ef4444',
+  muted: '#4A7FA7',
+  white: '#FFFFFF',
+  brand: '#137fec',
+  viremLight: '#E8EFF5',
+  viremMuted: '#7D95A9',
+};
+
+const MIN_REFRESH_INTERVAL_MS = 15000;
+
+// -------------------------------------------------------------
+// UTILS
+// -------------------------------------------------------------
+const normalizeString = (value: unknown) =>
+  String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const sanitizeFotoUrl = (value: unknown) => {
+  const clean = normalizeString(value);
+  if (!clean) return '';
+  if (clean.toLowerCase().startsWith('blob:')) return '';
+  return clean;
+};
+
+const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
+  const clean = sanitizeFotoUrl(value);
+  if (clean) {
+    return { uri: clean };
+  }
+  return DefaultAvatar;
+};
+
+const formatDateTime = (value: string | null) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('es-DO', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+};
+
+const formatRelativeIn = (value: string | null) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const diffMs = date.getTime() - Date.now();
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin <= 0) return 'Inicia pronto';
+  if (diffMin < 60) return `en ${diffMin} min`;
+  const diffHour = Math.round(diffMin / 60);
+  if (diffHour < 24) return `en ${diffHour} h`;
+  const diffDay = Math.round(diffHour / 24);
+  return `en ${diffDay} día(s)`;
+};
+
+const parseDateMs = (value: string | null | undefined) => {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
+};
+
+function addDoctorPrefix(name: string) {
+  const clean = name.trim();
+  if (!clean) return 'Doctor';
+  if (/^dr\.|^dra\./i.test(clean)) return clean;
+  return `Dr. ${clean}`;
+}
+
+// -------------------------------------------------------------
+// TYPES
+// -------------------------------------------------------------
 type SideItem = {
   icon: MaterialIconName;
   label: string;
   badge?: { text: string; color: string };
   active?: boolean;
   route?: 'DashboardMedico' | 'MedicoPerfil' | 'MedicoCitas' | 'MedicoPacientes' | 'MedicoChat';
-};
-
-type StatCardProps = {
-  title: string;
-  value: string;
-  icon: MaterialIconName;
-  trendText: string;
-  trendUp?: boolean;
-};
-
-type AgendaItemProps = {
-  time: string;
-  name: string;
-  detail: string;
-  onPress?: () => void;
-};
-
-type FileCardProps = {
-  name: string;
-  id: string;
-  lastSeen: string;
-  onPress?: () => void;
-};
-
-type SessionUser = {
-  email?: string;
-  nombreCompleto?: string;
-  especialidad?: string;
-  fotoUrl?: string;
-  medico?: {
-    nombreCompleto?: string;
-    especialidad?: string;
-    fotoUrl?: string;
-  };
 };
 
 type DashboardStats = {
@@ -117,6 +162,7 @@ type MedicoUpcomingCita = {
   paciente: {
     pacienteid: string;
     nombreCompleto: string;
+    fotoUrl?: string;
   };
 };
 
@@ -130,86 +176,81 @@ const EMPTY_DASHBOARD: DashboardPayload = {
   agendaHoy: [],
   expedientesRecientes: [],
 };
-const MIN_REFRESH_INTERVAL_MS = 12000;
 
-const addDoctorPrefix = (rawName: string): string => {
-  const clean = String(rawName || '').replace(/\s+/g, ' ').trim();
-  if (!clean) return 'Doctor';
-
-  const normalized = clean.toLowerCase();
-  if (normalized.startsWith('dr ') || normalized.startsWith('dr.')) return clean;
-  return `Dr. ${clean}`;
+// -------------------------------------------------------------
+// COMPONENTES MODERNOS
+// -------------------------------------------------------------
+type AppointmentCardProps = {
+  patient: string;
+  detail: string;
+  avatar: ImageSourcePropType;
+  onVideoCall?: () => void;
+  onDetails?: () => void;
+  videoCallDisabled?: boolean;
+  videoCallLabel?: string;
 };
 
-const sanitizeFotoUrl = (value: unknown): string => {
-  const clean = String(value || '').trim();
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
-
-const parseDateMs = (value: string | null | undefined) => {
-  if (!value) return Number.POSITIVE_INFINITY;
-  const ms = new Date(value).getTime();
-  return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
-};
-
-const formatDateTime = (value: string | null | undefined) => {
-  if (!value) return 'Sin horario';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Sin horario';
-  return new Intl.DateTimeFormat('es-DO', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-};
-
-const colors = {
-  primary: '#137fec',
-  viremDark: '#0A1931',
-  viremLight: '#B3CFE5',
-  viremMuted: '#4A7FA7',
-  viremDeep: '#1A3D63',
-  bgLight: '#F6FAFD',
-  white: '#FFFFFF',
-  green: '#16a34a',
-  red: '#ef4444',
-};
-
-const SidebarItem: React.FC<SideItem & { onPress?: () => void }> = ({
-  icon,
-  label,
-  badge,
-  active,
-  onPress,
+const AppointmentCard: React.FC<AppointmentCardProps> = ({
+  patient,
+  detail,
+  avatar,
+  onVideoCall,
+  onDetails,
+  videoCallDisabled,
+  videoCallLabel = 'Videollamada',
 }) => {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.sideItem, active ? styles.sideItemActive : null]}
-      activeOpacity={0.85}
-    >
-      <MaterialIcons
-        name={icon}
-        size={20}
-        color={active ? colors.primary : colors.viremMuted}
-      />
-      <Text style={[styles.sideItemText, active ? styles.sideItemTextActive : null]}>
-        {label}
-      </Text>
+    <View style={styles.apptCard}>
+      <Image source={avatar} style={styles.apptAvatar} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.apptDoctor}>{patient}</Text>
+        <Text style={styles.apptDetail}>{detail}</Text>
+      </View>
 
-      {badge ? (
-        <View style={[styles.badge, { backgroundColor: badge.color }]}>
-          <Text style={styles.badgeText}>{badge.text}</Text>
-        </View>
-      ) : null}
-    </TouchableOpacity>
+      <View style={styles.apptBtns}>
+        {onVideoCall && (
+          <TouchableOpacity
+            style={[styles.smallBtnBlue, videoCallDisabled && styles.smallBtnGrayDisabled]}
+            onPress={onVideoCall}
+            disabled={videoCallDisabled}
+          >
+            <Text style={[styles.smallBtnBlueText, videoCallDisabled && styles.smallBtnGrayTextDisabled]}>
+              {videoCallLabel}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {onDetails && (
+          <TouchableOpacity style={styles.smallBtnGray} onPress={onDetails}>
+            <Text style={styles.smallBtnGrayText}>Detalles</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
   );
 };
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, trendText, trendUp = true }) => {
+const FileCard: React.FC<{ name: string; id: string; lastSeen: string; onPress?: () => void }> = ({ name, id, lastSeen, onPress }) => (
+  <View style={styles.docRow}>
+    <View style={styles.docLeft}>
+      <View style={styles.docIconBox}>
+        <MaterialIcons name="folder-shared" size={20} color={colors.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.docTitle} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={styles.docSub} numberOfLines={1}>
+          Expediente #{id} • {lastSeen}
+        </Text>
+      </View>
+    </View>
+    <TouchableOpacity onPress={onPress}>
+      <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+    </TouchableOpacity>
+  </View>
+);
+
+const StatPill: React.FC<{ title: string; value: string; icon: MaterialIconName; trendText: string; trendUp?: boolean }> = ({ title, value, icon, trendText, trendUp = true }) => {
   return (
     <View style={styles.statCard}>
       <View style={styles.statTopRow}>
@@ -234,34 +275,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, trendText, tren
   );
 };
 
-const AgendaRow: React.FC<AgendaItemProps> = ({ time, name, detail, onPress }) => (
-  <TouchableOpacity activeOpacity={0.85} style={styles.agendaRow} onPress={onPress}>
-    <View style={styles.agendaLeft}>
-      <Text style={styles.agendaTime}>{time}</Text>
-      <View style={styles.agendaTexts}>
-        <Text style={styles.agendaName}>{name}</Text>
-        <Text style={styles.agendaDetail}>{detail}</Text>
-      </View>
-    </View>
-    <MaterialIcons name="chevron-right" size={22} color={colors.viremLight} />
-  </TouchableOpacity>
-);
-
-const FileCard: React.FC<FileCardProps> = ({ name, id, lastSeen, onPress }) => (
-  <TouchableOpacity activeOpacity={0.85} style={styles.fileCard} onPress={onPress}>
-    <View style={styles.fileTop}>
-      <View style={styles.fileIconBox}>
-        <MaterialIcons name="folder-shared" size={20} color={colors.primary} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.fileName}>{name}</Text>
-        <Text style={styles.fileId}>{id}</Text>
-      </View>
-    </View>
-    <Text style={styles.fileLastSeen}>{lastSeen}</Text>
-  </TouchableOpacity>
-);
-
+// -------------------------------------------------------------
+// PANTALLA PRINCIPAL
+// -------------------------------------------------------------
 const DashboardMedico: React.FC = () => {
   const navigation = usePortalAwareMedicoNavigation();
   const { isInsidePortal } = useMedicoModule();
@@ -269,16 +285,22 @@ const DashboardMedico: React.FC = () => {
   const { syncProfile } = useMedicoSessionProfile();
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
+  
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [doctorName, setDoctorName] = useState('Doctor');
   const [doctorSpec, setDoctorSpec] = useState('Especialidad no definida');
   const [doctorAvatar, setDoctorAvatar] = useState<ImageSourcePropType>(DefaultAvatar);
+  
   const [dashboardData, setDashboardData] = useState<DashboardPayload>(EMPTY_DASHBOARD);
   const [upcomingCitas, setUpcomingCitas] = useState<MedicoUpcomingCita[]>([]);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
   const [openingCitaId, setOpeningCitaId] = useState('');
+  
   const lastRefreshRef = useRef(0);
+
+  const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   const loadDashboardData = useCallback(async () => {
     setLoadingDashboard(true);
@@ -362,6 +384,7 @@ const DashboardMedico: React.FC = () => {
         paciente: {
           pacienteid: String(item?.paciente?.pacienteid || ''),
           nombreCompleto: String(item?.paciente?.nombreCompleto || 'Paciente'),
+          fotoUrl: item?.paciente?.fotoUrl || '',
         },
       })).filter((item) => String(item?.modalidad || '').toLowerCase() === 'virtual');
 
@@ -375,7 +398,6 @@ const DashboardMedico: React.FC = () => {
   const loadMedicoProfile = useCallback(async () => {
     try {
       const nextUser = (await syncProfile()) as MedicoSessionUser | null;
-
       await Promise.all([loadDashboardData(), loadUpcomingCitas()]);
 
       const nombreBase = String(
@@ -396,131 +418,71 @@ const DashboardMedico: React.FC = () => {
       setDoctorSpec(especialidadBase || 'Especialidad no definida');
       setDoctorAvatar(fotoBase ? { uri: fotoBase } : DefaultAvatar);
     } catch {
-      // Keep defaults if storage is unavailable
       setDoctorName('Doctor');
-      setDoctorSpec('Especialidad no definida');
-      setDoctorAvatar(DefaultAvatar);
-      setDashboardData(EMPTY_DASHBOARD);
     } finally {
       setProfileReady(true);
     }
-  }, [loadDashboardData, loadUpcomingCitas, syncProfile]);
+  }, [syncProfile, loadDashboardData, loadUpcomingCitas]);
 
   useFocusEffect(
     useCallback(() => {
       const now = Date.now();
-      if (now - lastRefreshRef.current < MIN_REFRESH_INTERVAL_MS) {
-        return;
+      if (!profileReady || now - lastRefreshRef.current > MIN_REFRESH_INTERVAL_MS) {
+        lastRefreshRef.current = now;
+        loadMedicoProfile();
       }
-      lastRefreshRef.current = now;
-      loadMedicoProfile();
-    }, [loadMedicoProfile])
+    }, [profileReady, loadMedicoProfile])
   );
 
   const handleLogout = async () => {
-    setIsMobileMenuOpen(false);
-    try {
-      await signOut();
-      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-    } catch {
-      Alert.alert('Error', 'No se pudo cerrar la sesión. Intenta nuevamente.');
-    }
+    closeMobileMenu();
+    await signOut();
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
-  const dateText = useMemo(
-    () =>
-      new Intl.DateTimeFormat('es-DO', {
-        weekday: 'long',
-        day: '2-digit',
-        month: 'long',
-      }).format(new Date()),
-    []
-  );
-  const timeText = useMemo(
-    () =>
-      new Intl.DateTimeFormat('es-DO', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(new Date()),
-    []
-  );
-  const nextCita = upcomingCitas[0] || null;
-  const bannerPatientName = String(nextCita?.paciente?.nombreCompleto || '').trim() || 'Paciente';
-  const bannerCitaText = nextCita
-    ? `${formatDateTime(nextCita.fechaHoraInicio)} · ${String(nextCita.estado || 'Pendiente').trim() || 'Pendiente'}`
-    : 'No tienes videoconsultas pendientes';
-
-  const sideItems: SideItem[] = [
-    { icon: 'dashboard', label: 'Dashboard', active: true, route: 'DashboardMedico' },
-    { icon: 'calendar-today', label: 'Agenda', route: 'MedicoCitas' },
-    { icon: 'group', label: 'Pacientes', route: 'MedicoPacientes' },
-    { icon: 'notification-important', label: 'Solicitudes', badge: { text: '5', color: colors.red } },
-    { icon: 'chat-bubble', label: 'Mensajes', badge: { text: '3', color: colors.primary }, route: 'MedicoChat' },
-    { icon: 'person', label: 'Perfil', route: 'MedicoPerfil' },
-    { icon: 'settings', label: 'Configuracion', route: 'MedicoPerfil' },
-  ];
-
-  const handleSideItemPress = (item: SideItem) => {
-    setIsMobileMenuOpen(false);
-    if (!item.route) {
-      Alert.alert('Solicitudes', 'Las solicitudes pendientes se integraran en un modulo dedicado.');
-      return;
-    }
-    if (item.route === 'DashboardMedico') return;
-    navigation.navigate(item.route);
+  const handleSidebarNavigation = (route: string) => {
+    closeMobileMenu();
+    navigation.navigate(route as any);
   };
 
-  const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
+  const handleVideoCall = async (citaId?: string) => {
+    const targetCita = citaId 
+      ? upcomingCitas.find(c => c.citaid === citaId) 
+      : upcomingCitas[0];
+      
+    if (!targetCita) return;
 
-  const handleVideoCall = async () => {
-    const nextAgenda = upcomingCitas[0] || null;
-    if (!nextAgenda) {
-      Alert.alert('Videollamada', 'No tienes citas disponibles para iniciar en este momento.');
-      return;
-    }
-
-    setOpeningCitaId(nextAgenda.citaid);
+    setOpeningCitaId(targetCita.citaid);
     try {
       const payload = await apiClient.post<any>(
-        `/api/agenda/me/citas/${nextAgenda.citaid}/video-sala/abrir`,
+        `/api/jitsi/citas/${targetCita.citaid}/sala`,
         { authenticated: true }
       );
-      const joinUrl = String(payload?.videoSala?.joinUrl || '').trim();
-      if (!payload?.success || !joinUrl) {
-        Alert.alert('No disponible', payload?.message || 'No se pudo abrir la videollamada.');
-        return;
+      if (!payload?.success || !payload?.salaUrl) {
+        throw new Error(payload?.message || 'Error al obtener la sala.');
       }
-
       if (Platform.OS === 'web') {
-        const webOpen = (globalThis as any)?.open;
-        if (typeof webOpen === 'function') {
-          const opened = webOpen(joinUrl, '_blank');
-          if (opened) return;
-        }
+        window.open(payload.salaUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        await Linking.openURL(payload.salaUrl);
       }
-      await Linking.openURL(joinUrl);
-    } catch (error) {
-      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo abrir la videollamada.'));
+    } catch (error: any) {
+      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo abrir la sala de espera'));
     } finally {
       setOpeningCitaId('');
     }
   };
 
-  if (!profileReady) {
-    return (
-      <View style={styles.initialLoaderWrap}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.initialLoaderText}>Cargando perfil medico...</Text>
-      </View>
-    );
-  }
-
+  const nextCita = upcomingCitas[0] || null;
+  const bannerPatientName = nextCita ? nextCita.paciente.nombreCompleto : '';
+  const bannerPatientAvatar = resolveAvatarSource(nextCita?.paciente?.fotoUrl);
+  
   return (
-    <View style={[styles.container, isDesktopLayout ? styles.containerDesktop : styles.containerMobile]}>
+    <View style={[styles.container, isInsidePortal ? null : (isDesktopLayout ? styles.containerDesktop : styles.containerMobile)]}>
       {!isInsidePortal && !isDesktopLayout ? (
         <View style={styles.mobileMenuBar}>
           <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
-            <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.viremDark} />
+            <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.dark} />
             <Text style={styles.mobileMenuButtonText}>
               {isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
             </Text>
@@ -537,223 +499,240 @@ const DashboardMedico: React.FC = () => {
             <Image source={ViremLogo} style={styles.logo} />
             <View>
               <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSubtitle}>Portal Medico</Text>
+              <Text style={styles.logoSubtitle}>Portal Médico</Text>
             </View>
           </View>
 
-          {/* Perfil mini */}
+          {/* User mini */}
           <View style={styles.userBox}>
             <Image source={doctorAvatar} style={styles.userAvatar} />
-            <Text numberOfLines={1} style={styles.userName}>
-              {doctorName}
-            </Text>
-            <Text numberOfLines={1} style={styles.userSpec}>
-              {doctorSpec}
-            </Text>
+            <Text style={styles.userName}>{doctorName}</Text>
+            <Text style={styles.userPlan}>{doctorSpec}</Text>
           </View>
 
-          {/* Nav */}
-          <View style={[styles.nav, isDesktopLayout ? styles.navDesktop : styles.navMobile]}>
-            {sideItems.map((it) => (
-              <SidebarItem
-                key={it.label}
-                icon={it.icon}
-                label={it.label}
-                badge={it.badge}
-                active={it.active}
-                onPress={() => handleSideItemPress(it)}
-              />
-            ))}
+          {/* Menú */}
+          <View style={[styles.menu, isDesktopLayout ? styles.menuDesktop : styles.menuMobile]}>
+            <TouchableOpacity
+              style={[styles.menuItemRow, styles.menuItemActive]}
+              onPress={() => handleSidebarNavigation('DashboardMedico')}
+            >
+              <MaterialIcons name="grid-view" size={20} color={colors.primary} />
+              <Text style={[styles.menuText, styles.menuTextActive]}>Inicio</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => handleSidebarNavigation('MedicoCitas')}>
+              <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>Agenda</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => handleSidebarNavigation('MedicoPacientes')}>
+              <MaterialIcons name="group" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>Pacientes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => handleSidebarNavigation('MedicoChat')}>
+              <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>Mensajes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => handleSidebarNavigation('MedicoPerfil')}>
+              <MaterialIcons name="account-circle" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>Perfil</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Cerrar sesion */}
-        <TouchableOpacity activeOpacity={0.88} style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutButtonText}>Cerrar sesion</Text>
+        {/* Cerrar sesión */}
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <MaterialIcons name="logout" size={18} color="#fff" />
+          <Text style={styles.logoutText}>Cerrar sesión</Text>
         </TouchableOpacity>
       </View>
       )}
+
       {/* ===================== MAIN ===================== */}
-      <ScrollView style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]} contentContainerStyle={{ paddingBottom: 28 }}>
-        {/* Header */}
-        <View style={styles.headerWrap}>
-          <View style={styles.headerRow}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.h1}>Dashboard del Médico</Text>
-              <Text style={styles.hSub}>
-                Bienvenido de nuevo, {doctorName}. Aquí está el resumen de su jornada para hoy.
+      <ScrollView style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]} contentContainerStyle={{ paddingBottom: 40 }}>
+        
+        {/* Header simple */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Panel Médico</Text>
+          <TouchableOpacity style={styles.notifBtn}>
+            <MaterialIcons name="notifications-none" size={24} color={colors.dark} />
+            {dashboardData.stats.mensajesPendientes > 0 && <View style={styles.notifDot} />}
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.subtitle}>Aquí tienes un resumen de tu jornada y próximos pacientes.</Text>
+
+        {/* Hero Card (Big Card) */}
+        <View style={styles.bigCard}>
+          <View style={styles.bigCardLeft}>
+            <View style={styles.liveRow}>
+              <View style={[styles.liveDot, { backgroundColor: nextCita ? '#22c55e' : colors.primary }]} />
+              <Text style={[styles.liveText, { color: nextCita ? '#22c55e' : colors.primary }]}>
+                {nextCita ? 'PRÓXIMA CITA' : 'JORNADA ACTIVA'}
               </Text>
             </View>
+            <Text style={styles.bigCardTitle}>Bienvenido de nuevo, {doctorName}</Text>
+            <Text style={styles.bigCardSub}>
+              {nextCita 
+                ? `Tienes una videollamada programada con ${bannerPatientName} para las ${formatDateTime(nextCita.fechaHoraInicio)}.` 
+                : 'No tienes citas virtuales programadas para este momento.'}
+            </Text>
 
-            <View style={styles.headerRight}>
-              <Text style={styles.headerDate}>{dateText}</Text>
-              <Text style={styles.headerTime}>{timeText}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Stats */}
-        <View style={styles.statsGrid}>
-          <StatCard
-            title="Citas Completadas"
-            value={String(dashboardData.stats.citasCompletadas)}
-            icon="check-circle"
-            trendText={`${dashboardData.stats.citasHoy} hoy`}
-            trendUp
-          />
-          <StatCard
-            title="Nuevos Pacientes"
-            value={String(dashboardData.stats.nuevosPacientesMes)}
-            icon="person-add"
-            trendText="Este mes"
-            trendUp
-          />
-          <StatCard
-            title="Mensajes Pendientes"
-            value={String(dashboardData.stats.mensajesPendientes)}
-            icon="mail"
-            trendText={loadingDashboard ? 'Cargando...' : 'Sincronizado'}
-            trendUp={dashboardData.stats.mensajesPendientes === 0}
-          />
-        </View>
-
-        {/* Banner call */}
-        <View style={styles.banner}>
-          <View style={styles.bannerRow}>
-            <View style={styles.bannerLeft}>
-              <View style={styles.patientRing}>
-                <Image source={PatientAvatar} style={styles.patientAvatar} />
-              </View>
-
-              <View style={styles.bannerTexts}>
-                <View style={styles.bannerTitleRow}>
-                  <View style={styles.nowPill}>
-                    <Text style={styles.nowPillText}>AHORA</Text>
-                  </View>
-                  <Text style={styles.bannerTitle}>
-                    {nextCita ? `Videollamada con ${bannerPatientName}` : 'Sin videoconsultas activas'}
-                  </Text>
-                </View>
-                <Text style={styles.bannerSub}>{bannerCitaText}</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.9}
-              style={[
-                styles.bannerBtn,
-                (!nextCita || openingCitaId === nextCita?.citaid) ? styles.bannerBtnDisabled : null,
-              ]}
-              onPress={handleVideoCall}
-              disabled={!nextCita || openingCitaId === nextCita?.citaid}
-            >
-              <MaterialIcons name="videocam" size={20} color="#fff" />
-              <Text style={styles.bannerBtnText}>
-                {openingCitaId === nextCita?.citaid
-                  ? 'Abriendo...'
-                  : nextCita
-                    ? 'Iniciar Videollamada'
-                    : 'Sin cita activa'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.bannerIconGhost}>
-            <MaterialIcons name="video-call" size={160} color="#fff" />
-          </View>
-        </View>
-
-        {/* Bottom grid */}
-        <View style={styles.bottomGrid}>
-          {/* Agenda */}
-          <View style={styles.section}>
-            <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>Agenda de hoy</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('MedicoCitas')}>
-                <Text style={styles.sectionLink}>Ver calendario</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.boxCard}>
-              {dashboardData.agendaHoy.length ? (
-                dashboardData.agendaHoy.map((item) => (
-                  <AgendaRow
-                    key={item.id || `${item.time}-${item.name}`}
-                    time={item.time}
-                    name={item.name}
-                    detail={item.detail}
-                    onPress={() =>
-                      navigation.navigate('MedicoChat', {
-                        patientId: String(item.patientId || ''),
-                        patientName: item.name,
-                      })
-                    }
-                  />
-                ))
-              ) : (
-                <View style={styles.emptyStateCard}>
-                  <Text style={styles.emptyStateText}>
-                    {loadingDashboard ? 'Cargando agenda...' : 'No tienes citas agendadas para hoy.'}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* Expedientes */}
-          <View style={styles.section}>
-            <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>Expedientes Recientes</Text>
+            <View style={styles.bigCardActions}>
               <TouchableOpacity
-                onPress={() =>
-                  Alert.alert(
-                    'Expedientes',
-                    `Expedientes recientes disponibles: ${dashboardData.expedientesRecientes.length}`
-                  )
-                }
+                style={styles.primaryBtn}
+                activeOpacity={0.8}
+                onPress={() => nextCita ? handleVideoCall(nextCita.citaid) : navigation.navigate('MedicoCitas')}
+                disabled={openingCitaId === (nextCita?.citaid || '')}
               >
-                <Text style={styles.sectionLink}>Ver todos</Text>
+                <MaterialIcons name={nextCita ? 'videocam' : 'calendar-today'} size={18} color="#fff" />
+                <Text style={styles.primaryBtnText}>
+                  {openingCitaId === (nextCita?.citaid || '') 
+                    ? 'Abriendo...' 
+                    : (nextCita ? 'Iniciar Videollamada' : 'Ver agenda completa')}
+                </Text>
+              </TouchableOpacity>
+
+              {nextCita && (
+                <TouchableOpacity
+                  style={styles.secondaryBtn}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('MedicoPacientes')}
+                >
+                  <Text style={styles.secondaryBtnText}>Ver paciente</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.bigCardRight}>
+            <Image source={doctorAvatar} style={styles.bigCardImage} />
+          </View>
+        </View>
+
+        {/* Quick Tiles */}
+        <View style={styles.quickRow}>
+          <TouchableOpacity
+            style={styles.quickTile}
+            onPress={() => navigation.navigate('MedicoCitas')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickTileIcon, { backgroundColor: 'rgba(19,127,236,0.12)' }]}>
+              <MaterialIcons name="event-note" size={22} color={colors.primary} />
+            </View>
+            <Text style={styles.quickTileLabel}>Agenda</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickTile}
+            onPress={() => navigation.navigate('MedicoPacientes')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickTileIcon, { backgroundColor: '#fff7ed' }]}>
+              <MaterialIcons name="people-outline" size={22} color="#f97316" />
+            </View>
+            <Text style={styles.quickTileLabel}>Pacientes</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickTile}
+            onPress={() => navigation.navigate('MedicoChat')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickTileIcon, { backgroundColor: '#faf5ff' }]}>
+              <MaterialIcons name="chat-bubble-outline" size={22} color="#a855f7" />
+            </View>
+            <Text style={styles.quickTileLabel}>Mensajes</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Two Columns */}
+        <View style={styles.twoCols}>
+          <View style={[styles.colLeft, styles.colLeftFull]}>
+            <View style={styles.rowBetween}>
+              <Text style={styles.sectionTitle}>Próximas videocitas</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('MedicoCitas')} activeOpacity={0.7}>
+                <Text style={styles.link}>Ver todas</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.filesGrid}>
-              {dashboardData.expedientesRecientes.length ? (
-                dashboardData.expedientesRecientes.map((item) => (
-                  <FileCard
-                    key={item.id || item.code}
-                    name={item.name}
-                    id={item.code}
-                    lastSeen={item.lastSeenText}
-                    onPress={() =>
-                      navigation.navigate('MedicoChat', {
-                        patientId: item.id,
-                        patientName: item.name,
-                      })
-                    }
-                  />
-                ))
-              ) : (
-                <View style={styles.emptyStateCard}>
-                  <Text style={styles.emptyStateText}>
-                    {loadingDashboard ? 'Cargando expedientes...' : 'Sin expedientes recientes.'}
-                  </Text>
-                </View>
-              )}
+            {loadingDashboard && upcomingCitas.length === 0 ? (
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 20 }} />
+            ) : upcomingCitas.length ? (
+              upcomingCitas.slice(0, 5).map((cita) => (
+                <AppointmentCard
+                  key={cita.citaid}
+                  patient={cita.paciente.nombreCompleto}
+                  detail={`Virtual • ${formatDateTime(cita.fechaHoraInicio)}`}
+                  avatar={resolveAvatarSource(cita.paciente.fotoUrl)}
+                  onVideoCall={() => handleVideoCall(cita.citaid)}
+                  videoCallDisabled={openingCitaId === cita.citaid}
+                  videoCallLabel={openingCitaId === cita.citaid ? 'Abriendo...' : 'Iniciar Sala'}
+                  onDetails={() => navigation.navigate('MedicoCitas')}
+                />
+              ))
+            ) : (
+              <View style={styles.emptyCard}>
+                <MaterialCommunityIcons name="calendar-blank" size={32} color={colors.muted} />
+                <Text style={styles.emptyText}>No hay videocitas programadas.</Text>
+              </View>
+            )}
+
+            <View style={styles.rowBetween}>
+              <Text style={styles.sectionTitle}>Expedientes Recientes</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('MedicoPacientes')} activeOpacity={0.7}>
+                <Text style={styles.link}>Buscar paciente</Text>
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.searchWrap}>
-              <View style={styles.searchBox}>
-                <MaterialIcons name="search" size={18} color={colors.viremMuted} />
-                <TextInput
-                  placeholder="Buscar paciente por nombre o ID..."
-                  placeholderTextColor={colors.viremMuted}
-                  style={styles.searchInput}
+            {dashboardData.expedientesRecientes.length > 0 ? (
+              dashboardData.expedientesRecientes.map((exp) => (
+                <FileCard 
+                  key={exp.id} 
+                  name={exp.name} 
+                  id={exp.code} 
+                  lastSeen={exp.lastSeenText} 
+                  onPress={() => navigation.navigate('MedicoPacientes')} 
                 />
+              ))
+            ) : (
+              <View style={styles.emptyCard}>
+                <MaterialIcons name="folder-open" size={32} color={colors.muted} />
+                <Text style={styles.emptyText}>No hay expedientes recientes.</Text>
               </View>
+            )}
+          </View>
+
+          {/* Right Column: Stats */}
+          <View style={[styles.colRight, !isDesktopLayout && { marginTop: 10 }]}>
+            <Text style={styles.sectionTitle}>Resumen Actividad</Text>
+            <View style={styles.statsContainer}>
+              <StatPill
+                title="Citas Completadas"
+                value={String(dashboardData.stats.citasCompletadas)}
+                icon="check-circle"
+                trendText={`${dashboardData.stats.citasHoy} hoy`}
+                trendUp
+              />
+              <StatPill
+                title="Nuevos Pacientes"
+                value={String(dashboardData.stats.nuevosPacientesMes)}
+                icon="person-add"
+                trendText="Este mes"
+                trendUp
+              />
+              <StatPill
+                title="Mensajes Pendientes"
+                value={String(dashboardData.stats.mensajesPendientes)}
+                icon="mail"
+                trendText={loadingDashboard ? '...' : 'Sincronizado'}
+                trendUp={dashboardData.stats.mensajesPendientes === 0}
+              />
             </View>
           </View>
         </View>
+
       </ScrollView>
     </View>
   );
@@ -761,369 +740,106 @@ const DashboardMedico: React.FC = () => {
 
 export default DashboardMedico;
 
-/* ===================== STYLES ===================== */
 const styles = StyleSheet.create({
-  initialLoaderWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.bgLight,
-    gap: 10,
-  },
-  initialLoaderText: {
-    color: colors.viremMuted,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.bgLight,
-  },
+  container: { flex: 1, backgroundColor: colors.bg },
   containerDesktop: { flexDirection: 'row' },
   containerMobile: { flexDirection: 'column' },
-  mobileMenuBar: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 8,
-    backgroundColor: colors.bgLight,
-  },
-  mobileMenuButton: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d8e4f0',
-    backgroundColor: colors.white,
-  },
-  mobileMenuButtonText: {
-    color: colors.viremDark,
-    fontWeight: '700',
-    fontSize: 13,
-  },
+  
+  mobileMenuBar: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8, backgroundColor: colors.bg },
+  mobileMenuButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#d8e4f0', backgroundColor: colors.white },
+  mobileMenuButtonText: { color: colors.dark, fontWeight: '700', fontSize: 13 },
 
-  /* Sidebar */
-  sidebar: {
-    backgroundColor: colors.white,
-    justifyContent: 'space-between',
-  },
-  sidebarDesktop: {
-    width: 280,
-    borderRightWidth: 1,
-    borderRightColor: '#eef2f7',
-    padding: 20,
-  },
-  sidebarMobile: {
-    width: '100%',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eef2f7',
-    padding: 14,
-  },
+  sidebar: { backgroundColor: colors.white, justifyContent: 'space-between' },
+  sidebarDesktop: { width: 280, borderRightWidth: 1, borderRightColor: '#eef2f7', padding: 20 },
+  sidebarMobile: { width: '100%', borderBottomWidth: 1, borderBottomColor: '#eef2f7', padding: 14 },
+
   logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
-  logoTitle: {
-    color: colors.viremDark,
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  logoSubtitle: {
-    color: colors.viremMuted,
-    fontSize: 11,
-    fontWeight: '700',
-  },
+  logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
+  logoSubtitle: { fontSize: 11, fontWeight: '700', color: colors.muted },
+
   userBox: { marginTop: 18, alignItems: 'center', paddingVertical: 12 },
-  userAvatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 76,
-    marginBottom: 10,
-    borderWidth: 4,
-    borderColor: '#f5f7fb',
-  },
-  userName: { fontWeight: '800', color: colors.viremDark, fontSize: 14, textAlign: 'center' },
-  userSpec: { color: colors.viremMuted, fontSize: 11, fontWeight: '700', marginTop: 2, textAlign: 'center' },
-  nav: {
-    marginTop: 10,
-    gap: 6,
-  },
-  navDesktop: { flex: 1 },
-  navMobile: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  sideItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    minWidth: 150,
-  },
-  sideItemActive: {
-    backgroundColor: 'rgba(19,127,236,0.10)',
-  },
-  sideItemText: {
-    color: colors.viremMuted,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  sideItemTextActive: {
-    color: colors.primary,
-    fontWeight: '800',
-  },
-  badge: {
-    marginLeft: 'auto',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.viremDeep,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  logoutButtonText: { color: '#fff', fontWeight: '800' },
+  userAvatar: { width: 76, height: 76, borderRadius: 76, marginBottom: 10, borderWidth: 4, borderColor: '#f5f7fb' },
+  userName: { fontWeight: '800', color: colors.dark, fontSize: 14, textAlign: 'center' },
+  userPlan: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 2, textAlign: 'center' },
 
-  /* Main */
-  main: { flex: 1 },
-  mainMobile: { paddingTop: 2 },
+  menu: { marginTop: 10, gap: 6 },
+  menuDesktop: { flex: 1 },
+  menuMobile: { flexDirection: 'row', flexWrap: 'wrap' },
+  menuItemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12, minWidth: 150 },
+  menuItemActive: { backgroundColor: 'rgba(19,127,236,0.10)', borderRightWidth: 3, borderRightColor: colors.primary },
+  menuText: { fontSize: 14, fontWeight: '700', color: colors.muted },
+  menuTextActive: { color: colors.primary },
 
-  headerWrap: {
-    paddingHorizontal: Platform.OS === 'web' ? 32 : 14,
-    paddingTop: Platform.OS === 'web' ? 32 : 14,
-    paddingBottom: 16,
-  },
-  headerRow: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-    justifyContent: 'space-between',
-    alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-start',
-    gap: 14,
-  },
-  headerLeft: { flex: 1 },
-  h1: {
-    color: colors.viremDark,
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: -0.3,
-  },
-  hSub: {
-    color: colors.viremMuted,
-    fontSize: 16,
-    marginTop: 6,
-    fontWeight: '500',
-  },
-  headerRight: { alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-start' },
-  headerDate: { color: colors.viremDark, fontSize: 14, fontWeight: '800' },
-  headerTime: { color: colors.viremMuted, fontSize: 12, marginTop: 2 },
+  logoutButton: { flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand, paddingVertical: 12, borderRadius: 12 },
+  logoutText: { color: '#fff', fontWeight: '800' },
 
-  /* Stats */
-  statsGrid: {
-    paddingHorizontal: Platform.OS === 'web' ? 32 : 14,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  statCard: {
-    flexGrow: 1,
-    flexBasis: 260,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.viremLight,
-    borderRadius: 14,
-    padding: 18,
-    ...(Platform.OS === 'web'
-      ? { boxShadow: '0px 1px 2px rgba(0,0,0,0.06)' as any }
-      : {
-          shadowColor: '#000',
-          shadowOpacity: 0.06,
-          shadowRadius: 6,
-          shadowOffset: { width: 0, height: 2 },
-          elevation: 2,
-        }),
-  },
-  statTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  statTitle: {
-    color: colors.viremMuted,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  statBottomRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 10 },
-  statValue: { color: colors.viremDark, fontSize: 30, fontWeight: '900' },
-  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingBottom: 2 },
-  trendText: { fontSize: 13, fontWeight: '800' },
+  main: { flex: 1, paddingHorizontal: 26, paddingTop: 18 },
+  mainMobile: { paddingHorizontal: 14, paddingTop: 12 },
 
-  /* Banner */
-  banner: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
-    marginVertical: 16,
-    backgroundColor: colors.viremDeep,
-    borderRadius: 14,
-    padding: 18,
-    overflow: 'hidden',
-    ...(Platform.OS === 'web'
-      ? { boxShadow: '0px 8px 16px rgba(10,25,49,0.18)' as any }
-      : {
-          shadowColor: '#0A1931',
-          shadowOpacity: 0.18,
-          shadowRadius: 14,
-          shadowOffset: { width: 0, height: 8 },
-          elevation: 6,
-        }),
-  },
-  bannerRow: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-    justifyContent: 'space-between',
-    alignItems: Platform.OS === 'web' ? 'center' : 'flex-start',
-    gap: 16,
-    zIndex: 2,
-  },
-  bannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
-  patientRing: {
-    width: 64,
-    height: 64,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: 'rgba(19,127,236,0.30)',
-    padding: 4,
-  },
-  patientAvatar: { width: '100%', height: '100%', borderRadius: 999 },
-  bannerTexts: { flex: 1 },
-  bannerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  nowPill: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  nowPillText: { color: '#fff', fontSize: 10, fontWeight: '900' },
-  bannerTitle: { color: '#fff', fontSize: 18, fontWeight: '900' },
-  bannerSub: { color: colors.viremLight, fontSize: 13, marginTop: 4, fontWeight: '600' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10, flexWrap: 'wrap' },
+  notifBtn: { width: 46, height: 46, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: colors.dark, shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  notifDot: { position: 'absolute', top: 12, right: 12, width: 10, height: 10, borderRadius: 10, backgroundColor: '#ef4444', borderWidth: 2, borderColor: '#fff' },
 
-  bannerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  bannerBtnDisabled: {
-    backgroundColor: '#7aa8d8',
-  },
-  bannerBtnText: { color: '#fff', fontWeight: '900' },
+  title: { fontSize: 30, fontWeight: '900', color: colors.dark, marginTop: 8, letterSpacing: -0.3 },
+  subtitle: { fontSize: 14, color: colors.muted, marginTop: 4, marginBottom: 16, fontWeight: '600', lineHeight: 20 },
 
-  bannerIconGhost: {
-    position: 'absolute',
-    right: -10,
-    top: -10,
-    opacity: 0.1,
-    zIndex: 1,
-  },
+  bigCard: { backgroundColor: '#fff', borderRadius: 24, padding: 18, flexDirection: Platform.OS === 'web' ? 'row' : 'column', gap: 16, marginBottom: 18, shadowColor: colors.dark, shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
+  bigCardLeft: { flex: 1 },
+  bigCardRight: { width: Platform.OS === 'web' ? 160 : '100%', justifyContent: 'center', alignItems: 'center' },
+  bigCardImage: { width: 140, height: 140, borderRadius: 20 },
+  liveRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  liveDot: { width: 10, height: 10, borderRadius: 10, backgroundColor: '#22c55e' },
+  liveText: { color: colors.primary, fontSize: 11, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
+  bigCardTitle: { fontSize: 18, fontWeight: '900', color: colors.dark, marginBottom: 6 },
+  bigCardSub: { color: colors.muted, fontWeight: '700', marginBottom: 14 },
+  bigCardActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  primaryBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16, shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  primaryBtnText: { color: '#fff', fontWeight: '900' },
+  secondaryBtn: { backgroundColor: '#f1f5f9', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16 },
+  secondaryBtnText: { color: colors.muted, fontWeight: '900' },
 
-  /* Bottom grid */
-  bottomGrid: {
-    paddingHorizontal: Platform.OS === 'web' ? 32 : 14,
-    paddingTop: 8,
-    paddingBottom: 24,
-    flexDirection: 'row',
-    gap: 18,
-    flexWrap: 'wrap',
-  },
-  section: {
-    flexGrow: 1,
-    flexBasis: 420,
-    gap: 12,
-  },
-  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { color: colors.viremDark, fontSize: 18, fontWeight: '900' },
-  sectionLink: { color: colors.primary, fontSize: 13, fontWeight: '900' },
+  quickRow: { flexDirection: 'row', gap: 10, marginBottom: 18 },
+  quickTile: { flex: 1, backgroundColor: '#fff', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 10, alignItems: 'center', borderWidth: 1, borderColor: '#eef3fa', shadowColor: colors.dark, shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  quickTileIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  quickTileLabel: { fontSize: 12, fontWeight: '700', color: colors.dark, textAlign: 'center' },
 
-  boxCard: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.viremLight,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  emptyStateCard: {
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-  },
-  emptyStateText: {
-    color: colors.viremMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  agendaRow: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.viremLight,
-  },
-  agendaLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
-  agendaTime: { width: 72, color: colors.viremMuted, fontSize: 13, fontWeight: '900' },
-  agendaTexts: { flex: 1 },
-  agendaName: { color: colors.viremDark, fontSize: 13, fontWeight: '900' },
-  agendaDetail: { color: colors.viremMuted, fontSize: 12, marginTop: 2, fontWeight: '600' },
+  twoCols: { flexDirection: Platform.OS === 'web' ? 'row' : 'column', gap: 16, marginTop: 16 },
+  colLeft: { flex: 2 },
+  colRight: { flex: 1.2 },
+  colLeftFull: { flex: 1 },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 
-  filesGrid: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
-  fileCard: {
-    flexGrow: 1,
-    flexBasis: 220,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.viremLight,
-    borderRadius: 14,
-    padding: 14,
-  },
-  fileTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-  fileIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(179,207,229,0.30)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fileName: { color: colors.viremDark, fontSize: 13, fontWeight: '900' },
-  fileId: { color: colors.viremMuted, fontSize: 12, marginTop: 2, fontWeight: '600' },
-  fileLastSeen: { color: colors.viremMuted, fontSize: 12, fontStyle: 'italic' },
+  sectionTitle: { fontSize: 16, fontWeight: '900', color: colors.dark, marginBottom: 10, marginTop: 10 },
+  link: { color: colors.primary, fontWeight: '900', fontSize: 12 },
 
-  searchWrap: { marginTop: 6 },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.viremLight,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  searchInput: { flex: 1, color: colors.viremDark, fontWeight: '600' },
+  apptCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', padding: 14, borderRadius: 18, marginTop: 10, shadowColor: colors.dark, shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  apptAvatar: { width: 52, height: 52, borderRadius: 16 },
+  apptDoctor: { fontWeight: '900', color: colors.dark },
+  apptDetail: { color: colors.muted, fontWeight: '700', marginTop: 2, fontSize: 12 },
+  apptBtns: { flexDirection: 'row', gap: 8 },
+  smallBtnGray: { backgroundColor: '#f1f5f9', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12 },
+  smallBtnGrayDisabled: { backgroundColor: '#e2e8f0' },
+  smallBtnGrayText: { color: colors.muted, fontWeight: '900', fontSize: 12 },
+  smallBtnGrayTextDisabled: { color: '#94a3b8' },
+  smallBtnBlue: { backgroundColor: 'rgba(19,127,236,0.12)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12 },
+  smallBtnBlueText: { color: colors.primary, fontWeight: '900', fontSize: 12 },
+
+  docRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eef2f7' },
+  docLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  docIconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#f4f8fc', alignItems: 'center', justifyContent: 'center' },
+  docTitle: { color: colors.dark, fontWeight: '700', fontSize: 13 },
+  docSub: { color: colors.muted, fontSize: 11, marginTop: 2 },
+
+  emptyCard: { alignItems: 'center', padding: 24, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#eef2f7', borderStyle: 'dashed', marginTop: 10 },
+  emptyText: { color: colors.muted, fontWeight: '600', marginTop: 10 },
+
+  statsContainer: { gap: 10, marginTop: 10 },
+  statCard: { backgroundColor: '#fff', padding: 16, borderRadius: 18, shadowColor: colors.dark, shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  statTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  statTitle: { color: colors.muted, fontWeight: '700', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  statValue: { fontSize: 24, fontWeight: '900', color: colors.dark },
+  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f8fafc', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  trendText: { fontSize: 11, fontWeight: '800' },
 });
-
-
-
