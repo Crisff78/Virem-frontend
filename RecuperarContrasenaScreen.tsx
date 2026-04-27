@@ -161,12 +161,12 @@ const RecuperarContrasenaScreen: React.FC = () => {
     const cleanedEmail = emailOrPhone.toLowerCase().trim();
 
     if (!cleanedEmail) {
-      Alert.alert('Atencion', 'Por favor, ingresa tu correo electronico.');
+      Alert.alert('Atención', 'Por favor, ingresa tu correo electrónico.');
       return;
     }
 
     if (!isValidEmail(cleanedEmail)) {
-      Alert.alert('Atencion', 'Ingresa un correo electronico valido.');
+      Alert.alert('Atención', 'Ingresa un correo electrónico válido.');
       return;
     }
 
@@ -179,21 +179,20 @@ const RecuperarContrasenaScreen: React.FC = () => {
         });
 
         if (data?.success) {
-          if (data?.devCode) {
+          if (__DEV__ && data?.devCode) {
             Alert.alert(
-              'Codigo de desarrollo',
-              `Usa este codigo para continuar la recuperacion: ${String(data.devCode)}`
+              'Código de desarrollo',
+              `Usa este código para continuar la recuperación: ${String(data.devCode)}`
             );
           }
           navigation.navigate('VerificarIdentidad', { email: cleanedEmail });
         } else {
-          Alert.alert('Error', data?.message || 'No se pudo enviar el codigo de recuperacion.');
+          Alert.alert('Error', data?.message || 'No se pudo enviar el código de recuperación.');
         }
     } catch (error: any) {
       Alert.alert(
-        'Error de Conexion',
-        error?.message ||
-        'No se pudo contactar al servidor. Revisa si el backend esta encendido y la URL configurada.'
+        'Error de Conexión',
+        error?.message || 'No se pudo contactar al servidor. Intenta de nuevo.'
       );
     } finally {
       setIsLoading(false);
@@ -201,7 +200,7 @@ const RecuperarContrasenaScreen: React.FC = () => {
   };
 
   const handleBackToLogin = () => {
-    navigation.navigate('Login');
+    navigation.navigate('Login', { prefillEmail: emailOrPhone.toLowerCase().trim() });
   };
 
   return (
@@ -216,14 +215,14 @@ const RecuperarContrasenaScreen: React.FC = () => {
         </View>
 
         <View style={styles.headerText}>
-          <Text style={styles.title}>Recuperar Contrasena</Text>
+          <Text style={styles.title}>Recuperar Contraseña</Text>
           <Text style={styles.subtitle}>
-            Ingresa tu correo electronico asociado a tu cuenta para recibir un codigo de
+            Ingresa tu correo electrónico asociado a tu cuenta para recibir un código de
             restablecimiento.
           </Text>
         </View>
 
-        <Text style={styles.labelText}>Correo electronico</Text>
+        <Text style={styles.labelText}>Correo electrónico</Text>
         <View style={styles.inputGroup}>
           <TextInput
             style={styles.input}
@@ -251,7 +250,7 @@ const RecuperarContrasenaScreen: React.FC = () => {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.backToLoginLink} onPress={handleBackToLogin}>
-          <Text style={styles.backToLoginText}>Volver al Inicio de Sesion</Text>
+          <Text style={styles.backToLoginText}>Volver al Inicio de Sesión</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

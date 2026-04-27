@@ -12,12 +12,12 @@ import {
   Platform,
 } from 'react-native';
 
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as SecureStore from 'expo-secure-store';
 
 import { RootStackParamList } from './navigation/types';
-import { apiUrl, BACKEND_URL } from './config/backend';
 import { isValidEmail } from './utils/validation';
 import { apiClient } from './utils/api';
 import { useAuth } from './providers/AuthProvider';
@@ -71,34 +71,28 @@ async function getCachedMedicoProfileByEmail(email: string) {
 
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
+  const route = useRoute<RouteProp<RootStackParamList, 'Login'>>();
   const { signIn } = useAuth<any>();
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(route.params?.prefillEmail ?? '');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     const emailTrim = email.toLowerCase().trim();
 
     if (!emailTrim || !password) {
-      Alert.alert('Error', 'Completa correo y contrasena.');
+      Alert.alert('Error', 'Completa correo y contraseña.');
       return;
     }
 
     if (!isValidEmail(emailTrim)) {
-      Alert.alert('Error', 'El correo no tiene un formato valido.');
+      Alert.alert('Error', 'El correo no tiene un formato válido.');
       return;
     }
 
     setIsLoading(true);
-
-    const url = apiUrl('/api/auth/login');
-
-    console.log('================ LOGIN ================');
-    console.log('Platform:', Platform.OS);
-    console.log('BACKEND_URL:', BACKEND_URL);
-    console.log('Login URL:', url);
-    console.log('Email:', emailTrim);
 
     try {
       const data = await apiClient.post<any>('/api/auth/login', {
@@ -129,22 +123,12 @@ const LoginScreen: React.FC = () => {
       const targetRoute: keyof RootStackParamList =
         rolid === 3 ? 'AdminPanel' : rolid === 2 ? 'DashboardMedico' : 'DashboardPaciente';
 
-      console.log(`Login OK -> ${targetRoute} (rolid=${rolid || 'N/A'})`);
-
       navigation.reset({ index: 0, routes: [{ name: targetRoute }] });
 
-      // Opcional: mostrar mensaje despues (no bloquea navegacion)
-      setTimeout(() => {
-        Alert.alert('Exito', 'Iniciaste sesion correctamente.');
-      }, 200);
-
     } catch (err: any) {
-      console.log('ERROR LOGIN:', err?.message || err);
       Alert.alert(
-        'Error de red',
-        err?.message
-          ? `No se pudo iniciar sesion: ${err.message}`
-          : `No se pudo conectar al backend.\n\nBackend actual: ${BACKEND_URL}`
+        'Error',
+        err?.message ?? 'No se pudo iniciar sesión. Intenta de nuevo.'
       );
     } finally {
       setIsLoading(false);
@@ -171,7 +155,7 @@ const LoginScreen: React.FC = () => {
           </Text>
 
           <View style={styles.form}>
-            <Text style={styles.inputLabel}>Correo Electronico</Text>
+            <Text style={styles.inputLabel}>Correo Electrónico</Text>
             <View style={styles.inputContainer}>
               <MaterialCommunityIcons
                 name="email-outline"
@@ -189,7 +173,7 @@ const LoginScreen: React.FC = () => {
               />
             </View>
 
-            <Text style={styles.inputLabel}>Contrasena</Text>
+            <Text style={styles.inputLabel}>Contraseña</Text>
             <View style={styles.inputContainer}>
               <MaterialCommunityIcons
                 name="lock-outline"
@@ -199,15 +183,22 @@ const LoginScreen: React.FC = () => {
               />
               <TextInput
                 style={styles.input}
-                placeholder="Introduce tu contrasena"
-                secureTextEntry
+                placeholder="Introduce tu contraseña"
+                secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
               />
+              <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={styles.passwordToggle}>
+                <MaterialCommunityIcons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={22}
+                  color={COLORS.iconColor}
+                />
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordLink}>
-              <Text style={styles.linkText}>Olvidaste tu contrasena?</Text>
+              <Text style={styles.linkText}>¿Olvidaste tu contraseña?</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -216,19 +207,15 @@ const LoginScreen: React.FC = () => {
               onPress={handleLogin}
               disabled={isLoading}
             >
-              {isLoading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Iniciar Sesion</Text>}
+              {isLoading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Iniciar Sesión</Text>}
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity onPress={handleGoToRegister} style={styles.registerLink}>
             <Text style={styles.registerText}>
-              No tienes cuenta? <Text style={styles.linkTextBold}>Registrate</Text>
+              ¿No tienes cuenta? <Text style={styles.linkTextBold}>Regístrate</Text>
             </Text>
           </TouchableOpacity>
-
-          <Text style={{ marginTop: 14, fontSize: 12, color: '#4A7FA7' }}>
-            Backend: {BACKEND_URL}
-          </Text>
         </View>
       </View>
     </View>
@@ -284,5 +271,6 @@ const styles = StyleSheet.create({
   registerLink: { marginTop: 20 },
   registerText: { fontSize: 14, color: COLORS.textSecondary },
   linkTextBold: { color: COLORS.link, fontSize: 14, fontWeight: 'bold' },
+  passwordToggle: { paddingRight: 12, justifyContent: 'center' as const },
 });
 

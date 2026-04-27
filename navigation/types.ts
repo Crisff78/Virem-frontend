@@ -35,7 +35,7 @@ export type DoctorRouteSnapshot = {
 
 export type RootStackParamList = {
   SeleccionPerfil: undefined;
-  Login: undefined;
+  Login: { prefillEmail?: string } | undefined;
 
   RecuperarContrasena: undefined;
   VerificarIdentidad: { email: string };
