@@ -13,9 +13,10 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import type { RootStackParamList } from './navigation/types';
+import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
+import { usePacienteModule } from './navigation/PacienteModuleContext';
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 
@@ -250,7 +251,8 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ name, spec, avatar, onReserve }
 
 /* ===================== PANTALLA ===================== */
 const DashboardPacienteScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = usePortalAwareNavigation();
+  const { isInsidePortal } = usePacienteModule();
   const { signOut } = useAuth();
   const { syncProfile } = usePatientSessionProfile();
   const { width: viewportWidth } = useWindowDimensions();
@@ -489,8 +491,8 @@ const DashboardPacienteScreen: React.FC = () => {
   };
 
   return (
-    <View style={[styles.container, isDesktopLayout ? styles.containerDesktop : styles.containerMobile]}>
-      {!isDesktopLayout ? (
+    <View style={[styles.container, isInsidePortal ? null : (isDesktopLayout ? styles.containerDesktop : styles.containerMobile)]}>
+      {!isInsidePortal && !isDesktopLayout ? (
         <View style={styles.mobileMenuBar}>
           <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
             <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.dark} />
@@ -502,7 +504,7 @@ const DashboardPacienteScreen: React.FC = () => {
       ) : null}
 
       {/* ===================== SIDEBAR ===================== */}
-      {(isDesktopLayout || isMobileMenuOpen) && (
+      {!isInsidePortal && (isDesktopLayout || isMobileMenuOpen) && (
       <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}>
         <View>
           {/* Logo */}

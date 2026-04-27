@@ -14,8 +14,10 @@ import {
 import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
+import { usePacienteModule } from './navigation/PacienteModuleContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import { useLanguage } from './localization/LanguageContext';
@@ -128,7 +130,8 @@ const colors = {
 const MIN_REFRESH_INTERVAL_MS = 15000;
 
 const PacienteCitasScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = usePortalAwareNavigation();
+  const { isInsidePortal } = usePacienteModule();
   const { signOut } = useAuth();
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
@@ -464,8 +467,8 @@ const PacienteCitasScreen: React.FC = () => {
   };
 
   return (
-    <View style={[styles.container, isDesktopLayout ? styles.containerDesktop : styles.containerMobile]}>
-      {!isDesktopLayout ? (
+    <View style={[styles.container, isInsidePortal ? null : (isDesktopLayout ? styles.containerDesktop : styles.containerMobile)]}>
+      {!isInsidePortal && !isDesktopLayout ? (
         <View style={styles.mobileMenuBar}>
           <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
             <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.dark} />
@@ -476,7 +479,7 @@ const PacienteCitasScreen: React.FC = () => {
         </View>
       ) : null}
 
-      {(isDesktopLayout || isMobileMenuOpen) && (
+      {!isInsidePortal && (isDesktopLayout || isMobileMenuOpen) && (
       <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}>
         <View>
           <View style={styles.logoBox}>

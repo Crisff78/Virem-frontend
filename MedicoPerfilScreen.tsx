@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
+import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
@@ -178,7 +180,8 @@ const VerifiedField: React.FC<{
 );
 
 const MedicoPerfilScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = usePortalAwareMedicoNavigation();
+  const { isInsidePortal } = useMedicoModule();
   const {
     user,
     loadingUser: loadingSessionUser,
@@ -343,6 +346,7 @@ const MedicoPerfilScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      {!isInsidePortal && (
       <View style={styles.sidebar}>
         <View>
           <View style={styles.logoBox}>
@@ -388,6 +392,7 @@ const MedicoPerfilScreen: React.FC = () => {
           <Text style={styles.logoutText}>Cerrar sesion</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 26 }}>
         <View style={styles.headerWrap}>

@@ -12,7 +12,9 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
+import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -94,7 +96,8 @@ const formatDateTime = (value: string | null | undefined) => {
 };
 
 const MedicoChatScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = usePortalAwareMedicoNavigation();
+  const { isInsidePortal } = useMedicoModule();
   const route = useRoute<RouteProp<RootStackParamList, 'MedicoChat'>>();
   const { user: sessionUser, updateUser, signOut } = useAuth<SessionUser>();
   const { width: viewportWidth } = useWindowDimensions();
@@ -466,7 +469,8 @@ const MedicoChatScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
+    <View style={[styles.container, isInsidePortal ? null : (!isDesktopLayout && styles.containerMobile)]}>
+      {!isInsidePortal && (
       <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
         <View>
           <View style={styles.logoWrap}>
@@ -514,6 +518,7 @@ const MedicoChatScreen: React.FC = () => {
           <Text style={styles.logoutText}>Cerrar sesion</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       <View style={styles.main}>
         <View style={styles.headerWrap}>

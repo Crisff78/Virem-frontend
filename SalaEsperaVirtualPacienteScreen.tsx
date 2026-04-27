@@ -16,9 +16,11 @@ import {
 import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
+import { usePacienteModule } from './navigation/PacienteModuleContext';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { RootStackParamList } from './navigation/types';
@@ -117,7 +119,8 @@ const WAIT_TIMEOUT_SECONDS = 300; // 5 minutes
 const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = usePortalAwareNavigation();
+  const { isInsidePortal } = usePacienteModule();
   const route = useRoute<RouteProp<RootStackParamList, 'SalaEsperaVirtualPaciente'>>();
   const { signOut } = useAuth();
   const { width: viewportWidth } = useWindowDimensions();
@@ -631,7 +634,8 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   };
 
   return (
-    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
+    <View style={[styles.container, isInsidePortal ? null : (!isDesktopLayout && styles.containerMobile)]}>
+      {!isInsidePortal && (
       <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
         <View>
           <View style={styles.logoBox}>
@@ -714,6 +718,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
           <Text style={styles.exitBtnText}>{t('menu.logout')}</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       <View style={styles.main}>
         <View style={styles.header}>

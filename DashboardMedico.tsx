@@ -14,7 +14,9 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
+import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './navigation/types';
 import { useAuth } from './providers/AuthProvider';
@@ -261,7 +263,8 @@ const FileCard: React.FC<FileCardProps> = ({ name, id, lastSeen, onPress }) => (
 );
 
 const DashboardMedico: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = usePortalAwareMedicoNavigation();
+  const { isInsidePortal } = useMedicoModule();
   const { signOut } = useAuth();
   const { syncProfile } = useMedicoSessionProfile();
   const { width: viewportWidth } = useWindowDimensions();
@@ -514,7 +517,7 @@ const DashboardMedico: React.FC = () => {
 
   return (
     <View style={[styles.container, isDesktopLayout ? styles.containerDesktop : styles.containerMobile]}>
-      {!isDesktopLayout ? (
+      {!isInsidePortal && !isDesktopLayout ? (
         <View style={styles.mobileMenuBar}>
           <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
             <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.viremDark} />
@@ -526,7 +529,7 @@ const DashboardMedico: React.FC = () => {
       ) : null}
 
       {/* ===================== SIDEBAR ===================== */}
-      {(isDesktopLayout || isMobileMenuOpen) && (
+      {!isInsidePortal && (isDesktopLayout || isMobileMenuOpen) && (
       <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}>
         <View>
           {/* Logo */}

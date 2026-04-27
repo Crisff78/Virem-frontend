@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,8 +14,10 @@ import {
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
+import { usePacienteModule } from './navigation/PacienteModuleContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import { useLanguage } from './localization/LanguageContext';
@@ -213,7 +215,8 @@ const ProfileCard: React.FC<{ title: string; children: React.ReactNode }> = ({ t
 const PacientePerfilScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = usePortalAwareNavigation();
+  const { isInsidePortal } = usePacienteModule();
   const {
     user,
     loadingUser,
@@ -477,6 +480,7 @@ const PacientePerfilScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      {!isInsidePortal && (
       <View style={styles.sidebar}>
         <View>
           <View style={styles.logoBox}>
@@ -562,6 +566,7 @@ const PacientePerfilScreen: React.FC = () => {
           <Text style={styles.logoutText}>{t('menu.logout')}</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
         <View style={styles.header}>

@@ -12,9 +12,11 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
+import { usePacienteModule } from './navigation/PacienteModuleContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import { useLanguage } from './localization/LanguageContext';
@@ -109,7 +111,8 @@ const colors = {
 };
 
 const PacienteChatScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = usePortalAwareNavigation();
+  const { isInsidePortal } = usePacienteModule();
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
   const route = useRoute<RouteProp<RootStackParamList, 'PacienteChat'>>();
@@ -393,11 +396,7 @@ const PacienteChatScreen: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (userAtBottomRef.current && scrollRef.current) {
-      setTimeout(() => scrollRef.current?.scrollToEnd?.({ animated: true }), 100);
-    }
-  }, [messages]);
+
 
   const handleScroll = useCallback((e: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
@@ -449,6 +448,12 @@ const PacienteChatScreen: React.FC = () => {
     };
     return [intro];
   }, [messagesByChat, selectedChat]);
+
+  useEffect(() => {
+    if (userAtBottomRef.current && scrollRef.current) {
+      setTimeout(() => scrollRef.current?.scrollToEnd?.({ animated: true }), 100);
+    }
+  }, [messages]);
 
   const handleSend = async () => {
     const text = reply.trim();
@@ -524,8 +529,8 @@ const PacienteChatScreen: React.FC = () => {
   };
 
   return (
-    <View style={[styles.container, isDesktopLayout ? styles.containerDesktop : styles.containerMobile]}>
-      {!isDesktopLayout ? (
+    <View style={[styles.container, isInsidePortal ? null : (isDesktopLayout ? styles.containerDesktop : styles.containerMobile)]}>
+      {!isInsidePortal && !isDesktopLayout ? (
         <View style={styles.mobileMenuBar}>
           <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
             <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.dark} />
@@ -536,7 +541,7 @@ const PacienteChatScreen: React.FC = () => {
         </View>
       ) : null}
 
-      {(isDesktopLayout || isMobileMenuOpen) && (
+      {!isInsidePortal && (isDesktopLayout || isMobileMenuOpen) && (
       <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}>
         <View>
           <View style={styles.logoBox}>

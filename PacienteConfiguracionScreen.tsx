@@ -1,4 +1,4 @@
-ï»¿import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   View,
@@ -14,7 +14,9 @@ import {
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
+import { usePacienteModule } from './navigation/PacienteModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
@@ -57,7 +59,8 @@ const sanitizeFotoUrl = (value: unknown) => {
 };
 
 const PacienteConfiguracionScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = usePortalAwareNavigation();
+  const { isInsidePortal } = usePacienteModule();
   const { language: appLanguage, setLanguage, t, tx } = useLanguage();
   const { user, refreshUser, signOut, fullName, planLabel, fotoUrl, hasProfilePhoto } =
     usePatientPortalSession({ syncOnMount: false });
@@ -119,15 +122,15 @@ const PacienteConfiguracionScreen: React.FC = () => {
 
   const languageLabel = useMemo(() => {
     if (appLanguage === 'en') return 'English (US)';
-    if (appLanguage === 'pt') return 'PortuguÃªs (BR)';
-    return 'EspaÃ±ol (ES)';
+    if (appLanguage === 'pt') return 'Português (BR)';
+    return 'Español (ES)';
   }, [appLanguage]);
 
   const optionsMap = {
     language: [
-      { label: 'EspaÃ±ol (ES)', value: 'es' as const },
+      { label: 'Español (ES)', value: 'es' as const },
       { label: 'English (US)', value: 'en' as const },
-      { label: 'PortuguÃªs (BR)', value: 'pt' as const },
+      { label: 'Português (BR)', value: 'pt' as const },
     ],
     timeFormat: ['24 horas', '12 horas'],
     timeZone: ['(GMT-04:00) Santo Domingo', '(GMT-05:00) Bogota', '(GMT-06:00) Ciudad de Mexico'],
@@ -186,12 +189,12 @@ const PacienteConfiguracionScreen: React.FC = () => {
     if (newPassword.length < 8) {
       Alert.alert(
         tx({
-          es: 'ContraseÃ±a dÃ©bil',
+          es: 'Contraseña débil',
           en: 'Weak password',
           pt: 'Senha fraca',
         }),
         tx({
-          es: 'La nueva contraseÃ±a debe tener al menos 8 caracteres.',
+          es: 'La nueva contraseña debe tener al menos 8 caracteres.',
           en: 'The new password must be at least 8 characters long.',
           pt: 'A nova senha deve ter pelo menos 8 caracteres.',
         })
@@ -207,7 +210,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
           pt: 'Nao coincide',
         }),
         tx({
-          es: 'La confirmaciÃ³n de contraseÃ±a no coincide.',
+          es: 'La confirmación de contraseña no coincide.',
           en: 'Password confirmation does not match.',
           pt: 'A confirmacao da senha nao coincide.',
         })
@@ -221,12 +224,12 @@ const PacienteConfiguracionScreen: React.FC = () => {
     setConfirmPassword('');
     Alert.alert(
       tx({
-        es: 'ContraseÃ±a actualizada',
+        es: 'Contraseña actualizada',
         en: 'Password updated',
         pt: 'Senha atualizada',
       }),
       tx({
-        es: 'Tu contraseÃ±a fue cambiada correctamente.',
+        es: 'Tu contraseña fue cambiada correctamente.',
         en: 'Your password was changed successfully.',
         pt: 'Sua senha foi alterada com sucesso.',
       })
@@ -235,6 +238,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      {!isInsidePortal && (
       <View style={styles.sidebar}>
         <View>
           <View style={styles.logoBox}>
@@ -323,6 +327,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
           <Text style={styles.logoutText}>{t('menu.logout')}</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
         <Text style={styles.title}>{t('config.title')}</Text>
@@ -541,7 +546,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
               {tx({
-                es: 'Cambiar contraseÃ±a',
+                es: 'Cambiar contraseña',
                 en: 'Change password',
                 pt: 'Alterar senha',
               })}
@@ -553,7 +558,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
               value={currentPassword}
               onChangeText={setCurrentPassword}
               placeholder={tx({
-                es: 'ContraseÃ±a actual',
+                es: 'Contraseña actual',
                 en: 'Current password',
                 pt: 'Senha atual',
               })}
@@ -565,7 +570,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
               value={newPassword}
               onChangeText={setNewPassword}
               placeholder={tx({
-                es: 'Nueva contraseÃ±a',
+                es: 'Nueva contraseña',
                 en: 'New password',
                 pt: 'Nova senha',
               })}
@@ -577,7 +582,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder={tx({
-                es: 'Confirmar contraseÃ±a',
+                es: 'Confirmar contraseña',
                 en: 'Confirm password',
                 pt: 'Confirmar senha',
               })}

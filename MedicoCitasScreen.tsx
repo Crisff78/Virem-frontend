@@ -1,4 +1,4 @@
-ï»¿import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,9 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
+import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
@@ -106,7 +108,8 @@ const toHourMinute = (value: string | null | undefined) => {
 };
 
 const MedicoCitasScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = usePortalAwareMedicoNavigation();
+  const { isInsidePortal } = useMedicoModule();
   const { loadingUser, refreshUser, signOut, doctorName, doctorSpec, fotoUrl } =
     useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
   const { width: viewportWidth } = useWindowDimensions();
@@ -591,7 +594,8 @@ const MedicoCitasScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
+    <View style={[styles.container, isInsidePortal ? null : (!isDesktopLayout && styles.containerMobile)]}>
+      {!isInsidePortal && (
       <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
         <View>
           <View style={styles.logoWrap}>
@@ -638,6 +642,7 @@ const MedicoCitasScreen: React.FC = () => {
           <Text style={styles.logoutText}>Cerrar sesion</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       <ScrollView
         style={styles.main}
@@ -803,10 +808,10 @@ const MedicoCitasScreen: React.FC = () => {
                     {formatDateTime(item.fechaInicio)} - {formatDateTime(item.fechaFin)}
                   </Text>
                   <Text style={styles.historySub}>
-                    {normalizeText(item.especialidad || doctorSpec)} Â· {item.modalidad} Â· {item.slotMinutos} min
+                    {normalizeText(item.especialidad || doctorSpec)} · {item.modalidad} · {item.slotMinutos} min
                   </Text>
                   <Text style={styles.historySub}>
-                    {item.activo ? 'Activo' : 'Inactivo'} Â· {item.bloqueado ? 'Bloqueado' : 'Disponible'}
+                    {item.activo ? 'Activo' : 'Inactivo'} · {item.bloqueado ? 'Bloqueado' : 'Disponible'}
                   </Text>
                 </View>
                 <TouchableOpacity style={styles.smallAction} onPress={() => startEditDisponibilidad(item)}>
@@ -849,7 +854,7 @@ const MedicoCitasScreen: React.FC = () => {
                   <View style={styles.citaMeta}>
                     <Text style={styles.citaPatient}>{normalizeText(cita?.paciente?.nombreCompleto || 'Paciente')}</Text>
                     <Text style={styles.citaSub}>
-                      {normalizeText(cita?.estado || 'Pendiente')} Â· {formatDateTime(cita?.fechaHoraInicio)} Â·{' '}
+                      {normalizeText(cita?.estado || 'Pendiente')} · {formatDateTime(cita?.fechaHoraInicio)} ·{' '}
                       {normalizeText(cita?.modalidad || 'presencial')}
                     </Text>
                     <Text style={styles.citaNote}>
@@ -933,7 +938,7 @@ const MedicoCitasScreen: React.FC = () => {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.historyName}>{normalizeText(cita?.paciente?.nombreCompleto || 'Paciente')}</Text>
                   <Text style={styles.historySub}>
-                    {normalizeText(cita?.estado || 'Pendiente')} Â· {formatDateTime(cita?.fechaHoraInicio)}
+                    {normalizeText(cita?.estado || 'Pendiente')} · {formatDateTime(cita?.fechaHoraInicio)}
                   </Text>
                 </View>
                 <TouchableOpacity

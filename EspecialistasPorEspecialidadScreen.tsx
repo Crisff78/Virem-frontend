@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -377,7 +377,14 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
             verified: true,
           } as Doctor;
         });
-        setBackendDoctors(mapped);
+        // Deduplicate by id (medicoid) — safety net
+        const seen = new Set<string>();
+        const deduped = mapped.filter((doc: Doctor) => {
+          if (seen.has(doc.id)) return false;
+          seen.add(doc.id);
+          return true;
+        });
+        setBackendDoctors(deduped);
       } catch {
         setBackendDoctors([]);
       } finally {

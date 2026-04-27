@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Platform,
@@ -12,8 +12,9 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
+import { usePacienteModule } from './navigation/PacienteModuleContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import type { RootStackParamList } from './navigation/types';
@@ -149,7 +150,8 @@ const SpecialtyCardInner: React.FC<SpecialtyCardProps> = ({
 const NuevaConsultaPacienteScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = usePortalAwareNavigation();
+  const { isInsidePortal } = usePacienteModule();
   const { signOut } = useAuth();
   const { syncProfile } = usePatientSessionProfile();
   const { width: viewportWidth } = useWindowDimensions();
@@ -282,7 +284,8 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
       : styles.specialtyColumnMobile;
 
   return (
-    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
+    <View style={[styles.container, isInsidePortal ? null : (!isDesktopLayout && styles.containerMobile)]}>
+      {!isInsidePortal && (
       <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
         <View>
           <View style={styles.logoBox}>
@@ -375,6 +378,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
           <Text style={styles.logoutText}>{t('menu.logout')}</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       <ScrollView
         style={[styles.main, !isDesktopLayout && styles.mainMobile]}

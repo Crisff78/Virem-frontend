@@ -12,7 +12,9 @@ import {
   View,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
+import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
@@ -84,7 +86,8 @@ const formatDateTime = (value: string | null | undefined) => {
 };
 
 const MedicoPacientesScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = usePortalAwareMedicoNavigation();
+  const { isInsidePortal } = useMedicoModule();
   const { signOut } = useAuth();
   const { syncProfile } = useMedicoSessionProfile();
   const [user, setUser] = useState<MedicoSessionUser | null>(null);
@@ -266,6 +269,7 @@ const MedicoPacientesScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      {!isInsidePortal && (
       <View style={styles.sidebar}>
         <View>
           <View style={styles.logoWrap}>
@@ -312,6 +316,7 @@ const MedicoPacientesScreen: React.FC = () => {
           <Text style={styles.logoutText}>Cerrar sesion</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
         <View style={styles.headerWrap}>

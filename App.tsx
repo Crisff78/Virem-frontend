@@ -1,4 +1,4 @@
-﻿import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as Linking from "expo-linking";
 import React from "react";
@@ -16,7 +16,9 @@ import SeleccionPerfil from "./SeleccionPerfil";
 import VerificarIdentidadScreen from "./VerificarIdentidadScreen";
 
 import DashboardPacienteScreen from "./DashboardPacienteScreen";
+import PacientePortalScreen from "./PacientePortalScreen";
 import DashboardMedico from "./DashboardMedico";
+import MedicoPortalScreen from "./MedicoPortalScreen";
 import MedicoCitasScreen from "./MedicoCitasScreen";
 import MedicoPacientesScreen from "./MedicoPacientesScreen";
 import MedicoChatScreen from "./MedicoChatScreen";
@@ -90,7 +92,7 @@ const linking = {
   },
 };
 
-const PatientDashboardScreen = withRoleGuard(DashboardPacienteScreen, [PACIENTE_ROLE_ID]);
+const PatientPortalScreen = withRoleGuard(PacientePortalScreen, [PACIENTE_ROLE_ID]);
 const PatientCitasScreen = withRoleGuard(PacienteCitasScreen, [PACIENTE_ROLE_ID]);
 const PatientChatScreen = withRoleGuard(PacienteChatScreen, [PACIENTE_ROLE_ID]);
 const PatientNotificacionesScreen = withRoleGuard(PacienteNotificacionesScreen, [PACIENTE_ROLE_ID]);
@@ -104,7 +106,7 @@ const PatientSalaEsperaScreen = withRoleGuard(SalaEsperaVirtualPacienteScreen, [
 const PatientEspecialistasScreen = withRoleGuard(EspecialistasPorEspecialidadScreen, [PACIENTE_ROLE_ID]);
 const PatientPerfilEspecialistaScreen = withRoleGuard(PerfilEspecialistaAgendarScreen, [PACIENTE_ROLE_ID]);
 
-const DoctorDashboardScreen = withRoleGuard(DashboardMedico, [MEDICO_ROLE_ID]);
+const DoctorPortalScreen = withRoleGuard(MedicoPortalScreen, [MEDICO_ROLE_ID]);
 const DoctorCitasScreen = withRoleGuard(MedicoCitasScreen, [MEDICO_ROLE_ID]);
 const DoctorPacientesScreen = withRoleGuard(MedicoPacientesScreen, [MEDICO_ROLE_ID]);
 const DoctorChatScreen = withRoleGuard(MedicoChatScreen, [MEDICO_ROLE_ID]);
@@ -148,7 +150,7 @@ const App: React.FC = () => {
                     component={EstablecerNuevaContrasenaScreen}
                   />
 
-                  <Stack.Screen name="DashboardPaciente" component={PatientDashboardScreen} />
+                  <Stack.Screen name="DashboardPaciente" component={PatientPortalScreen} />
                   <Stack.Screen name="PacienteCitas" component={PatientCitasScreen} />
                   <Stack.Screen name="PacienteChat" component={PatientChatScreen} />
                   <Stack.Screen
@@ -189,7 +191,7 @@ const App: React.FC = () => {
                     component={PatientPerfilEspecialistaScreen}
                   />
 
-                  <Stack.Screen name="DashboardMedico" component={DoctorDashboardScreen} />
+                  <Stack.Screen name="DashboardMedico" component={DoctorPortalScreen} />
                   <Stack.Screen name="MedicoCitas" component={DoctorCitasScreen} />
                   <Stack.Screen name="MedicoPacientes" component={DoctorPacientesScreen} />
                   <Stack.Screen name="MedicoChat" component={DoctorChatScreen} />
