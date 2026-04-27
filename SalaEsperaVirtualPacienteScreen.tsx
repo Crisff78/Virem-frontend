@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Linking,
   Platform,
@@ -113,6 +112,8 @@ const parseDateMs = (value: string | null | undefined) => {
   return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
 };
 
+const WAIT_TIMEOUT_SECONDS = 300; // 5 minutes
+
 const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
@@ -144,10 +145,15 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const [roomJoinUrl, setRoomJoinUrl] = useState('');
   const [roomStatus, setRoomStatus] = useState('');
   const [roomCanJoin, setRoomCanJoin] = useState(false);
+  const [roomError, setRoomError] = useState('');
+  const [waitSeconds, setWaitSeconds] = useState(0);
+  const waitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dot1 = useRef(new Animated.Value(0.25)).current;
   const dot2 = useRef(new Animated.Value(0.25)).current;
   const dot3 = useRef(new Animated.Value(0.25)).current;
   const signalPulse = useRef(new Animated.Value(0.35)).current;
+  const avatarScale = useRef(new Animated.Value(1)).current;
+  const roomReadyPulse = useRef(new Animated.Value(0)).current;
   const panelTranslateX = useRef(new Animated.Value(430)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const requestedCitaId = String(route.params?.citaId || '').trim();
@@ -252,30 +258,66 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
       Animated.loop(
         Animated.sequence([
           Animated.delay(delay),
-          Animated.timing(value, {
-            toValue: 1,
-            duration: 260,
-            useNativeDriver: true,
-          }),
-          Animated.timing(value, {
-            toValue: 0.25,
-            duration: 260,
-            useNativeDriver: true,
-          }),
-          Animated.delay(380),
+          Animated.timing(value, { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.timing(value, { toValue: 0.2, duration: 400, useNativeDriver: true }),
+          Animated.delay(300),
         ])
       );
 
+    const breathe = Animated.loop(
+      Animated.sequence([
+        Animated.timing(avatarScale, { toValue: 1.06, duration: 1200, useNativeDriver: true }),
+        Animated.timing(avatarScale, { toValue: 1, duration: 1200, useNativeDriver: true }),
+      ])
+    );
+
     const animation = Animated.parallel([
       makePulse(dot1, 0),
-      makePulse(dot2, 140),
-      makePulse(dot3, 280),
+      makePulse(dot2, 180),
+      makePulse(dot3, 360),
       makePulse(signalPulse, 0),
+      breathe,
     ]);
 
     animation.start();
     return () => animation.stop();
-  }, [dot1, dot2, dot3, signalPulse]);
+  }, [dot1, dot2, dot3, signalPulse, avatarScale]);
+
+  // Wait timer
+  useEffect(() => {
+    if (nextCita && !roomCanJoin) {
+      setWaitSeconds(0);
+      waitTimerRef.current = setInterval(() => setWaitSeconds((s) => s + 1), 1000);
+    } else {
+      setWaitSeconds(0);
+      if (waitTimerRef.current) { clearInterval(waitTimerRef.current); waitTimerRef.current = null; }
+    }
+    return () => { if (waitTimerRef.current) { clearInterval(waitTimerRef.current); waitTimerRef.current = null; } };
+  }, [nextCita, roomCanJoin]);
+
+  const formatWaitTime = useCallback((secs: number) => {
+    const m = String(Math.floor(secs / 60)).padStart(2, '0');
+    const s = String(secs % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  }, []);
+
+  const connectionLabel = useMemo(() => {
+    if (loadingCita || loadingRoom) return { text: 'Conectando…', color: '#f59e0b', dot: '#f59e0b' };
+    if (openingRoom) return { text: 'Conectando a sala…', color: '#f59e0b', dot: '#f59e0b' };
+    return { text: 'CONECTADO', color: '#16a34a', dot: '#22c55e' };
+  }, [loadingCita, loadingRoom, openingRoom]);
+
+  const isLongWait = useMemo(() => nextCita && !roomCanJoin && waitSeconds >= WAIT_TIMEOUT_SECONDS, [nextCita, roomCanJoin, waitSeconds]);
+
+  // Subtle fade-in when room becomes joinable
+  useEffect(() => {
+    if (roomCanJoin) {
+      roomReadyPulse.setValue(0);
+      Animated.timing(roomReadyPulse, { toValue: 1, duration: 500, useNativeDriver: false }).start();
+    } else {
+      roomReadyPulse.setValue(0);
+    }
+  }, [roomCanJoin, roomReadyPulse]);
 
   useEffect(() => {
     const loadNextCita = async () => {
@@ -413,16 +455,12 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   });
 
   const enterVideoRoom = async () => {
-    if (!nextCita?.citaid) {
-      return;
-    }
-
+    if (!nextCita?.citaid) return;
+    setRoomError('');
     setOpeningRoom(true);
     try {
       const token = await getAuthToken();
-      if (!token) {
-        return;
-      }
+      if (!token) { setRoomError('Tu sesión ha expirado. Por favor, vuelve a iniciar sesión para continuar.'); return; }
 
       const citaId = String(nextCita.citaid).trim();
       const openResponse = await fetch(apiUrl(`/api/agenda/me/citas/${citaId}/video-sala`), {
@@ -432,14 +470,8 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
       const openPayload = await openResponse.json().catch(() => null);
       const joinUrl = String(openPayload?.videoSala?.joinUrl || roomJoinUrl || '').trim();
       const canJoin = Boolean(openPayload?.videoSala?.canJoin ?? roomCanJoin);
-      if (!joinUrl) {
-        Alert.alert('Sala no disponible', 'La sala virtual aun no esta lista.');
-        return;
-      }
-      if (!canJoin) {
-        Alert.alert('Sala de espera', 'El medico aun no inicia la videollamada.');
-        return;
-      }
+      if (!joinUrl) { setRoomError('La sala aún no está disponible. Esto es normal si tu médico no ha iniciado la sesión.'); return; }
+      if (!canJoin) { setRoomError('Tu médico aún no ha abierto la videollamada. Espera unos momentos e intenta de nuevo.'); return; }
 
       if (Platform.OS === 'web') {
         const webOpen = (globalThis as any)?.open;
@@ -450,7 +482,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
       }
       await Linking.openURL(joinUrl);
     } catch {
-      Alert.alert('Error', 'No se pudo abrir la videollamada.');
+      setRoomError('No pudimos conectarte a la consulta. Verifica tu conexión a internet e intenta nuevamente.');
     } finally {
       setOpeningRoom(false);
     }
@@ -712,8 +744,8 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
           </View>
 
           <View style={styles.connectedBadge}>
-            <View style={styles.connectedDot} />
-            <Text style={styles.connectedText}>CONECTADO</Text>
+            <View style={[styles.connectedDot, { backgroundColor: connectionLabel.dot }]} />
+            <Text style={[styles.connectedText, { color: connectionLabel.color }]}>{connectionLabel.text}</Text>
           </View>
         </View>
 
@@ -747,41 +779,83 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
         ) : null}
 
         <View style={[styles.contentWrap, !isDesktopLayout && styles.contentWrapMobile]}>
+          {/* Left: camera preview + waiting */}
           <View style={styles.centerCol}>
-            <View style={styles.doctorAvatarWrap}>
-              <Image source={doctorAvatarSource} style={styles.doctorAvatar} />
-              <View style={styles.verifiedBadge}>
-                <MaterialIcons name="verified" size={14} color="#fff" />
+            <View style={styles.cameraCard}>
+              {cameraOn ? (
+                <Image source={userAvatarSource} style={styles.cameraImage} />
+              ) : (
+                <View style={styles.cameraOffOverlay}>
+                  <MaterialIcons name="videocam-off" size={36} color="#8aa7bf" />
+                  <Text style={styles.cameraOffText}>Cámara desactivada</Text>
+                </View>
+              )}
+              <View style={styles.cameraTag}>
+                <View style={styles.cameraLiveDot} />
+                <Text style={styles.cameraTagText}>TU CÁMARA</Text>
+              </View>
+              <View style={styles.cameraControls}>
+                <TouchableOpacity style={[styles.cameraControl, !micOn && styles.cameraControlOff]} onPress={() => setMicOn((v) => !v)} activeOpacity={0.8}>
+                  <MaterialIcons name={micOn ? 'mic' : 'mic-off'} size={20} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.cameraControl, !cameraOn && styles.cameraControlOff]} onPress={() => setCameraOn((v) => !v)} activeOpacity={0.8}>
+                  <MaterialIcons name={cameraOn ? 'videocam' : 'videocam-off'} size={20} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.cameraControl} onPress={openSettings} activeOpacity={0.8}>
+                  <MaterialIcons name="tune" size={20} color="#fff" />
+                </TouchableOpacity>
               </View>
             </View>
 
-            <Text style={styles.waitTitle}>
-              {loadingCita
-                ? 'Cargando los datos de tu cita...'
-                : nextCita
-                  ? `El ${doctorName} se unira pronto a la sesion`
-                  : 'No tienes citas proximas para videollamada'}
-            </Text>
-            <View style={styles.waitDotsRow}>
-              <Animated.Text style={[styles.waitDot, { opacity: dot1 }]}>•</Animated.Text>
-              <Animated.Text style={[styles.waitDot, { opacity: dot2 }]}>•</Animated.Text>
-              <Animated.Text style={[styles.waitDot, { opacity: dot3 }]}>•</Animated.Text>
+            {/* Waiting state */}
+            <View style={styles.waitSection}>
+              <Animated.View style={[styles.doctorAvatarWrap, { transform: [{ scale: avatarScale }] }]}>
+                <Image source={doctorAvatarSource} style={styles.doctorAvatar} />
+                <View style={styles.verifiedBadge}>
+                  <MaterialIcons name="verified" size={14} color="#fff" />
+                </View>
+              </Animated.View>
+              <Text style={styles.waitTitle}>
+                {loadingCita ? 'Cargando tu cita...' : nextCita ? (isLongWait ? 'El médico aún no se ha conectado' : `Esperando al ${doctorName}…`) : 'Sin citas de videollamada'}
+              </Text>
+              {(nextCita || loadingCita) && !isLongWait && (
+                <View style={styles.waitDotsRow}>
+                  <Animated.Text style={[styles.waitDot, { opacity: dot1 }]}>•</Animated.Text>
+                  <Animated.Text style={[styles.waitDot, { opacity: dot2 }]}>•</Animated.Text>
+                  <Animated.Text style={[styles.waitDot, { opacity: dot3 }]}>•</Animated.Text>
+                </View>
+              )}
+              <Text style={styles.waitSub}>
+                {loadingCita ? 'Sincronizando...' : nextCita ? (isLongWait ? 'La espera está tomando más de lo habitual' : 'No cierres esta ventana') : 'Agenda una consulta para iniciar'}
+              </Text>
+              {nextCita && !roomCanJoin && waitSeconds > 0 && (
+                <View style={[styles.waitTimerBox, isLongWait && styles.waitTimerBoxWarn]}>
+                  <MaterialIcons name="timer" size={14} color={isLongWait ? '#f59e0b' : colors.muted} />
+                  <Text style={[styles.waitTimerText, isLongWait && styles.waitTimerTextWarn]}>Tiempo de espera: {formatWaitTime(waitSeconds)}</Text>
+                </View>
+              )}
+              {isLongWait && (
+                <View style={styles.timeoutCard}>
+                  <Text style={styles.timeoutMsg}>Puedes reprogramar tu cita o contactar a soporte si necesitas ayuda.</Text>
+                  <View style={styles.timeoutActions}>
+                    <TouchableOpacity style={styles.timeoutBtnPrimary} onPress={() => navigation.navigate('PacienteCitas')} activeOpacity={0.8}>
+                      <MaterialIcons name="event" size={14} color="#fff" />
+                      <Text style={styles.timeoutBtnPrimaryText}>Reprogramar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.timeoutBtnSecondary} activeOpacity={0.8}>
+                      <MaterialIcons name="support-agent" size={14} color={colors.primary} />
+                      <Text style={styles.timeoutBtnSecondaryText}>Soporte</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
-            <Text style={styles.waitSub}>
-              {loadingCita ? 'Sincronizando...' : nextCita ? 'En espera...' : 'Agenda una consulta para iniciar.'}
-            </Text>
-
-            <Text style={styles.waitHint}>
-              {nextCita
-                ? 'Por favor, no cierres esta ventana. Se te notificará con un sonido cuando el doctor esté listo.'
-                : 'Cuando tengas una cita, podrás seleccionarla aquí para entrar directamente a la sala.'}
-            </Text>
           </View>
 
+          {/* Right: summary + actions */}
           <View style={[styles.rightCol, !isDesktopLayout && styles.rightColMobile]}>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryTitle}>RESUMEN DE LA CITA</Text>
-
               <View style={styles.summaryRow}>
                 <MaterialIcons name="medical-services" size={16} color={colors.primary} />
                 <View>
@@ -789,7 +863,6 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                   <Text style={styles.summaryValue}>{doctorName}</Text>
                 </View>
               </View>
-
               <View style={styles.summaryRow}>
                 <MaterialCommunityIcons name="heart-pulse" size={16} color={colors.primary} />
                 <View>
@@ -797,7 +870,6 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                   <Text style={styles.summaryValue}>{doctorSpec}</Text>
                 </View>
               </View>
-
               <View style={[styles.summaryRow, styles.summaryRowLast]}>
                 <MaterialIcons name="schedule" size={16} color={colors.primary} />
                 <View>
@@ -805,52 +877,70 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                   <Text style={styles.summaryValue}>{citaHora}</Text>
                 </View>
               </View>
-
               <View style={[styles.summaryRow, styles.summaryRowLast]}>
                 <MaterialIcons name="meeting-room" size={16} color={colors.primary} />
                 <View>
                   <Text style={styles.summaryLabel}>Estado de sala</Text>
-                  <Text style={styles.summaryValue}>
-                    {loadingRoom ? 'Sincronizando...' : roomStatus || 'pendiente'}
+                  <Text style={[styles.summaryValue, roomCanJoin && styles.summaryValueGreen]}>
+                    {loadingRoom ? 'Sincronizando...' : roomCanJoin ? '● Abierta' : roomStatus || 'pendiente'}
                   </Text>
                 </View>
               </View>
             </View>
 
-            <View style={styles.cameraCard}>
-              <Image source={userAvatarSource} style={styles.cameraImage} />
-              <View style={styles.cameraTag}>
-                <Text style={styles.cameraTagText}>TU CÁMARA</Text>
-              </View>
-
-              <View style={styles.cameraControls}>
-                <TouchableOpacity style={styles.cameraControl} onPress={() => setMicOn((v) => !v)}>
-                  <MaterialIcons name={micOn ? 'mic' : 'mic-off'} size={18} color="#fff" />
+            {/* Inline error */}
+            {roomError ? (
+              <View style={styles.errorBar}>
+                <MaterialIcons name="error-outline" size={16} color="#dc2626" />
+                <Text style={styles.errorText}>{roomError}</Text>
+                <TouchableOpacity style={styles.errorRetryBtn} onPress={() => { setRoomError(''); enterVideoRoom(); }} activeOpacity={0.8}>
+                  <Text style={styles.errorRetryText}>Reintentar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.cameraControl} onPress={() => setCameraOn((v) => !v)}>
-                  <MaterialIcons name={cameraOn ? 'videocam' : 'videocam-off'} size={18} color="#fff" />
-                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setRoomError('')}><MaterialIcons name="close" size={14} color="#dc2626" /></TouchableOpacity>
               </View>
-            </View>
+            ) : null}
 
-            <View style={[styles.bottomActions, !isDesktopLayout && styles.bottomActionsMobile]}>
-              <TouchableOpacity
-                style={[styles.joinBtn, (!nextCita || !roomCanJoin || openingRoom) && styles.disabledBtn]}
-                onPress={enterVideoRoom}
-                disabled={!nextCita || !roomCanJoin || openingRoom}
-              >
-                <MaterialIcons name="video-call" size={15} color="#fff" />
-                <Text style={styles.joinBtnText}>
-                  {openingRoom ? 'Abriendo...' : roomCanJoin ? 'Entrar a consulta' : 'En sala de espera'}
-                </Text>
-              </TouchableOpacity>
+            {/* Primary CTA */}
+            <TouchableOpacity
+              style={[styles.joinBtn, (!nextCita || !roomCanJoin || openingRoom) && styles.disabledBtn, roomCanJoin && styles.joinBtnReady]}
+              onPress={enterVideoRoom}
+              disabled={!nextCita || !roomCanJoin || openingRoom}
+              activeOpacity={0.8}
+            >
+              {openingRoom ? (
+                <Animated.View style={{ opacity: signalPulse }}>
+                  <MaterialIcons name="sync" size={20} color="#fff" />
+                </Animated.View>
+              ) : (
+                <MaterialIcons name="video-call" size={20} color="#fff" />
+              )}
+              <Text style={styles.joinBtnText}>
+                {openingRoom ? 'Conectando…' : roomCanJoin ? 'Entrar a la consulta' : 'Esperando al médico…'}
+              </Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity style={styles.settingsBtn} onPress={openSettings}>
-                <MaterialIcons name="settings" size={15} color={colors.primary} />
+            {/* Subtle room-ready hint */}
+            {roomCanJoin && (
+              <Animated.View style={[styles.roomReadyHint, { opacity: roomReadyPulse }]}>
+                <View style={styles.roomReadyDot} />
+                <Text style={styles.roomReadyText}>Sala lista · Puedes entrar ahora</Text>
+              </Animated.View>
+            )}
+
+            {/* Sound ready placeholder */}
+            {roomCanJoin && (
+              <View style={styles.soundReadyRow}>
+                <MaterialIcons name="volume-up" size={14} color={colors.muted} />
+                <Text style={styles.soundReadyText}>Sonido de notificación activado</Text>
+              </View>
+            )}
+
+            <View style={styles.secondaryActions}>
+              <TouchableOpacity style={styles.settingsBtn} onPress={openSettings} activeOpacity={0.8}>
+                <MaterialIcons name="tune" size={15} color={colors.primary} />
                 <Text style={styles.settingsBtnText}>Ajustes</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity style={styles.leaveBtn} onPress={() => navigation.navigate('DashboardPaciente')}>
+              <TouchableOpacity style={styles.leaveBtn} onPress={() => navigation.navigate('DashboardPaciente')} activeOpacity={0.8}>
                 <MaterialIcons name="call-end" size={15} color="#ef4444" />
                 <Text style={styles.leaveBtnText}>Salir</Text>
               </TouchableOpacity>
@@ -859,7 +949,9 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
         </View>
 
         <View style={styles.footer}>
+          <MaterialIcons name="lock" size={12} color={colors.muted} />
           <Text style={styles.footerText}>Sesión Privada y Encriptada</Text>
+          <Text style={styles.footerText}>·</Text>
           <Text style={styles.footerText}>Soporte: 0-800-VIREM</Text>
         </View>
       </View>
@@ -1311,163 +1403,194 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 10,
   },
-  contentWrapMobile: {
-    flexDirection: 'column',
-    paddingHorizontal: 14,
-  },
-  centerCol: {
-    flex: 1.4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  doctorAvatarWrap: {
-    width: 92,
-    height: 92,
-    borderRadius: 92,
-    borderWidth: 4,
-    borderColor: '#d8e8f7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    position: 'relative',
-  },
-  doctorAvatar: { width: 78, height: 78, borderRadius: 78 },
-  verifiedBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 26,
-    height: 26,
-    borderRadius: 26,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.bg,
-  },
-  waitTitle: {
-    color: colors.blue,
-    fontSize: 22,
-    lineHeight: 30,
-    fontWeight: '900',
-    textAlign: 'center',
-    maxWidth: 420,
-  },
-  waitDotsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    marginTop: 6,
-    marginBottom: 2,
-  },
-  waitDot: {
-    color: colors.primary,
-    fontSize: 18,
-    fontWeight: '900',
-    lineHeight: 20,
-  },
-  waitSub: { color: colors.muted, fontSize: 16, fontStyle: 'italic', fontWeight: '600' },
-  waitHint: {
-    marginTop: 16,
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-    maxWidth: 380,
-  },
-  rightCol: { width: 360, justifyContent: 'space-between' },
-  rightColMobile: { width: '100%' },
-  summaryCard: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#cfe0ee',
-    borderRadius: 16,
-    padding: 16,
-  },
-  summaryTitle: { fontSize: 13, fontWeight: '900', letterSpacing: 1, color: colors.muted, marginBottom: 12 },
-  summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 12, alignItems: 'flex-start' },
-  summaryRowLast: { marginBottom: 0, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#e9f1f8' },
-  summaryLabel: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  summaryValue: { color: colors.dark, fontSize: 16, fontWeight: '900', marginTop: 2 },
+  contentWrapMobile: { flexDirection: 'column', paddingHorizontal: 14 },
+  centerCol: { flex: 1.4, gap: 16 },
   cameraCard: {
-    marginTop: 16,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#d5e4f1',
-    borderRadius: 14,
+    backgroundColor: '#0f1a2e',
+    borderRadius: 18,
     overflow: 'hidden',
     position: 'relative',
+    minHeight: 220,
   },
-  cameraImage: { width: '100%', height: 175 },
+  cameraImage: { width: '100%', height: 220 },
+  cameraOffOverlay: {
+    width: '100%',
+    height: 220,
+    backgroundColor: '#0f1a2e',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  cameraOffText: { color: '#8aa7bf', fontSize: 12, fontWeight: '700' },
   cameraTag: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.48)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    top: 10,
+    left: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
+  cameraLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' },
   cameraTagText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   cameraControls: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 8,
+    bottom: 12,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
   },
   cameraControl: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.22)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bottomActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  bottomActionsMobile: { flexDirection: 'column' },
+  cameraControlOff: { backgroundColor: 'rgba(239,68,68,0.7)' },
+  waitSection: { alignItems: 'center', paddingVertical: 10 },
+  doctorAvatarWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 72,
+    borderWidth: 3,
+    borderColor: '#d8e8f7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    position: 'relative',
+  },
+  doctorAvatar: { width: 62, height: 62, borderRadius: 62 },
+  verifiedBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.bg,
+  },
+  waitTitle: {
+    color: '#1F4770',
+    fontSize: 18,
+    fontWeight: '900',
+    textAlign: 'center',
+    maxWidth: 340,
+  },
+  waitDotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  waitDot: { color: colors.primary, fontSize: 16, fontWeight: '900', lineHeight: 18 },
+  waitSub: { color: colors.muted, fontSize: 13, fontWeight: '600', fontStyle: 'italic', textAlign: 'center' },
+  waitTimerBox: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, backgroundColor: '#f0f6ff', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: '#e4edf7' },
+  waitTimerBoxWarn: { backgroundColor: '#fffbeb', borderColor: '#fde68a' },
+  waitTimerText: { color: colors.muted, fontSize: 12, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  waitTimerTextWarn: { color: '#b45309' },
+  timeoutCard: { marginTop: 14, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a', borderRadius: 14, padding: 14, alignItems: 'center', gap: 10 },
+  timeoutMsg: { color: '#92400e', fontSize: 12, fontWeight: '700', textAlign: 'center', lineHeight: 18 },
+  timeoutActions: { flexDirection: 'row', gap: 8 },
+  timeoutBtnPrimary: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#1F4770', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14 },
+  timeoutBtnPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  timeoutBtnSecondary: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4edf7', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14 },
+  timeoutBtnSecondaryText: { color: colors.primary, fontWeight: '800', fontSize: 12 },
+  rightCol: { width: 340, gap: 12 },
+  rightColMobile: { width: '100%' },
+  summaryCard: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e4edf7',
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
+  },
+  summaryTitle: { fontSize: 11, fontWeight: '900', letterSpacing: 1, color: colors.muted, marginBottom: 12, textTransform: 'uppercase' },
+  summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 12, alignItems: 'flex-start' },
+  summaryRowLast: { marginBottom: 0, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  summaryLabel: { color: colors.muted, fontSize: 11, fontWeight: '600' },
+  summaryValue: { color: colors.dark, fontSize: 14, fontWeight: '800', marginTop: 1 },
+  summaryValueGreen: { color: '#16a34a' },
+  roomReadyHint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 4 },
+  roomReadyDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22c55e' },
+  roomReadyText: { color: '#16a34a', fontSize: 11, fontWeight: '700' },
+  errorBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  errorText: { flex: 1, color: '#991b1b', fontSize: 12, fontWeight: '700', lineHeight: 17 },
+  errorRetryBtn: { backgroundColor: '#dc2626', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  errorRetryText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   joinBtn: {
-    flex: 1.4,
-    borderRadius: 10,
-    paddingVertical: 9,
+    borderRadius: 14,
+    paddingVertical: 15,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 6,
-    backgroundColor: colors.primary,
+    gap: 8,
+    backgroundColor: '#1F4770',
+    shadowColor: '#1F4770',
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
   },
-  joinBtnText: { color: '#fff', fontWeight: '800', fontSize: 12 },
-  disabledBtn: { opacity: 0.55 },
+  joinBtnReady: { backgroundColor: '#1F4770', shadowOpacity: 0.5, shadowRadius: 14, borderWidth: 2, borderColor: '#22c55e' },
+  joinBtnText: { color: '#fff', fontWeight: '900', fontSize: 15 },
+  disabledBtn: { opacity: 0.5, shadowOpacity: 0 },
+  soundReadyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  soundReadyText: { color: colors.muted, fontSize: 11, fontWeight: '600', fontStyle: 'italic' },
+  secondaryActions: { flexDirection: 'row', gap: 10 },
   settingsBtn: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#cfe0ee',
-    borderRadius: 10,
-    paddingVertical: 9,
+    borderColor: '#e4edf7',
+    borderRadius: 12,
+    paddingVertical: 10,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
     backgroundColor: '#fff',
   },
-  settingsBtnText: { color: colors.primary, fontWeight: '700', fontSize: 12 },
+  settingsBtnText: { color: colors.primary, fontWeight: '800', fontSize: 12 },
   leaveBtn: {
     flex: 1,
     borderWidth: 1,
     borderColor: '#fecaca',
-    borderRadius: 10,
-    paddingVertical: 9,
+    borderRadius: 12,
+    paddingVertical: 10,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
-    backgroundColor: '#fff',
+    backgroundColor: '#fef2f2',
   },
-  leaveBtnText: { color: '#ef4444', fontWeight: '700', fontSize: 12 },
+  leaveBtnText: { color: '#ef4444', fontWeight: '800', fontSize: 12 },
   footer: {
     height: 40,
     borderTopWidth: 1,
@@ -1476,7 +1599,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 18,
+    gap: 6,
   },
   footerText: { color: colors.muted, fontSize: 11, fontWeight: '700' },
   settingsLayer: {
@@ -1524,25 +1647,9 @@ const styles = StyleSheet.create({
   },
   settingsTitle: { color: colors.dark, fontSize: 20, fontWeight: '900' },
   settingsSubtitle: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 2 },
-  settingsCloseBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingsBody: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  settingsPreviewBox: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#d9e5f2',
-    position: 'relative',
-  },
+  settingsCloseBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  settingsBody: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
+  settingsPreviewBox: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#d9e5f2', position: 'relative' },
   settingsPreviewImage: { width: '100%', height: 170 },
   audioOkTag: {
     position: 'absolute',
@@ -1559,82 +1666,26 @@ const styles = StyleSheet.create({
   audioBars: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
   audioBar: { width: 2, height: 8, borderRadius: 1, backgroundColor: '#22c55e' },
   audioOkText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  settingsPreviewCaption: {
-    marginTop: 8,
-    marginBottom: 14,
-    textAlign: 'center',
-    color: colors.muted,
-    fontSize: 11,
-    fontStyle: 'italic',
-    fontWeight: '600',
-  },
+  settingsPreviewCaption: { marginTop: 8, marginBottom: 14, textAlign: 'center', color: colors.muted, fontSize: 11, fontStyle: 'italic', fontWeight: '600' },
   settingBlock: { marginBottom: 12 },
   settingLabel: { color: '#94a3b8', fontSize: 11, fontWeight: '900', marginBottom: 6 },
-  selectLike: {
-    borderWidth: 1,
-    borderColor: '#dbe7f2',
-    borderRadius: 10,
-    backgroundColor: '#f8fbff',
-    paddingHorizontal: 10,
-    paddingVertical: 11,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+  selectLike: { borderWidth: 1, borderColor: '#dbe7f2', borderRadius: 10, backgroundColor: '#f8fbff', paddingHorizontal: 10, paddingVertical: 11, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   selectLikeText: { color: '#475569', fontSize: 12, fontWeight: '600' },
-  selectMenu: {
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: '#dbe7f2',
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-  },
-  selectOption: {
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    borderBottomWidth: 1,
-    borderBottomColor: '#edf2f8',
-  },
+  selectMenu: { marginTop: 6, borderWidth: 1, borderColor: '#dbe7f2', borderRadius: 10, backgroundColor: '#fff', overflow: 'hidden' },
+  selectOption: { paddingHorizontal: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#edf2f8' },
   selectOptionActive: { backgroundColor: 'rgba(19,127,236,0.10)' },
   selectOptionText: { color: '#334155', fontSize: 12, fontWeight: '600' },
   selectOptionTextActive: { color: colors.primary, fontWeight: '800' },
   selectEmpty: { color: '#64748b', fontSize: 12, paddingHorizontal: 10, paddingVertical: 10, fontWeight: '600' },
   deviceInfo: { marginTop: 2, color: '#64748b', fontSize: 12, fontWeight: '600' },
   deviceError: { marginTop: 2, color: '#dc2626', fontSize: 12, fontWeight: '700' },
-  toggleCard: {
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: '#e5edf6',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f9fbfe',
-  },
+  toggleCard: { marginTop: 6, borderWidth: 1, borderColor: '#e5edf6', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9fbfe' },
   toggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, paddingRight: 8 },
   toggleTitle: { color: colors.dark, fontSize: 14, fontWeight: '800' },
   toggleSubtitle: { color: colors.muted, fontSize: 11, fontWeight: '600', marginTop: 2 },
-  settingsFooter: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#eef2f7',
-  },
-  applyBtn: {
-    borderRadius: 12,
-    backgroundColor: '#24418a',
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
+  settingsFooter: { paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#eef2f7' },
+  applyBtn: { borderRadius: 12, backgroundColor: '#1F4770', paddingVertical: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   applyBtnText: { color: '#fff', fontSize: 15, fontWeight: '900' },
 });
 
 export default SalaEsperaVirtualPacienteScreen;
-
-

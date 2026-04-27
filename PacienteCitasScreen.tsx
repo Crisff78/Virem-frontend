@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -140,6 +140,8 @@ const PacienteCitasScreen: React.FC = () => {
   const [workingCitaId, setWorkingCitaId] = useState('');
   const [searchText, setSearchText] = useState('');
   const [citas, setCitas] = useState<CitaItem[]>([]);
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'history' | 'cancelled'>('upcoming');
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
   const lastRefreshRef = useRef(0);
 
   const loadUser = useCallback(async () => {
@@ -291,11 +293,17 @@ const PacienteCitasScreen: React.FC = () => {
     });
   }, [citas, searchText]);
 
-  const { upcomingCitas, historyCitas } = useMemo(() => {
+  const { upcomingCitas, historyCitas, cancelledCitas } = useMemo(() => {
     const now = Date.now();
     const upcoming: CitaItem[] = [];
     const history: CitaItem[] = [];
+    const cancelled: CitaItem[] = [];
     for (const cita of filteredCitas) {
+      const estado = normalizeText(cita.estado).toLowerCase();
+      if (estado.includes('cancel')) {
+        cancelled.push(cita);
+        continue;
+      }
       const startMs = parseDateMs(cita.fechaHoraInicio);
       if (Number.isFinite(startMs) && startMs >= now) {
         upcoming.push(cita);
@@ -305,8 +313,18 @@ const PacienteCitasScreen: React.FC = () => {
     }
     upcoming.sort((a, b) => parseDateMs(a.fechaHoraInicio) - parseDateMs(b.fechaHoraInicio));
     history.sort((a, b) => parseDateMs(b.fechaHoraInicio) - parseDateMs(a.fechaHoraInicio));
-    return { upcomingCitas: upcoming, historyCitas: history };
+    cancelled.sort((a, b) => parseDateMs(b.fechaHoraInicio) - parseDateMs(a.fechaHoraInicio));
+    return { upcomingCitas: upcoming, historyCitas: history, cancelledCitas: cancelled };
   }, [filteredCitas]);
+
+  const getEstadoBadge = useCallback((estado: string) => {
+    const e = normalizeText(estado).toLowerCase();
+    if (e.includes('confirm')) return { label: 'Confirmada', color: '#16a34a', bg: '#f0fdf4' };
+    if (e.includes('complet') || e.includes('realiz') || e.includes('finaliz')) return { label: 'Completada', color: '#6366f1', bg: '#eef2ff' };
+    if (e.includes('cancel')) return { label: 'Cancelada', color: '#ef4444', bg: '#fef2f2' };
+    if (e.includes('pospuesta') || e.includes('reprog')) return { label: 'Reprogramada', color: '#f59e0b', bg: '#fffbeb' };
+    return { label: 'Pendiente', color: '#f59e0b', bg: '#fffbeb' };
+  }, []);
 
   const handleLogout = async () => {
     await signOut();
@@ -559,94 +577,248 @@ const PacienteCitasScreen: React.FC = () => {
             <Text style={styles.subtitle}>Gestiona tus consultas, videollamadas y mensajes con tus especialistas.</Text>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Proximas citas</Text>
-            {loadingCitas ? (
-              <Text style={styles.emptyText}>Cargando citas...</Text>
-            ) : !upcomingCitas.length ? (
-              <Text style={styles.emptyText}>No tienes citas proximas.</Text>
-            ) : (
-              upcomingCitas.map((cita) => (
-                <View key={cita.citaid} style={styles.citaCard}>
-                  <Image source={resolveAvatarSource(cita?.medico?.fotoUrl)} style={styles.citaAvatar} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.citaDoctor}>{normalizeText(cita?.medico?.nombreCompleto || 'Especialista')}</Text>
-                    <Text style={styles.citaDetail}>
-                      {normalizeText(cita?.medico?.especialidad || 'Medicina General')} · {formatDateTime(cita.fechaHoraInicio)}
-                    </Text>
-                    <Text style={styles.citaDetail}>Modalidad: {normalizeText(cita?.modalidad || 'presencial')}</Text>
-                    <Text style={styles.citaState}>{normalizeText(cita.estado || 'Pendiente')}</Text>
-                    <View style={styles.citaActions}>
-                      <TouchableOpacity
-                        style={[
-                          styles.actionBlue,
-                          normalizeText(cita?.modalidad).toLowerCase() !== 'virtual' && styles.actionDisabled,
-                        ]}
-                        onPress={() => navigation.navigate('SalaEsperaVirtualPaciente', { citaId: cita.citaid })}
-                        disabled={normalizeText(cita?.modalidad).toLowerCase() !== 'virtual'}
-                      >
-                        <Text style={styles.actionBlueText}>Videollamada</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionGray, workingCitaId === cita.citaid && styles.actionDisabled]}
-                        onPress={() => askPostpone(cita)}
-                        disabled={workingCitaId === cita.citaid}
-                      >
-                        <Text style={styles.actionGrayText}>
-                          {workingCitaId === cita.citaid ? 'Posponiendo...' : 'Posponer'}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionGray, workingCitaId === cita.citaid && styles.actionDisabled]}
-                        onPress={() => askCancel(cita)}
-                        disabled={workingCitaId === cita.citaid}
-                      >
-                        <Text style={styles.actionGrayText}>
-                          {workingCitaId === cita.citaid ? 'Procesando...' : 'Cancelar'}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionGray} onPress={() => showDetails(cita)}>
-                        <Text style={styles.actionGrayText}>Detalles</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.actionGray}
-                        onPress={() =>
-                          navigation.navigate('PacienteChat', {
-                            doctorId: String(cita?.medico?.medicoid || ''),
-                            doctorName: normalizeText(cita?.medico?.nombreCompleto || 'Especialista'),
-                            doctorAvatarUrl: sanitizeFotoUrl(cita?.medico?.fotoUrl) || null,
-                          })
-                        }
-                      >
-                        <Text style={styles.actionGrayText}>Chat</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+          {/* Tabs */}
+          <View style={styles.tabBar}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'upcoming' && styles.tabActive]}
+              activeOpacity={0.8}
+              onPress={() => setActiveTab('upcoming')}
+            >
+              <MaterialIcons name="event" size={16} color={activeTab === 'upcoming' ? '#fff' : colors.muted} />
+              <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>Próximas</Text>
+              {upcomingCitas.length > 0 && (
+                <View style={[styles.tabBadge, activeTab === 'upcoming' && styles.tabBadgeActive]}>
+                  <Text style={[styles.tabBadgeText, activeTab === 'upcoming' && styles.tabBadgeTextActive]}>{upcomingCitas.length}</Text>
                 </View>
-              ))
-            )}
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'history' && styles.tabActive]}
+              activeOpacity={0.8}
+              onPress={() => setActiveTab('history')}
+            >
+              <MaterialIcons name="history" size={16} color={activeTab === 'history' ? '#fff' : colors.muted} />
+              <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>Historial</Text>
+              {historyCitas.length > 0 && (
+                <View style={[styles.tabBadge, activeTab === 'history' && styles.tabBadgeActive]}>
+                  <Text style={[styles.tabBadgeText, activeTab === 'history' && styles.tabBadgeTextActive]}>{historyCitas.length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'cancelled' && styles.tabActive]}
+              activeOpacity={0.8}
+              onPress={() => setActiveTab('cancelled')}
+            >
+              <MaterialIcons name="cancel" size={16} color={activeTab === 'cancelled' ? '#fff' : colors.muted} />
+              <Text style={[styles.tabText, activeTab === 'cancelled' && styles.tabTextActive]}>Canceladas</Text>
+              {cancelledCitas.length > 0 && (
+                <View style={[styles.tabBadge, activeTab === 'cancelled' && styles.tabBadgeActive]}>
+                  <Text style={[styles.tabBadgeText, activeTab === 'cancelled' && styles.tabBadgeTextActive]}>{cancelledCitas.length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Historial de citas</Text>
-            {!historyCitas.length ? (
-              <Text style={styles.emptyText}>Aun no tienes historial de citas.</Text>
-            ) : (
-              historyCitas.map((cita) => (
-                <View key={cita.citaid} style={styles.historyRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.historyDoctor}>{normalizeText(cita?.medico?.nombreCompleto || 'Especialista')}</Text>
-                    <Text style={styles.historyDetail}>
-                      {normalizeText(cita?.medico?.especialidad || 'Medicina General')} · {formatDateTime(cita.fechaHoraInicio)}
-                    </Text>
+          {/* Tab: Próximas */}
+          {activeTab === 'upcoming' && (
+            <View style={styles.section}>
+              {loadingCitas ? (
+                <View style={styles.emptyState}>
+                  <MaterialIcons name="hourglass-top" size={36} color={colors.muted} />
+                  <Text style={styles.emptyTitle}>Cargando citas...</Text>
+                </View>
+              ) : !upcomingCitas.length ? (
+                <View style={styles.emptyState}>
+                  <View style={styles.emptyIconBox}>
+                    <MaterialIcons name="event-available" size={36} color={colors.primary} />
                   </View>
-                  <TouchableOpacity style={styles.historyBtn} onPress={() => showDetails(cita)}>
-                    <Text style={styles.historyBtnText}>Detalle</Text>
+                  <Text style={styles.emptyTitle}>Sin citas próximas</Text>
+                  <Text style={styles.emptySubtitle}>Agenda una consulta con un especialista para comenzar.</Text>
+                  <TouchableOpacity
+                    style={styles.emptyCta}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+                  >
+                    <MaterialIcons name="add" size={18} color="#fff" />
+                    <Text style={styles.emptyCtaText}>Agendar consulta</Text>
                   </TouchableOpacity>
                 </View>
-              ))
-            )}
-          </View>
+              ) : (
+                upcomingCitas.map((cita) => {
+                  const badge = getEstadoBadge(cita.estado);
+                  const isVirtual = normalizeText(cita?.modalidad).toLowerCase() === 'virtual';
+                  const isBusy = workingCitaId === cita.citaid;
+                  const isConfirmingCancel = confirmCancelId === cita.citaid;
+                  return (
+                    <View key={cita.citaid} style={styles.citaCard}>
+                      <View style={styles.citaTop}>
+                        <Image source={resolveAvatarSource(cita?.medico?.fotoUrl)} style={styles.citaAvatar} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.citaDoctor}>{normalizeText(cita?.medico?.nombreCompleto || 'Especialista')}</Text>
+                          <Text style={styles.citaSpec}>{normalizeText(cita?.medico?.especialidad || 'Medicina General')}</Text>
+                        </View>
+                        <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+                          <View style={[styles.statusDot, { backgroundColor: badge.color }]} />
+                          <Text style={[styles.statusText, { color: badge.color }]}>{badge.label}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.citaMeta}>
+                        <View style={styles.citaMetaItem}>
+                          <MaterialIcons name="calendar-today" size={14} color={colors.muted} />
+                          <Text style={styles.citaMetaText}>{formatDateTime(cita.fechaHoraInicio)}</Text>
+                        </View>
+                        <View style={styles.citaMetaItem}>
+                          <MaterialIcons name={isVirtual ? 'videocam' : 'location-on'} size={14} color={colors.muted} />
+                          <Text style={styles.citaMetaText}>{normalizeText(cita?.modalidad || 'Presencial')}</Text>
+                        </View>
+                      </View>
+
+                      {isConfirmingCancel ? (
+                        <View style={styles.confirmBar}>
+                          <Text style={styles.confirmText}>¿Cancelar esta cita?</Text>
+                          <View style={styles.confirmActions}>
+                            <TouchableOpacity style={styles.confirmNo} activeOpacity={0.8} onPress={() => setConfirmCancelId(null)}>
+                              <Text style={styles.confirmNoText}>Volver</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.confirmYes} activeOpacity={0.8} onPress={() => { setConfirmCancelId(null); cancelCita(cita); }}>
+                              <Text style={styles.confirmYesText}>Sí, cancelar</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={styles.citaActions}>
+                          {isVirtual && (
+                            <TouchableOpacity
+                              style={styles.actionJoin}
+                              activeOpacity={0.8}
+                              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente', { citaId: cita.citaid })}
+                            >
+                              <MaterialIcons name="videocam" size={16} color="#fff" />
+                              <Text style={styles.actionJoinText}>Unirse</Text>
+                            </TouchableOpacity>
+                          )}
+                          <TouchableOpacity
+                            style={[styles.actionOutline, isBusy && styles.actionDisabled]}
+                            activeOpacity={0.8}
+                            onPress={() => askPostpone(cita)}
+                            disabled={isBusy}
+                          >
+                            <MaterialIcons name="update" size={14} color={colors.blue} />
+                            <Text style={styles.actionOutlineText}>{isBusy ? 'Posponiendo...' : 'Posponer'}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionDanger, isBusy && styles.actionDisabled]}
+                            activeOpacity={0.8}
+                            onPress={() => setConfirmCancelId(cita.citaid)}
+                            disabled={isBusy}
+                          >
+                            <MaterialIcons name="close" size={14} color="#ef4444" />
+                            <Text style={styles.actionDangerText}>Cancelar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.actionOutline}
+                            activeOpacity={0.8}
+                            onPress={() => navigation.navigate('PacienteChat', {
+                              doctorId: String(cita?.medico?.medicoid || ''),
+                              doctorName: normalizeText(cita?.medico?.nombreCompleto || 'Especialista'),
+                              doctorAvatarUrl: sanitizeFotoUrl(cita?.medico?.fotoUrl) || null,
+                            })}
+                          >
+                            <MaterialIcons name="chat-bubble-outline" size={14} color={colors.blue} />
+                            <Text style={styles.actionOutlineText}>Chat</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          )}
+
+          {/* Tab: Historial */}
+          {activeTab === 'history' && (
+            <View style={styles.section}>
+              {!historyCitas.length ? (
+                <View style={styles.emptyState}>
+                  <View style={styles.emptyIconBox}>
+                    <MaterialIcons name="history" size={36} color={colors.muted} />
+                  </View>
+                  <Text style={styles.emptyTitle}>Sin historial</Text>
+                  <Text style={styles.emptySubtitle}>Tus consultas completadas aparecerán aquí.</Text>
+                </View>
+              ) : (
+                historyCitas.map((cita) => {
+                  const badge = getEstadoBadge(cita.estado);
+                  return (
+                    <View key={cita.citaid} style={styles.citaCard}>
+                      <View style={styles.citaTop}>
+                        <Image source={resolveAvatarSource(cita?.medico?.fotoUrl)} style={styles.citaAvatar} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.citaDoctor}>{normalizeText(cita?.medico?.nombreCompleto || 'Especialista')}</Text>
+                          <Text style={styles.citaSpec}>{normalizeText(cita?.medico?.especialidad || 'Medicina General')}</Text>
+                        </View>
+                        <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+                          <View style={[styles.statusDot, { backgroundColor: badge.color }]} />
+                          <Text style={[styles.statusText, { color: badge.color }]}>{badge.label}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.citaMeta}>
+                        <View style={styles.citaMetaItem}>
+                          <MaterialIcons name="calendar-today" size={14} color={colors.muted} />
+                          <Text style={styles.citaMetaText}>{formatDateTime(cita.fechaHoraInicio)}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.citaActions}>
+                        <TouchableOpacity style={styles.actionOutline} activeOpacity={0.8} onPress={() => showDetails(cita)}>
+                          <MaterialIcons name="info-outline" size={14} color={colors.blue} />
+                          <Text style={styles.actionOutlineText}>Ver detalle</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          )}
+
+          {/* Tab: Canceladas */}
+          {activeTab === 'cancelled' && (
+            <View style={styles.section}>
+              {!cancelledCitas.length ? (
+                <View style={styles.emptyState}>
+                  <View style={styles.emptyIconBox}>
+                    <MaterialIcons name="block" size={36} color={colors.muted} />
+                  </View>
+                  <Text style={styles.emptyTitle}>Sin cancelaciones</Text>
+                  <Text style={styles.emptySubtitle}>No tienes citas canceladas.</Text>
+                </View>
+              ) : (
+                cancelledCitas.map((cita) => (
+                  <View key={cita.citaid} style={[styles.citaCard, styles.citaCardCancelled]}>
+                    <View style={styles.citaTop}>
+                      <Image source={resolveAvatarSource(cita?.medico?.fotoUrl)} style={[styles.citaAvatar, { opacity: 0.6 }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.citaDoctor, { color: colors.muted }]}>{normalizeText(cita?.medico?.nombreCompleto || 'Especialista')}</Text>
+                        <Text style={styles.citaSpec}>{normalizeText(cita?.medico?.especialidad || 'Medicina General')}</Text>
+                      </View>
+                      <View style={[styles.statusBadge, { backgroundColor: '#fef2f2' }]}>
+                        <View style={[styles.statusDot, { backgroundColor: '#ef4444' }]} />
+                        <Text style={[styles.statusText, { color: '#ef4444' }]}>Cancelada</Text>
+                      </View>
+                    </View>
+                    <View style={styles.citaMeta}>
+                      <View style={styles.citaMetaItem}>
+                        <MaterialIcons name="calendar-today" size={14} color={colors.muted} />
+                        <Text style={styles.citaMetaText}>{formatDateTime(cita.fechaHoraInicio)}</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+          )}
         </ScrollView>
       </View>
     </View>
@@ -751,48 +923,272 @@ const styles = StyleSheet.create({
   notifDot: { position: 'absolute', top: 12, right: 12, width: 10, height: 10, borderRadius: 10, backgroundColor: '#ef4444', borderWidth: 2, borderColor: '#fff' },
 
   content: { flex: 1 },
-  heading: { marginBottom: 12 },
-  title: { fontSize: 32, fontWeight: '900', color: colors.dark },
-  subtitle: { marginTop: 4, color: colors.muted, fontWeight: '700' },
-  section: { marginTop: 10 },
-  sectionTitle: { fontSize: 23, fontWeight: '900', color: colors.dark, marginBottom: 10 },
-  emptyText: { color: colors.muted, fontWeight: '700', paddingVertical: 8 },
+  heading: { marginBottom: 6 },
+  title: { fontSize: 30, fontWeight: '900', color: colors.dark, letterSpacing: -0.3 },
+  subtitle: { marginTop: 4, color: colors.muted, fontWeight: '600', lineHeight: 20 },
+
+  /* Tabs */
+  tabBar: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+    marginBottom: 16,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e4edf7',
+  },
+  tabActive: {
+    backgroundColor: colors.blue,
+    borderColor: colors.blue,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.muted,
+  },
+  tabTextActive: {
+    color: '#fff',
+  },
+  tabBadge: {
+    backgroundColor: '#eef4fb',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    minWidth: 22,
+    alignItems: 'center',
+  },
+  tabBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  tabBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.blue,
+  },
+  tabBadgeTextActive: {
+    color: '#fff',
+  },
+
+  section: { marginTop: 4 },
+
+  /* Empty states */
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#e4edf7',
+    borderStyle: 'dashed',
+  },
+  emptyIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#f0f6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: {
+    color: colors.dark,
+    fontSize: 16,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  emptySubtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 18,
+    maxWidth: 280,
+  },
+  emptyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+    backgroundColor: '#1F4770',
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    shadowColor: '#1F4770',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  emptyCtaText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+
+  /* Cita card */
   citaCard: {
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#e4edf7',
     borderRadius: 18,
-    padding: 14,
-    marginBottom: 10,
-    flexDirection: 'row',
-    gap: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
   },
-  citaAvatar: { width: 58, height: 58, borderRadius: 58, borderWidth: 3, borderColor: '#f2f6fb' },
-  citaDoctor: { color: colors.dark, fontWeight: '900', fontSize: 16 },
-  citaDetail: { color: colors.muted, fontWeight: '700', marginTop: 2 },
-  citaState: { color: colors.success, fontWeight: '800', marginTop: 4, fontSize: 12 },
-  citaActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  actionBlue: { backgroundColor: colors.primary, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
-  actionBlueText: { color: '#fff', fontWeight: '800', fontSize: 12 },
-  actionGray: { backgroundColor: '#eef4fb', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
-  actionGrayText: { color: colors.blue, fontWeight: '800', fontSize: 12 },
-  actionDisabled: { opacity: 0.65 },
-
-  historyRow: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e4edf7',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 8,
+  citaCardCancelled: {
+    opacity: 0.7,
+    backgroundColor: '#fafbfc',
+  },
+  citaTop: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+  },
+  citaAvatar: { width: 48, height: 48, borderRadius: 48, borderWidth: 2, borderColor: '#f2f6fb' },
+  citaDoctor: { color: colors.dark, fontWeight: '800', fontSize: 15 },
+  citaSpec: { color: colors.muted, fontWeight: '600', fontSize: 12, marginTop: 1 },
+
+  /* Status badge */
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 7,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  /* Meta row */
+  citaMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  citaMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  citaMetaText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  /* Actions */
+  citaActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  actionJoin: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  actionJoinText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  actionOutline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  actionOutlineText: { color: colors.blue, fontWeight: '800', fontSize: 12 },
+  actionDanger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#fef2f2',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  actionDangerText: { color: '#ef4444', fontWeight: '800', fontSize: 12 },
+  actionDisabled: { opacity: 0.55 },
+
+  /* Inline cancel confirmation */
+  confirmBar: {
+    marginTop: 12,
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    padding: 12,
+    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    alignItems: Platform.OS === 'web' ? 'center' : 'stretch',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  confirmText: {
+    color: '#991b1b',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  confirmActions: {
+    flexDirection: 'row',
     gap: 8,
   },
-  historyDoctor: { color: colors.dark, fontWeight: '800' },
-  historyDetail: { color: colors.muted, fontWeight: '700', marginTop: 2, fontSize: 12 },
-  historyBtn: { backgroundColor: '#eef4fb', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10 },
-  historyBtnText: { color: colors.blue, fontWeight: '800', fontSize: 12 },
+  confirmNo: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  confirmNoText: { color: colors.dark, fontWeight: '800', fontSize: 12 },
+  confirmYes: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: '#ef4444',
+  },
+  confirmYesText: { color: '#fff', fontWeight: '800', fontSize: 12 },
 });
 
 export default PacienteCitasScreen;

@@ -50,6 +50,7 @@ type Message = {
   text: string;
   time: string;
   dateLabel?: string;
+  status?: 'sent' | 'read';
 };
 
 type ChatContact = {
@@ -125,8 +126,12 @@ const PacienteChatScreen: React.FC = () => {
   const [reply, setReply] = useState('');
   const [selectedChatId, setSelectedChatId] = useState('');
   const [messagesByChat, setMessagesByChat] = useState<Record<string, Message[]>>({});
+  const [isTyping, setIsTyping] = useState(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRefreshRef = useRef(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const userAtBottomRef = useRef(true);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadUser = useCallback(async () => {
     setLoadingUser(true);
@@ -366,14 +371,43 @@ const PacienteChatScreen: React.FC = () => {
   useSocketEvent('cita_actualizada', () => scheduleContactsReload());
   useSocketEvent('cita_reprogramada', () => scheduleContactsReload());
 
+  useSocketEvent('typing', (payload: any) => {
+    const conversationId = normalizeText(payload?.conversacionId);
+    if (conversationId === selectedChatId && normalizeText(payload?.emisorTipo).toLowerCase() !== 'paciente') {
+      setIsTyping(true);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = setTimeout(() => setIsTyping(false), 3000);
+    }
+  });
+
   useEffect(() => {
     return () => {
       if (refreshTimerRef.current) {
         clearTimeout(refreshTimerRef.current);
         refreshTimerRef.current = null;
       }
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+        typingTimerRef.current = null;
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (userAtBottomRef.current && scrollRef.current) {
+      setTimeout(() => scrollRef.current?.scrollToEnd?.({ animated: true }), 100);
+    }
+  }, [messages]);
+
+  const handleScroll = useCallback((e: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    const distFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+    userAtBottomRef.current = distFromBottom < 80;
+  }, []);
+
+  useEffect(() => {
+    setIsTyping(false);
+  }, [selectedChatId]);
 
   const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
 
@@ -409,7 +443,7 @@ const PacienteChatScreen: React.FC = () => {
     const intro: Message = {
       id: `intro-${selectedChat.id}`,
       from: 'other',
-      text: `Hola, soy ${selectedChat.name}. Puedes escribirme por aqui para coordinar tu consulta.`,
+      text: `¡Hola! Soy ${selectedChat.name}. Comienza una conversación aquí después de agendar tu consulta. Estoy para ayudarte 😊`,
       time: 'Ahora',
       dateLabel: 'Nuevo chat',
     };
@@ -441,7 +475,9 @@ const PacienteChatScreen: React.FC = () => {
         from: 'me',
         text,
         time: formatTimeLabel(createdAt),
+        status: 'sent',
       };
+      userAtBottomRef.current = true;
 
       appendMessage(selectedChat.id, nextMessage);
       setReply('');
@@ -543,40 +579,47 @@ const PacienteChatScreen: React.FC = () => {
 
       <View style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]}>
         <View style={[styles.leftPanel, !isDesktopLayout ? styles.leftPanelMobile : null]}>
-          <Text style={styles.sectionTitle}>Chats seguros</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar medico por nombre o especialidad"
-            placeholderTextColor="#8aa7bf"
-            value={searchText}
-            onChangeText={setSearchText}
-          />
+          <View style={styles.leftPanelHeader}>
+            <Text style={styles.sectionTitle}>Chats</Text>
+            <View style={styles.contactCountBadge}>
+              <Text style={styles.contactCountText}>{filteredContacts.length}</Text>
+            </View>
+          </View>
+          <View style={styles.searchBox}>
+            <MaterialIcons name="search" size={18} color={colors.muted} />
+            <TextInput style={styles.searchInput} placeholder="Buscar médico..." placeholderTextColor="#8aa7bf" value={searchText} onChangeText={setSearchText} />
+          </View>
           <ScrollView showsVerticalScrollIndicator={false}>
             {loadingUser || loadingContacts ? (
-              <Text style={styles.loadingText}>Cargando chats...</Text>
+              <View style={styles.emptyState}><MaterialIcons name="hourglass-top" size={32} color={colors.muted} /><Text style={styles.emptyTitle}>Cargando chats...</Text></View>
             ) : !filteredContacts.length ? (
-              <Text style={styles.loadingText}>No tienes medicos para chatear aun. Agenda una cita primero.</Text>
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIconBox}><MaterialIcons name="chat-bubble-outline" size={32} color={colors.primary} /></View>
+                <Text style={styles.emptyTitle}>Sin conversaciones</Text>
+                <Text style={styles.emptySubtitle}>Agenda una cita para chatear con un especialista.</Text>
+                <TouchableOpacity style={styles.emptyCta} activeOpacity={0.8} onPress={() => navigation.navigate('NuevaConsultaPaciente')}>
+                  <MaterialIcons name="add" size={16} color="#fff" /><Text style={styles.emptyCtaText}>Agendar consulta</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               filteredContacts.map((chat) => {
                 const latest = (messagesByChat[chat.id] || []).slice(-1)[0];
+                const isActive = selectedChat?.id === chat.id;
                 return (
-                  <TouchableOpacity
-                    key={chat.id}
-                    style={[styles.chatRow, selectedChat?.id === chat.id && styles.chatRowActive]}
-                    onPress={() => setSelectedChatId(chat.id)}
-                    activeOpacity={0.88}
-                  >
-                    <Image source={resolveAvatarSource(chat.avatarUrl)} style={styles.chatAvatar} />
+                  <TouchableOpacity key={chat.id} style={[styles.chatRow, isActive && styles.chatRowActive]} onPress={() => setSelectedChatId(chat.id)} activeOpacity={0.75}>
+                    <View style={styles.chatAvatarWrap}>
+                      <Image source={resolveAvatarSource(chat.avatarUrl)} style={styles.chatAvatar} />
+                      <View style={styles.onlineDot} />
+                    </View>
                     <View style={{ flex: 1 }}>
                       <View style={styles.rowBetween}>
-                        <Text style={styles.chatName}>{chat.name}</Text>
+                        <Text style={[styles.chatName, isActive && styles.chatNameActive]} numberOfLines={1}>{chat.name}</Text>
                         <Text style={styles.chatTime}>{latest?.time || chat.timeLabel}</Text>
                       </View>
-                      <Text style={styles.chatMsg} numberOfLines={1}>
-                        {latest?.text || `${chat.specialty} · ${chat.timeLabel}`}
-                        {chat.unreadCount > 0 ? ` · ${chat.unreadCount} sin leer` : ''}
-                      </Text>
+                      <Text style={styles.chatSpec} numberOfLines={1}>{chat.specialty}</Text>
+                      <Text style={styles.chatMsg} numberOfLines={1}>{latest?.text || 'Inicia la conversación...'}</Text>
                     </View>
+                    {chat.unreadCount > 0 && (<View style={styles.unreadBadge}><Text style={styles.unreadBadgeText}>{chat.unreadCount}</Text></View>)}
                   </TouchableOpacity>
                 );
               })
@@ -586,36 +629,59 @@ const PacienteChatScreen: React.FC = () => {
 
         <View style={styles.chatPanel}>
           <View style={styles.chatHeader}>
-            <Text style={styles.chatHeaderTitle}>
-              {selectedChat ? `${selectedChat.name} · ${selectedChat.specialty}` : 'Selecciona un chat'}
-            </Text>
-          </View>
-          <ScrollView contentContainerStyle={styles.messagesWrap} showsVerticalScrollIndicator={false}>
-            {loadingMessages ? (
-              <Text style={styles.loadingText}>Cargando mensajes...</Text>
-            ) : (
-              messages.map((msg) => (
-                <View key={msg.id} style={[styles.msgWrap, msg.from === 'me' && styles.msgWrapMe]}>
-                  {msg.dateLabel ? <Text style={styles.oldDateLabel}>{msg.dateLabel}</Text> : null}
-                  <View style={[styles.msgBubble, msg.from === 'me' && styles.msgBubbleMe]}>
-                    <Text style={[styles.msgText, msg.from === 'me' && styles.msgTextMe]}>{msg.text}</Text>
-                  </View>
-                  <Text style={styles.msgTime}>{msg.time}</Text>
+            {selectedChat ? (
+              <View style={styles.chatHeaderInner}>
+                <Image source={resolveAvatarSource(selectedChat.avatarUrl)} style={styles.chatHeaderAvatar} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.chatHeaderName}>{selectedChat.name}</Text>
+                  <Text style={styles.chatHeaderSpec}>{selectedChat.specialty}</Text>
                 </View>
+                {selectedChat.citaId ? (
+                  <TouchableOpacity style={styles.joinBtn} activeOpacity={0.8} onPress={() => navigation.navigate('SalaEsperaVirtualPaciente', { citaId: selectedChat.citaId })}>
+                    <MaterialIcons name="videocam" size={16} color="#fff" /><Text style={styles.joinBtnText}>Unirse</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            ) : (<Text style={styles.chatHeaderName}>Selecciona un chat</Text>)}
+          </View>
+          {isTyping && selectedChat && (
+            <View style={styles.typingBar}>
+              <View style={styles.typingDots}>
+                <View style={styles.typingDot} /><View style={[styles.typingDot, styles.typingDot2]} /><View style={[styles.typingDot, styles.typingDot3]} />
+              </View>
+              <Text style={styles.typingText}>{selectedChat.name.split(' ')[0]} está escribiendo…</Text>
+            </View>
+          )}
+          <ScrollView ref={scrollRef} onScroll={handleScroll} scrollEventThrottle={100} contentContainerStyle={styles.messagesWrap} showsVerticalScrollIndicator={false}>
+            {loadingMessages ? (
+              <View style={styles.emptyState}><MaterialIcons name="hourglass-top" size={28} color={colors.muted} /><Text style={styles.emptyTitle}>Cargando mensajes...</Text></View>
+            ) : (
+              messages.map((msg, index) => (
+                <React.Fragment key={msg.id}>
+                  {(msg.dateLabel || index === 0) && (
+                    <View style={styles.dateSeparator}><View style={styles.dateLine} /><Text style={styles.dateLabel}>{msg.dateLabel || 'Hoy'}</Text><View style={styles.dateLine} /></View>
+                  )}
+                  <View style={[styles.msgWrap, msg.from === 'me' && styles.msgWrapMe]}>
+                    <View style={[styles.msgBubble, msg.from === 'me' && styles.msgBubbleMe]}>
+                      <Text style={[styles.msgText, msg.from === 'me' && styles.msgTextMe]}>{msg.text}</Text>
+                    </View>
+                    <View style={styles.msgMeta}>
+                      <Text style={[styles.msgTime, msg.from === 'me' && styles.msgTimeMe]}>{msg.time}</Text>
+                      {msg.from === 'me' && (
+                        <Text style={styles.msgStatus}>{msg.status === 'read' ? '✓✓' : '✓'}</Text>
+                      )}
+                    </View>
+                  </View>
+                </React.Fragment>
               ))
             )}
           </ScrollView>
           <View style={styles.inputRow}>
-            <TextInput
-              value={reply}
-              onChangeText={setReply}
-              placeholder={selectedChat ? 'Escribe tu mensaje seguro aqui...' : 'Selecciona un chat para escribir'}
-              placeholderTextColor="#8aa7bf"
-              style={styles.input}
-              multiline
-              editable={Boolean(selectedChat)}
-            />
-            <TouchableOpacity style={[styles.sendBtn, !selectedChat && styles.sendBtnDisabled]} onPress={handleSend} disabled={!selectedChat}>
+            <TouchableOpacity style={styles.attachBtn} activeOpacity={0.7}>
+              <MaterialIcons name="attach-file" size={20} color={colors.muted} />
+            </TouchableOpacity>
+            <TextInput value={reply} onChangeText={setReply} placeholder={selectedChat ? 'Escribe tu mensaje...' : 'Selecciona un chat'} placeholderTextColor="#8aa7bf" style={styles.input} multiline editable={Boolean(selectedChat)} />
+            <TouchableOpacity style={[styles.sendBtn, (!selectedChat || !reply.trim()) && styles.sendBtnDisabled]} onPress={handleSend} disabled={!selectedChat || !reply.trim()} activeOpacity={0.8}>
               <MaterialIcons name="send" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -703,44 +769,66 @@ const styles = StyleSheet.create({
   logoutText: { color: '#fff', fontWeight: '800' },
   main: { flex: 1, flexDirection: 'row', gap: 12, padding: 16 },
   mainMobile: { flexDirection: 'column' },
-  leftPanel: { width: 320, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#deebf7', padding: 12 },
+  leftPanel: { width: 320, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e4edf7', padding: 14, shadowColor: colors.dark, shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
   leftPanelMobile: { width: '100%' },
-  sectionTitle: { fontSize: 22, fontWeight: '900', color: colors.dark, marginBottom: 10 },
-  searchInput: { backgroundColor: '#f4f8fc', borderWidth: 1, borderColor: '#e3edf7', borderRadius: 10, height: 40, paddingHorizontal: 12, marginBottom: 12, color: colors.dark, fontWeight: '600' },
-  loadingText: { color: colors.muted, fontWeight: '700', paddingVertical: 8, lineHeight: 18 },
-  chatRow: { flexDirection: 'row', gap: 10, padding: 10, borderRadius: 10, marginBottom: 4 },
-  chatRowActive: { backgroundColor: '#eef6ff' },
-  chatAvatar: { width: 42, height: 42, borderRadius: 42 },
+  leftPanelHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  sectionTitle: { fontSize: 22, fontWeight: '900', color: colors.dark },
+  contactCountBadge: { backgroundColor: '#eef4fb', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  contactCountText: { fontSize: 12, fontWeight: '900', color: colors.primary },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f4f8fc', borderWidth: 1, borderColor: '#e3edf7', borderRadius: 12, paddingHorizontal: 12, marginBottom: 12 },
+  searchInput: { flex: 1, height: 38, color: colors.dark, fontWeight: '600', fontSize: 13 },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 30, paddingHorizontal: 16 },
+  emptyIconBox: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#f0f6ff', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  emptyTitle: { color: colors.dark, fontSize: 15, fontWeight: '800', marginTop: 6 },
+  emptySubtitle: { color: colors.muted, fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 4, lineHeight: 17 },
+  emptyCta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12, backgroundColor: '#1F4770', paddingVertical: 9, paddingHorizontal: 16, borderRadius: 10 },
+  emptyCtaText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  chatRow: { flexDirection: 'row', gap: 10, padding: 10, borderRadius: 12, marginBottom: 4, alignItems: 'center' },
+  chatRowActive: { backgroundColor: '#eef6ff', borderWidth: 1, borderColor: '#d4e6f9' },
+  chatAvatarWrap: { position: 'relative' },
+  chatAvatar: { width: 44, height: 44, borderRadius: 44, borderWidth: 2, borderColor: '#f2f6fb' },
+  onlineDot: { position: 'absolute', bottom: 1, right: 1, width: 10, height: 10, borderRadius: 10, backgroundColor: '#22c55e', borderWidth: 2, borderColor: '#fff' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  chatName: { fontWeight: '800', color: colors.dark, fontSize: 14 },
+  chatName: { fontWeight: '800', color: colors.dark, fontSize: 14, flex: 1 },
+  chatNameActive: { color: colors.primary },
+  chatSpec: { color: colors.muted, fontSize: 11, fontWeight: '600', marginTop: 1 },
   chatTime: { color: '#8aa7bf', fontSize: 10, fontWeight: '700' },
   chatMsg: { color: colors.muted, fontSize: 12, marginTop: 2, fontWeight: '600' },
-  chatPanel: { flex: 1, backgroundColor: '#f8fbff', borderRadius: 16, borderWidth: 1, borderColor: '#deebf7', overflow: 'hidden' },
-  chatHeader: { height: 62, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5edf6', justifyContent: 'center', paddingHorizontal: 14 },
-  chatHeaderTitle: { fontSize: 14, fontWeight: '900', color: colors.dark },
-  messagesWrap: { padding: 12, gap: 10 },
-  msgWrap: { maxWidth: '82%' },
+  unreadBadge: { backgroundColor: colors.primary, borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  unreadBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
+  chatPanel: { flex: 1, backgroundColor: '#f8fbff', borderRadius: 18, borderWidth: 1, borderColor: '#e4edf7', overflow: 'hidden' },
+  chatHeader: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5edf6', paddingHorizontal: 14, paddingVertical: 12 },
+  chatHeaderInner: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  chatHeaderAvatar: { width: 38, height: 38, borderRadius: 38, borderWidth: 2, borderColor: '#f2f6fb' },
+  chatHeaderName: { fontSize: 15, fontWeight: '800', color: colors.dark },
+  chatHeaderSpec: { fontSize: 11, fontWeight: '600', color: colors.muted, marginTop: 1 },
+  joinBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.primary, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  joinBtnText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  messagesWrap: { padding: 14, gap: 8 },
+  dateSeparator: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 8, alignSelf: 'stretch' },
+  dateLine: { flex: 1, height: 1, backgroundColor: '#e4edf7' },
+  dateLabel: { color: '#8aa7bf', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  msgWrap: { maxWidth: '78%' },
   msgWrapMe: { alignSelf: 'flex-end', alignItems: 'flex-end' },
-  oldDateLabel: {
-    alignSelf: 'center',
-    marginBottom: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 999,
-    backgroundColor: '#eef4fa',
-    color: '#6f8aa4',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  msgBubble: { backgroundColor: '#fff', borderRadius: 14, borderTopLeftRadius: 4, borderWidth: 1, borderColor: '#e2edf8', paddingHorizontal: 12, paddingVertical: 10 },
-  msgBubbleMe: { backgroundColor: colors.primary, borderColor: colors.primary, borderTopLeftRadius: 14, borderTopRightRadius: 4 },
-  msgText: { color: colors.dark, fontWeight: '600', fontSize: 13, lineHeight: 18 },
+  msgBubble: { backgroundColor: '#fff', borderRadius: 16, borderTopLeftRadius: 4, borderWidth: 1, borderColor: '#e2edf8', paddingHorizontal: 14, paddingVertical: 10, shadowColor: colors.dark, shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+  msgBubbleMe: { backgroundColor: '#1F4770', borderColor: '#1F4770', borderTopLeftRadius: 16, borderTopRightRadius: 4 },
+  msgText: { color: colors.dark, fontWeight: '600', fontSize: 13, lineHeight: 19 },
   msgTextMe: { color: '#fff' },
   msgTime: { marginTop: 3, fontSize: 10, color: '#8da8c0', fontWeight: '700' },
-  inputRow: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5edf6', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 10 },
-  input: { flex: 1, backgroundColor: '#f4f8fc', borderWidth: 1, borderColor: '#e3edf7', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, maxHeight: 120, fontSize: 13, fontWeight: '600', color: colors.dark },
-  sendBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  sendBtnDisabled: { opacity: 0.55 },
+  msgTimeMe: { color: '#8da8c0' },
+  msgMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  msgStatus: { fontSize: 10, color: '#22c55e', fontWeight: '800' },
+  typingBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 6, backgroundColor: '#f0f6ff', borderBottomWidth: 1, borderBottomColor: '#e4edf7' },
+  typingDots: { flexDirection: 'row', gap: 3, alignItems: 'center' },
+  typingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, opacity: 0.5 },
+  typingDot2: { opacity: 0.7 },
+  typingDot3: { opacity: 0.9 },
+  typingText: { fontSize: 11, fontWeight: '700', color: colors.muted, fontStyle: 'italic' },
+  inputRow: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5edf6', flexDirection: 'row', alignItems: 'flex-end', gap: 6, padding: 10 },
+  attachBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#f4f8fc', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#e3edf7' },
+  input: { flex: 1, backgroundColor: '#f4f8fc', borderWidth: 1, borderColor: '#e3edf7', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, maxHeight: 120, fontSize: 13, fontWeight: '600', color: colors.dark },
+  sendBtn: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  sendBtnDisabled: { opacity: 0.45, shadowOpacity: 0 },
 });
 
 export default PacienteChatScreen;

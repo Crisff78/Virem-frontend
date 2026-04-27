@@ -1,16 +1,14 @@
-﻿import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
-  Animated,
   Modal,
+  Image,
   View,
   Text,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   ScrollView,
-  Image,
-  TextInput,
-  Easing,
   Platform,
   useWindowDimensions,
 } from 'react-native';
@@ -137,14 +135,6 @@ type CitaItem = {
   };
 };
 
-type QuickActionProps = {
-  icon: string;
-  label: string;
-  color: string;
-  bg: string;
-  onPress?: () => void;
-};
-
 type AppointmentCardProps = {
   doctor: string;
   detail: string;
@@ -182,15 +172,6 @@ type NotificationItem = {
 };
 
 /* ===================== COMPONENTES ===================== */
-const QuickAction: React.FC<QuickActionProps> = ({ icon, label, color, bg, onPress }) => (
-  <TouchableOpacity style={styles.quickCard} onPress={onPress} activeOpacity={0.88}>
-    <View style={[styles.quickIconBox, { backgroundColor: bg }]}>
-      <MaterialIcons name={icon} size={26} color={color} />
-    </View>
-    <Text style={styles.quickLabel}>{label}</Text>
-  </TouchableOpacity>
-);
-
 const AppointmentCard: React.FC<AppointmentCardProps> = ({
   doctor,
   detail,
@@ -278,7 +259,6 @@ const DashboardPacienteScreen: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
-  const [chatOpen, setChatOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
@@ -321,17 +301,9 @@ const DashboardPacienteScreen: React.FC = () => {
   const [upcomingCitas, setUpcomingCitas] = useState<CitaItem[]>([]);
   const [historyCitas, setHistoryCitas] = useState<CitaItem[]>([]);
   const [loadingCitas, setLoadingCitas] = useState(false);
-  const [prepOpen, setPrepOpen] = useState(false);
-  const [prepItems, setPrepItems] = useState([false, false, false, false]);
-  const [testProgress, setTestProgress] = useState(0);
-  const [testRunning, setTestRunning] = useState(false);
-  const [testStatus, setTestStatus] = useState<'idle' | 'ok' | 'error'>('idle');
-  const [testStatusText, setTestStatusText] = useState('Aún no se ha realizado la prueba.');
-  const [chatReply, setChatReply] = useState('');
   const [workingCitaId, setWorkingCitaId] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedCita, setSelectedCita] = useState<CitaItem | null>(null);
-  const chatAnim = useRef(new Animated.Value(0)).current;
   const lastRefreshRef = useRef(0);
 
   const loadUser = useCallback(async () => {
@@ -418,23 +390,6 @@ const DashboardPacienteScreen: React.FC = () => {
     if (!upcomingCitas.length) return [];
     return upcomingCitas.slice(primaryCita ? 1 : 0, (primaryCita ? 1 : 0) + 2);
   }, [upcomingCitas, primaryCita]);
-  const historyRows = useMemo(() => historyCitas.slice(0, 2), [historyCitas]);
-  const frequentDoctors = useMemo(() => {
-    const order: { name: string; spec: string; fotoUrl: string }[] = [];
-    const seen = new Set<string>();
-    for (const cita of [...upcomingCitas, ...historyCitas]) {
-      const name = normalizeString(cita?.medico?.nombreCompleto || '');
-      const spec = normalizeString(cita?.medico?.especialidad || 'Medicina General');
-      const fotoUrl = sanitizeFotoUrl(cita?.medico?.fotoUrl);
-      if (!name || seen.has(name.toLowerCase())) continue;
-      seen.add(name.toLowerCase());
-      order.push({ name, spec: spec || 'Medicina General', fotoUrl });
-      if (order.length >= 2) break;
-    }
-    return order;
-  }, [upcomingCitas, historyCitas]);
-  const hasFrequentDoctors = frequentDoctors.length >= 2;
-
   const isCitaPostponable = useCallback((cita: CitaItem | null | undefined) => {
     if (!cita?.citaid) return false;
     const estado = normalizeString(cita.estado || '').toLowerCase();
@@ -454,18 +409,6 @@ const DashboardPacienteScreen: React.FC = () => {
   const primaryDateLabel = formatDateTime(primaryCita?.fechaHoraInicio || null);
   const primaryRelative = formatRelativeIn(primaryCita?.fechaHoraInicio || null);
 
-  const toggleChat = () => {
-    const next = !chatOpen;
-    setChatOpen(next);
-
-    Animated.timing(chatAnim, {
-      toValue: next ? 1 : 0,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  };
-
   const handleLogout = async () => {
     await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
@@ -477,73 +420,6 @@ const DashboardPacienteScreen: React.FC = () => {
       return;
     }
     navigation.navigate('SalaEsperaVirtualPaciente', { citaId: primaryCita.citaid });
-  };
-
-  const handleSeePreparations = () => {
-    setPrepOpen(true);
-  };
-
-  const handleRunTechnicalTest = async () => {
-    if (testRunning) return;
-
-    setTestRunning(true);
-    setTestStatus('idle');
-    setTestStatusText('Iniciando prueba de equipo...');
-    setTestProgress(15);
-
-    try {
-      if (Platform.OS !== 'web') {
-        // Fallback móvil: no hay selector nativo de dispositivos por navegador.
-        await new Promise((resolve) => setTimeout(resolve, 700));
-        setTestProgress(100);
-        setTestStatus('ok');
-        setTestStatusText('Equipo listo en este dispositivo.');
-        return;
-      }
-
-      const mediaDevices = (globalThis as any).navigator?.mediaDevices;
-      if (!mediaDevices?.getUserMedia || !mediaDevices?.enumerateDevices) {
-        throw new Error('Tu navegador no soporta pruebas de cámara/micrófono.');
-      }
-
-      setTestProgress(40);
-      setTestStatusText('Solicitando permisos de cámara y micrófono...');
-      const stream = await mediaDevices.getUserMedia({ video: true, audio: true });
-
-      setTestProgress(75);
-      setTestStatusText('Verificando dispositivos disponibles...');
-      const devices = await mediaDevices.enumerateDevices();
-      const hasCam = devices.some((d: any) => d.kind === 'videoinput');
-      const hasMic = devices.some((d: any) => d.kind === 'audioinput');
-
-      stream.getTracks().forEach((track: any) => track.stop());
-
-      if (!hasCam || !hasMic) {
-        throw new Error('No se detectó cámara o micrófono en el equipo.');
-      }
-
-      setTestProgress(100);
-      setTestStatus('ok');
-      setTestStatusText('Prueba completada: cámara y micrófono funcionando.');
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'No se pudo completar la prueba.';
-      setTestProgress(100);
-      setTestStatus('error');
-      setTestStatusText(msg);
-    } finally {
-      setTestRunning(false);
-    }
-  };
-
-  const togglePrepItem = (index: number) => {
-    setPrepItems((prev) => prev.map((item, i) => (i === index ? !item : item)));
-  };
-  const allPrepItemsSelected = prepItems.every(Boolean);
-
-  const handleSendMessage = () => {
-    if (!chatReply.trim()) return;
-    Alert.alert('Mensaje enviado', 'Tu respuesta fue enviada al doctor.');
-    setChatReply('');
   };
 
   const openCitaDetails = (cita: CitaItem) => {
@@ -603,7 +479,6 @@ const DashboardPacienteScreen: React.FC = () => {
       | 'DashboardPaciente'
       | 'NuevaConsultaPaciente'
       | 'PacienteCitas'
-      | 'SalaEsperaVirtualPaciente'
       | 'PacienteChat'
       | 'PacienteRecetasDocumentos'
       | 'PacientePerfil'
@@ -645,12 +520,6 @@ const DashboardPacienteScreen: React.FC = () => {
             <Text style={styles.userName}>{fullName}</Text>
             <Text style={styles.userPlan}>{planLabel}</Text>
 
-            {/* Si no tiene foto, se sugiere subirla */}
-            {!user?.fotoUrl ? (
-              <Text style={styles.hintText}>
-                No tienes foto. Ve a Perfil para agregarla.
-              </Text>
-            ) : null}
           </View>
 
           {/* Menú */}
@@ -677,14 +546,6 @@ const DashboardPacienteScreen: React.FC = () => {
             >
               <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.appointments')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => handleSidebarNavigation('SalaEsperaVirtualPaciente')}
-            >
-              <MaterialIcons name="videocam" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.videocall')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -753,54 +614,58 @@ const DashboardPacienteScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.title}>Hola, {fullName.split(' ')[0] || 'Paciente'}</Text>
+        <Text style={styles.title}>Hola, {fullName.split(' ')[0] || 'Paciente'} 👋</Text>
         <Text style={styles.subtitle}>
           {loadingCitas
             ? 'Cargando tus citas...'
             : primaryCita
-              ? `Tu proxima cita es con ${primaryDoctorName || 'tu especialista'}.`
-              : 'Aun no tienes citas programadas. Agenda tu primera consulta.'}
+              ? `Tu próxima cita es con ${primaryDoctorName || 'tu especialista'}.`
+              : 'Aún no tienes citas programadas.'}
         </Text>
 
         {/* Card grande */}
         <View style={styles.bigCard}>
           <View style={styles.bigCardLeft}>
-            <View style={styles.liveRow}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>En directo ahora</Text>
-            </View>
+            {primaryCita && (
+              <View style={styles.liveRow}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>Próxima consulta</Text>
+              </View>
+            )}
 
             <Text style={styles.bigCardTitle}>
               {primaryCita
-                ? `Proxima videoconsulta: ${primaryDoctorName || 'Especialista'}`
-                : 'No tienes videoconsultas pendientes'}
+                ? `${primaryDoctorName || 'Especialista'}`
+                : 'Sin consultas pendientes'}
             </Text>
 
             <Text style={styles.bigCardSub}>
               {primaryCita
-                ? `${primaryDoctorSpec || 'Medicina General'} · ${primaryDateLabel} (${primaryRelative})`
-                : 'Selecciona "Nueva consulta" para agendar una cita.'}
+                ? `${primaryDoctorSpec || 'Medicina General'} · ${primaryDateLabel} · ${primaryRelative}`
+                : 'Agenda tu primera consulta médica.'}
             </Text>
 
             <View style={styles.bigCardActions}>
               <TouchableOpacity
                 style={styles.primaryBtn}
+                activeOpacity={0.8}
                 onPress={primaryCita ? handleJoinVideoCall : () => navigation.navigate('NuevaConsultaPaciente')}
               >
-                <MaterialIcons name="videocam" size={18} color="#fff" />
+                <MaterialIcons name={primaryCita ? 'videocam' : 'add-circle-outline'} size={18} color="#fff" />
                 <Text style={styles.primaryBtnText}>
-                  {primaryCita ? 'Entrar a Videollamada' : 'Ir a Nueva Consulta'}
+                  {primaryCita ? 'Entrar a la consulta' : 'Nueva consulta'}
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.secondaryBtn}
-                onPress={primaryCita ? handleSeePreparations : () => navigation.navigate('NuevaConsultaPaciente')}
-              >
-                <Text style={styles.secondaryBtnText}>
-                  {primaryCita ? 'Ver preparativos' : 'Agendar ahora'}
-                </Text>
-              </TouchableOpacity>
+              {primaryCita && (
+                <TouchableOpacity
+                  style={styles.secondaryBtn}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('PacienteCitas')}
+                >
+                  <Text style={styles.secondaryBtnText}>Ver mis citas</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -809,43 +674,62 @@ const DashboardPacienteScreen: React.FC = () => {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Acciones rápidas</Text>
-        <View style={styles.quickGrid}>
-          <QuickAction
-            icon="add-circle"
-            label="Nueva consulta"
-            color={colors.primary}
-            bg="rgba(19,127,236,0.12)"
+        {/* CTA Principal */}
+        <TouchableOpacity
+          style={styles.ctaButton}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+        >
+          <View style={styles.ctaIconBox}>
+            <MaterialIcons name="video-call" size={24} color="#fff" />
+          </View>
+          <View style={styles.ctaTextBox}>
+            <Text style={styles.ctaTitle}>Consultar ahora</Text>
+            <Text style={styles.ctaSub}>Agenda una consulta con un especialista</Text>
+          </View>
+          <MaterialIcons name="arrow-forward-ios" size={16} color="#fff" />
+        </TouchableOpacity>
+
+        <View style={styles.quickRow}>
+          <TouchableOpacity
+            style={styles.quickTile}
             onPress={() => navigation.navigate('NuevaConsultaPaciente')}
-          />
-          <QuickAction
-            icon="calendar-month"
-            label="Agendar cita"
-            color="#f97316"
-            bg="#fff7ed"
-            onPress={() => navigation.navigate('NuevaConsultaPaciente')}
-          />
-          <QuickAction
-            icon="chat"
-            label="Consultar Chat"
-            color="#14b8a6"
-            bg="#f0fdfa"
-            onPress={() => navigation.navigate('PacienteChat')}
-          />
-          <QuickAction
-            icon="medical-information"
-            label="Mis recetas"
-            color="#a855f7"
-            bg="#faf5ff"
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickTileIcon, { backgroundColor: 'rgba(19,127,236,0.12)' }]}>
+              <MaterialIcons name="add-circle-outline" size={22} color={colors.primary} />
+            </View>
+            <Text style={styles.quickTileLabel}>Nueva consulta</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickTile}
+            onPress={() => navigation.navigate('PacienteCitas')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickTileIcon, { backgroundColor: '#fff7ed' }]}>
+              <MaterialIcons name="calendar-today" size={22} color="#f97316" />
+            </View>
+            <Text style={styles.quickTileLabel}>Mis citas</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickTile}
             onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
-          />
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickTileIcon, { backgroundColor: '#faf5ff' }]}>
+              <MaterialIcons name="description" size={22} color="#a855f7" />
+            </View>
+            <Text style={styles.quickTileLabel}>Mis recetas</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.twoCols}>
           <View style={[styles.colLeft, styles.colLeftFull]}>
             <View style={styles.rowBetween}>
               <Text style={styles.sectionTitle}>Citas pendientes</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('PacienteCitas')}>
+              <TouchableOpacity onPress={() => navigation.navigate('PacienteCitas')} activeOpacity={0.7}>
                 <Text style={styles.link}>Ver todas</Text>
               </TouchableOpacity>
             </View>
@@ -877,157 +761,33 @@ const DashboardPacienteScreen: React.FC = () => {
               ))
             ) : (
               <View style={styles.emptyStateCard}>
+                <View style={styles.emptyStateIconBox}>
+                  <MaterialIcons name="event-available" size={32} color={colors.muted} />
+                </View>
+                <Text style={styles.emptyStateTitle}>
+                  {loadingCitas ? 'Cargando citas...' : 'Sin citas pendientes'}
+                </Text>
                 <Text style={styles.emptyStateText}>
                   {loadingCitas
-                    ? 'Cargando citas pendientes...'
-                    : 'No tienes citas pendientes. Agenda una nueva consulta.'}
+                    ? 'Estamos buscando tu información.'
+                    : 'No tienes citas programadas por el momento.'}
                 </Text>
+                {!loadingCitas && (
+                  <TouchableOpacity
+                    style={styles.emptyStateBtn}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+                  >
+                    <MaterialIcons name="add" size={18} color="#fff" />
+                    <Text style={styles.emptyStateBtnText}>Agendar consulta</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
         </View>
 
-        <View style={styles.twoCols}>
-          <View style={[styles.colLeft, !hasFrequentDoctors && styles.colLeftFull]}>
-            <Text style={styles.sectionTitle}>Historial reciente de consultas</Text>
-            <View style={styles.listCard}>
-              {historyRows.length ? (
-                historyRows.map((cita, index) => (
-                  <DocRow
-                    key={cita.citaid || `${cita.fechaHoraInicio}-${index}`}
-                    icon={index % 2 === 0 ? 'history' : 'description'}
-                    title={`${normalizeString(cita?.medico?.especialidad || 'Consulta')} · ${normalizeString(cita.estado || 'Completada')}`}
-                    sub={`${normalizeString(cita?.medico?.nombreCompleto || 'Especialista')} · ${formatDateTime(cita.fechaHoraInicio)}`}
-                    onDownload={() =>
-                      Alert.alert(
-                        'Documento clinico',
-                        `Puedes descargar documentos completos en "Mis recetas".\nConsulta: ${formatDateTime(
-                          cita.fechaHoraInicio
-                        )}`
-                      )
-                    }
-                  />
-                ))
-              ) : (
-                <View style={styles.emptyStateCard}>
-                  <Text style={styles.emptyStateText}>
-                    {loadingCitas ? 'Cargando historial...' : 'Aun no hay consultas registradas.'}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {hasFrequentDoctors ? (
-            <View style={styles.colRight}>
-              <Text style={styles.sectionTitle}>Doctores frecuentes</Text>
-              <View style={styles.doctorsGrid}>
-                {frequentDoctors.map((item, index) => (
-                  <DoctorCard
-                    key={`${item.name}-${index}`}
-                    name={item.name}
-                    spec={item.spec}
-                    avatar={resolveAvatarSource(item.fotoUrl)}
-                    onReserve={() =>
-                      navigation.navigate('EspecialistasPorEspecialidad', { specialty: item.spec })
-                    }
-                  />
-                ))}
-              </View>
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryHead}>
-            <View style={styles.summaryIconBox}>
-              <MaterialCommunityIcons name="history" size={18} color="#fff" />
-            </View>
-            <Text style={styles.summaryTitle}>Resumen de ultima consulta</Text>
-          </View>
-
-          <View style={styles.summaryInner}>
-            <View style={styles.rowBetween}>
-              <View>
-                <Text style={styles.summaryLabel}>Diagnóstico Principal</Text>
-                <Text style={styles.summaryDiag}>
-                  {historyCitas[0]
-                    ? normalizeString(historyCitas[0].nota || historyCitas[0].estado || 'Consulta completada')
-                    : 'Sin historial disponible'}
-                </Text>
-              </View>
-              <Text style={styles.summaryDate}>
-                {historyCitas[0] ? formatDateTime(historyCitas[0].fechaHoraInicio) : '--'}
-              </Text>
-            </View>
-
-            <Text style={styles.summaryText}>
-              {historyCitas[0]
-                ? `Ultimo estado registrado: ${normalizeString(historyCitas[0].estado || 'Completada')}.`
-                : 'Cuando completes una consulta, aqui veras un resumen clinico.'}
-            </Text>
-          </View>
-        </View>
       </ScrollView>
-
-      {chatOpen ? (
-        <Animated.View
-          style={[
-            styles.chatFloatingPanel,
-            {
-              opacity: chatAnim,
-              transform: [
-                {
-                  translateY: chatAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [16, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View style={styles.chatHeader}>
-            <Image source={primaryDoctorAvatar} style={styles.chatAvatar} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.chatName}>{primaryDoctorName || 'Especialista'}</Text>
-              <View style={styles.onlineRow}>
-                <View style={styles.onlineDot} />
-                <Text style={styles.onlineText}>Online</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity onPress={toggleChat}>
-              <MaterialIcons name="close" size={20} color={colors.muted} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.chatBody}>
-            <View style={styles.msgLeft}>
-              <Text style={styles.msgLeftText}>
-                Hola {fullName.split(' ')[0] || 'Paciente'}, ¿has podido completar los análisis?
-              </Text>
-            </View>
-
-            <View style={styles.msgRight}>
-              <Text style={styles.msgRightText}>Sí Doctor, se los envié por el portal esta mañana.</Text>
-            </View>
-          </View>
-
-          <View style={styles.chatInputRow}>
-            <TextInput
-              placeholder="Responder..."
-              placeholderTextColor="#8aa7bf"
-              style={styles.chatInput}
-              value={chatReply}
-              onChangeText={setChatReply}
-            />
-            <TouchableOpacity onPress={handleSendMessage}>
-              <MaterialIcons name="send" size={20} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      ) : null}
 
       {notificationsOpen ? (
         <>
@@ -1211,131 +971,6 @@ const DashboardPacienteScreen: React.FC = () => {
         </View>
       </Modal>
 
-      <Modal visible={prepOpen} transparent animationType="fade" onRequestClose={() => setPrepOpen(false)}>
-        <View style={styles.prepOverlay}>
-          <View style={styles.prepModal}>
-            <View style={styles.prepHead}>
-              <Text style={styles.prepBreadcrumb}>Preparativos</Text>
-              <TouchableOpacity onPress={() => setPrepOpen(false)}>
-                <MaterialIcons name="close" size={22} color={colors.muted} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.prepTitle}>Prepárate para tu videollamada</Text>
-            <Text style={styles.prepSub}>
-              {primaryCita
-                ? `Con ${primaryDoctorName || 'tu especialista'} • ${primaryDoctorSpec || 'Medicina General'}`
-                : 'Con tu especialista asignado'}
-            </Text>
-
-            <View style={styles.prepGrid}>
-              <View style={styles.prepCard}>
-                <Text style={styles.prepCardTitle}>Lista de verificación</Text>
-
-                <TouchableOpacity style={styles.prepItem} onPress={() => togglePrepItem(0)}>
-                  <MaterialIcons
-                    name={prepItems[0] ? 'check-circle' : 'radio-button-unchecked'}
-                    size={20}
-                    color={prepItems[0] ? colors.primary : colors.light}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.prepItemTitle}>Conexión a internet estable</Text>
-                    <Text style={styles.prepItemSub}>Asegúrate de tener buena señal Wi-Fi o datos móviles.</Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.prepItem} onPress={() => togglePrepItem(1)}>
-                  <MaterialIcons
-                    name={prepItems[1] ? 'check-circle' : 'radio-button-unchecked'}
-                    size={20}
-                    color={prepItems[1] ? colors.primary : colors.light}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.prepItemTitle}>Cámara y micrófono funcionando</Text>
-                    <Text style={styles.prepItemSub}>El navegador te pedirá permisos para acceder a ellos.</Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.prepItem} onPress={() => togglePrepItem(2)}>
-                  <MaterialIcons
-                    name={prepItems[2] ? 'check-circle' : 'radio-button-unchecked'}
-                    size={20}
-                    color={prepItems[2] ? colors.primary : colors.light}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.prepItemTitle}>Lugar tranquilo y privado</Text>
-                    <Text style={styles.prepItemSub}>Busca un espacio iluminado y sin ruidos externos.</Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.prepItem} onPress={() => togglePrepItem(3)}>
-                  <MaterialIcons
-                    name={prepItems[3] ? 'check-circle' : 'radio-button-unchecked'}
-                    size={20}
-                    color={prepItems[3] ? colors.primary : colors.light}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.prepItemTitle}>Ten a mano tus exámenes o recetas</Text>
-                    <Text style={styles.prepItemSub}>Facilitará la consulta si el doctor necesita revisarlos.</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.prepCard}>
-                <Text style={styles.prepCardTitle}>Prueba técnica</Text>
-                <View style={styles.testBox}>
-                  <MaterialIcons
-                    name={testStatus === 'ok' ? 'check-circle' : testStatus === 'error' ? 'error-outline' : 'camera-alt'}
-                    size={44}
-                    color={testStatus === 'ok' ? '#22c55e' : testStatus === 'error' ? '#ef4444' : colors.muted}
-                  />
-                  <View style={styles.testBar}>
-                    <View style={[styles.testBarFill, { width: `${Math.max(4, testProgress)}%` }]} />
-                  </View>
-                </View>
-
-                <TouchableOpacity style={styles.testBtn} onPress={handleRunTechnicalTest} disabled={testRunning}>
-                  <MaterialIcons name="settings" size={16} color={colors.blue} />
-                  <Text style={styles.testBtnText}>
-                    {testRunning ? 'Probando equipo...' : 'Hacer prueba de equipo'}
-                  </Text>
-                </TouchableOpacity>
-                <Text style={styles.testStatusText}>{testStatusText}</Text>
-
-                <TouchableOpacity
-                  style={[styles.readyBtn, !allPrepItemsSelected && styles.readyBtnDisabled]}
-                  disabled={!allPrepItemsSelected}
-                  onPress={() => {
-                    setPrepOpen(false);
-                    if (primaryCita?.citaid) {
-                      navigation.navigate('SalaEsperaVirtualPaciente', { citaId: primaryCita.citaid });
-                    } else {
-                      navigation.navigate('SalaEsperaVirtualPaciente');
-                    }
-                  }}
-                >
-                  <Text style={[styles.readyBtnText, !allPrepItemsSelected && styles.readyBtnTextDisabled]}>
-                    Listo, ir a sala de espera
-                  </Text>
-                  <MaterialIcons
-                    name="arrow-forward"
-                    size={18}
-                    color={allPrepItemsSelected ? '#fff' : '#94a3b8'}
-                  />
-                </TouchableOpacity>
-
-                <Text style={styles.readySub}>
-                  Serás redirigido a la sala de espera privada hasta que el doctor inicie la sesión.
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <TouchableOpacity style={styles.chatFab} onPress={toggleChat}>
-        <MaterialIcons name={chatOpen ? 'close' : 'chat'} size={26} color="#fff" />
-      </TouchableOpacity>
     </View>
   );
 };
@@ -1343,9 +978,10 @@ const DashboardPacienteScreen: React.FC = () => {
 /* ===================== COLORES ===================== */
 const colors = {
   primary: '#137fec',
+  brand: '#1F4770',
   bg: '#F6FAFD',
   dark: '#0A1931',
-  blue: '#1A3D63',
+  blue: '#1F4770',
   muted: '#4A7FA7',
   light: '#B3CFE5',
   white: '#FFFFFF',
@@ -1446,7 +1082,7 @@ const styles = StyleSheet.create({
     gap: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.blue,
+    backgroundColor: colors.brand,
     paddingVertical: 12,
     borderRadius: 12,
   },
@@ -1513,8 +1149,8 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
 
-  title: { fontSize: 28, fontWeight: '900', color: colors.dark, marginTop: 8 },
-  subtitle: { fontSize: 14, color: colors.muted, marginTop: 6, marginBottom: 18, fontWeight: '600' },
+  title: { fontSize: 30, fontWeight: '900', color: colors.dark, marginTop: 8, letterSpacing: -0.3 },
+  subtitle: { fontSize: 14, color: colors.muted, marginTop: 4, marginBottom: 16, fontWeight: '600', lineHeight: 20 },
 
   bigCard: {
     backgroundColor: '#fff',
@@ -1545,7 +1181,7 @@ const styles = StyleSheet.create({
   bigCardSub: { color: colors.muted, fontWeight: '700', marginBottom: 14 },
 
   bigCardActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  primaryBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16 },
+  primaryBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16, shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   primaryBtnText: { color: '#fff', fontWeight: '900' },
   secondaryBtn: { backgroundColor: '#f1f5f9', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16 },
   secondaryBtnText: { color: colors.muted, fontWeight: '900' },
@@ -1553,23 +1189,40 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '900', color: colors.dark, marginBottom: 10, marginTop: 10 },
   link: { color: colors.primary, fontWeight: '900', fontSize: 12 },
 
-  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  quickCard: {
-    width: '23%',
-    minWidth: 140,
-    padding: 16,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+  quickRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 18,
+  },
+  quickTile: {
+    flex: 1,
     backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#eef3fa',
     shadowColor: colors.dark,
     shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  quickIconBox: { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  quickLabel: { fontWeight: '900', color: colors.dark, textAlign: 'center' },
+  quickTileIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  quickTileLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.dark,
+    textAlign: 'center',
+  },
 
   twoCols: {
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
@@ -1742,13 +1395,92 @@ const styles = StyleSheet.create({
 
   listCard: { backgroundColor: '#fff', borderRadius: 22, overflow: 'hidden', marginTop: 10, shadowColor: colors.dark, shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   emptyStateCard: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 30,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#e4edf7',
+    borderStyle: 'dashed',
+  },
+  emptyStateIconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#f0f6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyStateTitle: {
+    color: colors.dark,
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   emptyStateText: {
     color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  emptyStateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 14,
+    backgroundColor: colors.brand,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+  },
+  emptyStateBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+
+  ctaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: colors.brand,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    marginBottom: 18,
+    shadowColor: colors.brand,
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+  ctaIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaTextBox: {
+    flex: 1,
+  },
+  ctaTitle: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  ctaSub: {
+    color: 'rgba(255,255,255,0.72)',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
+    marginTop: 2,
   },
   docRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   docLeft: { flexDirection: 'row', gap: 12, alignItems: 'center', flex: 1 },
