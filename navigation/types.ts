@@ -34,6 +34,7 @@ export type DoctorRouteSnapshot = {
 };
 
 export type RootStackParamList = {
+  Landing: undefined;
   SeleccionPerfil: undefined;
   Login: { prefillEmail?: string } | undefined;
 

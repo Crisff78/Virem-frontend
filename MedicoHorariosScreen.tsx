@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
@@ -46,6 +46,52 @@ const MedicoHorariosScreen: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [horarios, setHorarios] = useState<Disponibilidad[]>([]);
+
+  const [showForm, setShowForm] = useState(false);
+  const [fecha, setFecha] = useState("");
+  const [horaInicio, setHoraInicio] = useState("");
+  const [horaFin, setHoraFin] = useState("");
+  const [modalidad, setModalidad] = useState("ambas");
+  const [slot, setSlot] = useState("30");
+  const [guardando, setGuardando] = useState(false);
+
+  const handleAgregar = async () => {
+    if (!fecha || !horaInicio || !horaFin) {
+      Alert.alert("Error", "Debes ingresar fecha, hora de inicio y hora de fin (Ej. 2024-10-15, 09:00, 13:00).");
+      return;
+    }
+    
+    try {
+      setGuardando(true);
+      const isoInicio = new Date(`${fecha}T${horaInicio}:00`).toISOString();
+      const isoFin = new Date(`${fecha}T${horaFin}:00`).toISOString();
+
+      const payload = await apiClient.post<any>("/api/agenda/medico/me/disponibilidades", {
+        authenticated: true,
+        body: {
+          fechaInicio: isoInicio,
+          fechaFin: isoFin,
+          modalidad: modalidad,
+          slotMinutos: parseInt(slot, 10) || 30
+        }
+      });
+
+      if (payload?.success) {
+        Alert.alert("Éxito", "Horario agregado correctamente.");
+        setShowForm(false);
+        setFecha("");
+        setHoraInicio("");
+        setHoraFin("");
+        fetchHorarios();
+      } else {
+        Alert.alert("Error", payload?.message || "No se pudo agregar.");
+      }
+    } catch (e) {
+      Alert.alert("Error", "Verifica el formato de las fechas.");
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   const fetchHorarios = useCallback(async () => {
     setLoading(true);
@@ -101,11 +147,48 @@ const MedicoHorariosScreen: React.FC = () => {
             <Text style={styles.title}>Disponibilidad</Text>
             <Text style={styles.subtitle}>Gestiona tus horarios para los próximos 30 días</Text>
           </View>
-          <TouchableOpacity style={styles.addBtn} onPress={() => Alert.alert('Próximamente', 'Formulario para agregar nuevo horario no implementado aún.')}>
-            <MaterialIcons name="add" size={20} color="#fff" />
-            <Text style={styles.addBtnText}>Nuevo Horario</Text>
+          <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(!showForm)}>
+            <MaterialIcons name={showForm ? "close" : "add"} size={20} color="#fff" />
+            <Text style={styles.addBtnText}>{showForm ? "Cancelar" : "Nuevo Horario"}</Text>
           </TouchableOpacity>
         </View>
+
+        {showForm && (
+          <View style={styles.formContainer}>
+            <Text style={styles.sectionTitle}>Agregar Nueva Disponibilidad</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Fecha (YYYY-MM-DD)</Text>
+              <TextInput style={styles.input} value={fecha} onChangeText={setFecha} placeholder="Ej. 2024-10-15" />
+            </View>
+
+            <View style={styles.rowInputs}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Hora Inicio (HH:MM)</Text>
+                <TextInput style={styles.input} value={horaInicio} onChangeText={setHoraInicio} placeholder="Ej. 08:00" />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Hora Fin (HH:MM)</Text>
+                <TextInput style={styles.input} value={horaFin} onChangeText={setHoraFin} placeholder="Ej. 13:00" />
+              </View>
+            </View>
+
+            <View style={styles.rowInputs}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Modalidad</Text>
+                <TextInput style={styles.input} value={modalidad} onChangeText={setModalidad} placeholder="presencial, virtual o ambas" />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Slot (Minutos)</Text>
+                <TextInput style={styles.input} value={slot} onChangeText={setSlot} placeholder="Ej. 30" keyboardType="numeric" />
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.submitBtn} onPress={handleAgregar} disabled={guardando}>
+              <Text style={styles.submitBtnText}>{guardando ? "Guardando..." : "Guardar Horario"}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.listContainer}>
           {loading ? (
@@ -168,6 +251,15 @@ const styles = StyleSheet.create({
   
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
   addBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+
+  formContainer: { backgroundColor: '#fff', padding: 20, borderRadius: 16, marginBottom: 24, borderWidth: 1, borderColor: colors.border },
+  sectionTitle: { fontSize: 18, fontWeight: '900', color: colors.dark, marginBottom: 12 },
+  inputGroup: { marginBottom: 14 },
+  rowInputs: { flexDirection: 'row', gap: 14 },
+  label: { fontSize: 13, fontWeight: '700', color: colors.dark, marginBottom: 6 },
+  input: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: colors.dark, fontWeight: '600' },
+  submitBtn: { backgroundColor: colors.green, padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 10 },
+  submitBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
 
   listContainer: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   

@@ -38,12 +38,12 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ allowedRoles, children }) 
     if (!isReady) return;
 
     if (!isAuthenticated) {
-      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+      navigation.reset({ index: 0, routes: [{ name: 'Landing' }] });
       return;
     }
 
     if (!roleId) {
-      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+      navigation.reset({ index: 0, routes: [{ name: 'Landing' }] });
       return;
     }
 

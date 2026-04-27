@@ -6,6 +6,7 @@ import { Platform, StyleSheet, Text, TextInput } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import EstablecerNuevaContrasenaScreen from "./EstablecerNuevaContrasenaScreen";
+import LandingScreen from "./LandingScreen";
 import LoginScreen from "./LoginScreen";
 import RecuperarContrasenaScreen from "./RecuperarContrasenaScreen";
 import RegistroCredencialesScreen from "./RegistroCredencialesScreen";
@@ -65,7 +66,8 @@ const linking = {
   prefixes: linkingPrefixes,
   config: {
     screens: {
-      SeleccionPerfil: "",
+      Landing: "",
+      SeleccionPerfil: "seleccion",
       Login: "login",
       RecuperarContrasena: "recuperar-contrasena",
       VerificarIdentidad: "verificar-identidad/:email",
@@ -125,13 +127,14 @@ const App: React.FC = () => {
               <NavigationContainer linking={linking}>
                 <Stack.Navigator
                   id="RootStack"
-                  initialRouteName="SeleccionPerfil"
+                  initialRouteName="Landing"
                   screenOptions={{
                     headerShown: false,
                     gestureEnabled: false,
                     animation: "none",
                   }}
                 >
+                  <Stack.Screen name="Landing" component={LandingScreen} />
                   <Stack.Screen name="SeleccionPerfil" component={SeleccionPerfil} />
                   <Stack.Screen name="Login" component={LoginScreen} />
 
