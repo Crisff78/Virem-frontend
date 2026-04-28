@@ -170,7 +170,7 @@ const mapBackendMedicoToProfile = (
   return toDoctorProfile({
     id: String(medico?.medicoid || ''),
     specialty,
-    name: nameWithTitle,
+    name: name,
     genero: medico?.genero,
     focus: specialty,
     years: 'No disponible',
