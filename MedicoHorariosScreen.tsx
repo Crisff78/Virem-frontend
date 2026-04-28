@@ -44,10 +44,12 @@ const MedicoHorariosScreen: React.FC = () => {
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
-  const [loading, setLoading] = useState(true);
   const [horarios, setHorarios] = useState<Disponibilidad[]>([]);
-
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [viewMode, setViewMode] = useState<'specific' | 'recurring'>('specific');
+  
+  // States for new specific availability
   const [fecha, setFecha] = useState("");
   const [horaInicio, setHoraInicio] = useState("");
   const [horaFin, setHoraFin] = useState("");
@@ -55,14 +57,31 @@ const MedicoHorariosScreen: React.FC = () => {
   const [slot, setSlot] = useState("30");
   const [guardando, setGuardando] = useState(false);
 
+  // States for recurring pattern
+  const [weeklyPattern, setWeeklyPattern] = useState<any[]>([
+    { dayOfWeek: 1, active: true, start: "08:00", end: "12:00" },
+    { dayOfWeek: 2, active: true, start: "08:00", end: "12:00" },
+    { dayOfWeek: 3, active: true, start: "08:00", end: "12:00" },
+    { dayOfWeek: 4, active: true, start: "08:00", end: "12:00" },
+    { dayOfWeek: 5, active: true, start: "08:00", end: "12:00" },
+    { dayOfWeek: 6, active: false, start: "08:00", end: "12:00" },
+    { dayOfWeek: 0, active: false, start: "08:00", end: "12:00" },
+  ]);
+  const [generating, setGenerating] = useState(false);
+
   const handleAgregar = async () => {
     if (!fecha || !horaInicio || !horaFin) {
-      Alert.alert("Error", "Debes ingresar fecha, hora de inicio y hora de fin (Ej. 2024-10-15, 09:00, 13:00).");
+      Alert.alert("Error", "Debes ingresar fecha, hora de inicio y hora de fin.");
       return;
     }
     
     try {
       setGuardando(true);
+      // Validar formato simple YYYY-MM-DD
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+        throw new Error("Formato de fecha inválido (YYYY-MM-DD)");
+      }
+
       const isoInicio = new Date(`${fecha}T${horaInicio}:00`).toISOString();
       const isoFin = new Date(`${fecha}T${horaFin}:00`).toISOString();
 
@@ -86,12 +105,83 @@ const MedicoHorariosScreen: React.FC = () => {
       } else {
         Alert.alert("Error", payload?.message || "No se pudo agregar.");
       }
-    } catch (e) {
-      Alert.alert("Error", "Verifica el formato de las fechas.");
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Verifica el formato de las fechas y horas.");
     } finally {
       setGuardando(false);
     }
   };
+
+  const setQuickDate = (type: 'today' | 'tomorrow') => {
+    const d = new Date();
+    if (type === 'tomorrow') d.setDate(d.getDate() + 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    setFecha(`${yyyy}-${mm}-${dd}`);
+  };
+
+  const handleGenerarRecurrente = async () => {
+    const activeDays = weeklyPattern.filter(p => p.active);
+    if (activeDays.length === 0) {
+      Alert.alert("Error", "Debes seleccionar al menos un día activo.");
+      return;
+    }
+
+    try {
+      setGenerating(true);
+      const payload = await apiClient.post<any>("/api/agenda/medico/me/disponibilidades/recurrente", {
+        authenticated: true,
+        body: {
+          pattern: activeDays,
+          modalidad,
+          slotMinutos: parseInt(slot, 10) || 30,
+          daysCount: 30
+        }
+      });
+
+      if (payload?.success) {
+        Alert.alert("Éxito", `Se han generado ${payload.createdCount} horarios para los próximos 30 días.`);
+        setViewMode('specific');
+        fetchHorarios();
+      } else {
+        Alert.alert("Error", payload?.message || "No se pudo generar la agenda.");
+      }
+    } catch (e: any) {
+      Alert.alert("Error", "Ocurrió un error al generar la agenda.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const toggleDay = (dayIndex: number) => {
+    setWeeklyPattern(prev => prev.map(p => p.dayOfWeek === dayIndex ? { ...p, active: !p.active } : p));
+  };
+
+  const updateDayTime = (dayIndex: number, field: 'start' | 'end', value: string) => {
+    setWeeklyPattern(prev => prev.map(p => p.dayOfWeek === dayIndex ? { ...p, [field]: value } : p));
+  };
+
+  const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+  const fetchRecurrenteConfig = async () => {
+    try {
+      const payload = await apiClient.get<any>("/api/agenda/medico/me/recurrente-config", { authenticated: true });
+      if (payload?.success && payload.config) {
+        if (payload.config.pattern) setWeeklyPattern(payload.config.pattern);
+        if (payload.config.modalidad) setModalidad(payload.config.modalidad);
+        if (payload.config.slotMinutos) setSlot(String(payload.config.slotMinutos));
+      }
+    } catch (e) {
+      console.error("Error fetching recurrente config:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode === 'recurring') {
+      fetchRecurrenteConfig();
+    }
+  }, [viewMode]);
 
   const fetchHorarios = useCallback(async () => {
     setLoading(true);
@@ -145,97 +235,249 @@ const MedicoHorariosScreen: React.FC = () => {
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Disponibilidad</Text>
-            <Text style={styles.subtitle}>Gestiona tus horarios para los próximos 30 días</Text>
+            <Text style={styles.subtitle}>Gestiona tus horarios de atención</Text>
           </View>
-          <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(!showForm)}>
-            <MaterialIcons name={showForm ? "close" : "add"} size={20} color="#fff" />
-            <Text style={styles.addBtnText}>{showForm ? "Cancelar" : "Nuevo Horario"}</Text>
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity 
+              style={[styles.viewToggleBtn, viewMode === 'recurring' && styles.viewToggleBtnActive]} 
+              onPress={() => setViewMode(viewMode === 'specific' ? 'recurring' : 'specific')}
+            >
+              <MaterialIcons name={viewMode === 'recurring' ? "event" : "update"} size={20} color={viewMode === 'recurring' ? "#fff" : colors.primary} />
+              <Text style={[styles.viewToggleBtnText, viewMode === 'recurring' && styles.viewToggleBtnTextActive]}>
+                {viewMode === 'recurring' ? "Ver Listado" : "Horario Semanal"}
+              </Text>
+            </TouchableOpacity>
+
+            {viewMode === 'specific' && (
+              <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(!showForm)}>
+                <MaterialIcons name={showForm ? "close" : "add"} size={20} color="#fff" />
+                <Text style={styles.addBtnText}>{showForm ? "Cerrar" : "Nuevo"}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
-        {showForm && (
-          <View style={styles.formContainer}>
-            <Text style={styles.sectionTitle}>Agregar Nueva Disponibilidad</Text>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Fecha (YYYY-MM-DD)</Text>
-              <TextInput style={styles.input} value={fecha} onChangeText={setFecha} placeholder="Ej. 2024-10-15" />
-            </View>
-
-            <View style={styles.rowInputs}>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Hora Inicio (HH:MM)</Text>
-                <TextInput style={styles.input} value={horaInicio} onChangeText={setHoraInicio} placeholder="Ej. 08:00" />
-              </View>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Hora Fin (HH:MM)</Text>
-                <TextInput style={styles.input} value={horaFin} onChangeText={setHoraFin} placeholder="Ej. 13:00" />
+        {viewMode === 'recurring' ? (
+          <View style={styles.recurringContainer}>
+            <View style={styles.cardHeader}>
+              <MaterialIcons name="auto-awesome" size={24} color={colors.primary} />
+              <View>
+                <Text style={styles.cardTitle}>Configuración Semanal Recurrente</Text>
+                <Text style={styles.cardSubtitle}>Define tu horario estándar para generar los próximos 30 días automáticamente.</Text>
               </View>
             </View>
 
-            <View style={styles.rowInputs}>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Modalidad</Text>
-                <TextInput style={styles.input} value={modalidad} onChangeText={setModalidad} placeholder="presencial, virtual o ambas" />
-              </View>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Slot (Minutos)</Text>
-                <TextInput style={styles.input} value={slot} onChangeText={setSlot} placeholder="Ej. 30" keyboardType="numeric" />
-              </View>
+            <View style={styles.patternGrid}>
+              {weeklyPattern.map((day) => (
+                <View key={day.dayOfWeek} style={[styles.dayRow, !day.active && styles.dayRowInactive]}>
+                  <TouchableOpacity style={styles.daySelect} onPress={() => toggleDay(day.dayOfWeek)}>
+                    <MaterialIcons 
+                      name={day.active ? "check-circle" : "radio-button-unchecked"} 
+                      size={24} 
+                      color={day.active ? colors.primary : colors.muted} 
+                    />
+                    <Text style={[styles.dayName, day.active && styles.dayNameActive]}>{dayNames[day.dayOfWeek]}</Text>
+                  </TouchableOpacity>
+
+                  {day.active && (
+                    <View style={styles.dayTimes}>
+                      <TextInput 
+                        style={styles.timeInput} 
+                        value={day.start} 
+                        onChangeText={(v) => updateDayTime(day.dayOfWeek, 'start', v)} 
+                        placeholder="08:00"
+                      />
+                      <Text style={styles.timeSep}>-</Text>
+                      <TextInput 
+                        style={styles.timeInput} 
+                        value={day.end} 
+                        onChangeText={(v) => updateDayTime(day.dayOfWeek, 'end', v)} 
+                        placeholder="17:00"
+                      />
+                    </View>
+                  )}
+                  {!day.active && (
+                    <Text style={styles.inactiveText}>No laborable</Text>
+                  )}
+                </View>
+              ))}
             </View>
 
-            <TouchableOpacity style={styles.submitBtn} onPress={handleAgregar} disabled={guardando}>
-              <Text style={styles.submitBtnText}>{guardando ? "Guardando..." : "Guardar Horario"}</Text>
-            </TouchableOpacity>
+            <View style={styles.configFooter}>
+              <View style={styles.configInputGroup}>
+                <Text style={styles.configLabel}>Modalidad</Text>
+                <View style={styles.miniSegmented}>
+                  {['virtual', 'presencial', 'ambas'].map(m => (
+                    <TouchableOpacity 
+                      key={m} 
+                      style={[styles.miniSegBtn, modalidad === m && styles.miniSegBtnActive]}
+                      onPress={() => setModalidad(m)}
+                    >
+                      <Text style={[styles.miniSegText, modalidad === m && styles.miniSegTextActive]}>{m}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              
+              <TouchableOpacity style={styles.generateBtn} onPress={handleGenerarRecurrente} disabled={generating}>
+                {generating ? <ActivityIndicator color="#fff" /> : <Text style={styles.generateBtnText}>Generar Agenda (30 días)</Text>}
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
-
-        <View style={styles.listContainer}>
-          {loading ? (
-            <ActivityIndicator size="large" color={colors.primary} style={{ padding: 40 }} />
-          ) : horarios.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <MaterialIcons name="event-busy" size={40} color={colors.muted} />
-              <Text style={styles.emptyText}>No tienes horarios configurados</Text>
-              <Text style={styles.emptySub}>Los pacientes no podrán agendar citas contigo hasta que agregues disponibilidad.</Text>
-            </View>
-          ) : (
-            horarios.map((h) => (
-              <View key={h.id} style={[styles.row, h.bloqueado && styles.rowBlocked]}>
-                <View style={styles.rowLeft}>
-                  <View style={[styles.iconBox, { backgroundColor: h.bloqueado ? '#fee2e2' : '#dcfce7' }]}>
-                    <MaterialIcons name={h.bloqueado ? 'lock' : 'event-available'} size={24} color={h.bloqueado ? colors.red : colors.green} />
+        ) : (
+          <>
+            {showForm && (
+              <View style={styles.formContainer}>
+                <View style={styles.formHeader}>
+                  <Text style={styles.sectionTitle}>Nueva Disponibilidad</Text>
+                  <TouchableOpacity onPress={() => setShowForm(false)}>
+                    <MaterialIcons name="close" size={20} color={colors.muted} />
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.label}>Fecha</Text>
+                    <View style={styles.quickSelectRow}>
+                      <TouchableOpacity style={styles.quickBtn} onPress={() => setQuickDate('today')}>
+                        <Text style={styles.quickBtnText}>Hoy</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.quickBtn} onPress={() => setQuickDate('tomorrow')}>
+                        <Text style={styles.quickBtnText}>Mañana</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                  <View>
-                    <Text style={[styles.dateText, h.bloqueado && { color: colors.muted }]}>
-                      {formatDate(h.fechaInicio)}
-                    </Text>
-                    <Text style={styles.timeText}>
-                      {formatTime(h.fechaInicio)} - {formatTime(h.fechaFin)}
-                    </Text>
-                    <View style={styles.badgesRow}>
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{h.modalidad}</Text>
-                      </View>
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{h.slotMinutos} min</Text>
-                      </View>
+                  <TextInput 
+                    style={styles.input} 
+                    value={fecha} 
+                    onChangeText={setFecha} 
+                    placeholder="YYYY-MM-DD" 
+                    keyboardType="numbers-and-punctuation"
+                  />
+                </View>
+
+                <View style={styles.rowInputs}>
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.label}>Inicio (HH:MM)</Text>
+                    <TextInput style={styles.input} value={horaInicio} onChangeText={setHoraInicio} placeholder="08:00" />
+                    <View style={styles.timePresets}>
+                      {['08:00', '09:00', '14:00'].map(t => (
+                        <TouchableOpacity key={t} style={styles.miniBtn} onPress={() => setHoraInicio(t)}>
+                          <Text style={styles.miniBtnText}>{t}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.label}>Fin (HH:MM)</Text>
+                    <TextInput style={styles.input} value={horaFin} onChangeText={setHoraFin} placeholder="13:00" />
+                    <View style={styles.timePresets}>
+                      {['12:00', '13:00', '18:00'].map(t => (
+                        <TouchableOpacity key={t} style={styles.miniBtn} onPress={() => setHoraFin(t)}>
+                          <Text style={styles.miniBtnText}>{t}</Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
                   </View>
                 </View>
 
-                <TouchableOpacity 
-                  style={[styles.toggleBtn, h.bloqueado ? styles.toggleBtnUnblock : styles.toggleBtnBlock]}
-                  onPress={() => handleBloquear(h.id, h.bloqueado)}
-                >
-                  <Text style={[styles.toggleBtnText, h.bloqueado && { color: colors.primary }]}>
-                    {h.bloqueado ? 'Desbloquear' : 'Bloquear'}
-                  </Text>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Modalidad de atención</Text>
+                  <View style={styles.segmentedControl}>
+                    {['virtual', 'presencial', 'ambas'].map((m) => (
+                      <TouchableOpacity 
+                        key={m}
+                        style={[styles.segmentBtn, modalidad === m && styles.segmentBtnActive]}
+                        onPress={() => setModalidad(m)}
+                      >
+                        <Text style={[styles.segmentText, modalidad === m && styles.segmentTextActive]}>
+                          {m.charAt(0).toUpperCase() + m.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Duración de cada cita (minutos)</Text>
+                  <View style={styles.chipsRow}>
+                    {['15', '20', '30', '45', '60'].map((s) => (
+                      <TouchableOpacity 
+                        key={s}
+                        style={[styles.chip, slot === s && styles.chipActive]}
+                        onPress={() => setSlot(s)}
+                      >
+                        <Text style={[styles.chipText, slot === s && styles.chipTextActive]}>{s}</Text>
+                      </TouchableOpacity>
+                    ))}
+                    <TextInput 
+                      style={[styles.chipInput, !['15','20','30','45','60'].includes(slot) && styles.chipActive]} 
+                      value={['15','20','30','45','60'].includes(slot) ? "" : slot}
+                      onChangeText={setSlot}
+                      placeholder="Otro"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+
+                <TouchableOpacity style={styles.submitBtn} onPress={handleAgregar} disabled={guardando}>
+                  {guardando ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.submitBtnText}>Confirmar Horario</Text>
+                  )}
                 </TouchableOpacity>
               </View>
-            ))
-          )}
-        </View>
+            )}
+
+            <View style={styles.listContainer}>
+              {loading ? (
+                <ActivityIndicator size="large" color={colors.primary} style={{ padding: 40 }} />
+              ) : horarios.length === 0 ? (
+                <View style={styles.emptyBox}>
+                  <MaterialIcons name="event-busy" size={40} color={colors.muted} />
+                  <Text style={styles.emptyText}>No tienes horarios configurados</Text>
+                  <Text style={styles.emptySub}>Los pacientes no podrán agendar citas contigo hasta que agregues disponibilidad.</Text>
+                </View>
+              ) : (
+                horarios.map((h) => (
+                  <View key={h.id} style={[styles.row, h.bloqueado && styles.rowBlocked]}>
+                    <View style={styles.rowLeft}>
+                      <View style={[styles.iconBox, { backgroundColor: h.bloqueado ? '#fee2e2' : '#dcfce7' }]}>
+                        <MaterialIcons name={h.bloqueado ? 'lock' : 'event-available'} size={24} color={h.bloqueado ? colors.red : colors.green} />
+                      </View>
+                      <View>
+                        <Text style={[styles.dateText, h.bloqueado && { color: colors.muted }]}>
+                          {formatDate(h.fechaInicio)}
+                        </Text>
+                        <Text style={styles.timeText}>
+                          {formatTime(h.fechaInicio)} - {formatTime(h.fechaFin)}
+                        </Text>
+                        <View style={styles.badgesRow}>
+                          <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{h.modalidad}</Text>
+                          </View>
+                          <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{h.slotMinutos} min</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity 
+                      style={[styles.toggleBtn, h.bloqueado ? styles.toggleBtnUnblock : styles.toggleBtnBlock]}
+                      onPress={() => handleBloquear(h.id, h.bloqueado)}
+                    >
+                      <Text style={[styles.toggleBtnText, h.bloqueado && { color: colors.primary }]}>
+                        {h.bloqueado ? 'Desbloquear' : 'Bloquear'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </View>
+          </>
+        )}
 
       </ScrollView>
     </View>
@@ -249,19 +491,77 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '900', color: colors.dark },
   subtitle: { fontSize: 14, color: colors.muted, marginTop: 4, fontWeight: '600' },
   
+  headerButtons: { flexDirection: 'row', gap: 10 },
+  viewToggleBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.primary },
+  viewToggleBtnActive: { backgroundColor: colors.primary },
+  viewToggleBtnText: { fontSize: 13, fontWeight: '700', color: colors.primary },
+  viewToggleBtnTextActive: { color: '#fff' },
+  
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
-  addBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  addBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
 
-  formContainer: { backgroundColor: '#fff', padding: 20, borderRadius: 16, marginBottom: 24, borderWidth: 1, borderColor: colors.border },
-  sectionTitle: { fontSize: 18, fontWeight: '900', color: colors.dark, marginBottom: 12 },
-  inputGroup: { marginBottom: 14 },
+  recurringContainer: { backgroundColor: '#fff', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.border, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  cardHeader: { flexDirection: 'row', gap: 12, marginBottom: 24, alignItems: 'center' },
+  cardTitle: { fontSize: 18, fontWeight: '900', color: colors.dark },
+  cardSubtitle: { fontSize: 13, color: colors.muted, marginTop: 2 },
+  
+  patternGrid: { gap: 12, marginBottom: 24 },
+  dayRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, backgroundColor: '#f8fafc', borderRadius: 14, borderWidth: 1, borderColor: colors.border },
+  dayRowInactive: { opacity: 0.6 },
+  daySelect: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  dayName: { fontSize: 15, fontWeight: '700', color: colors.muted },
+  dayNameActive: { color: colors.dark },
+  dayTimes: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  timeInput: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, width: 70, textAlign: 'center', fontSize: 14, fontWeight: '600', color: colors.dark },
+  timeSep: { color: colors.muted, fontWeight: '700' },
+  inactiveText: { fontSize: 13, color: colors.muted, fontStyle: 'italic' },
+  
+  configFooter: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 20, gap: 20 },
+  configInputGroup: { gap: 10 },
+  configLabel: { fontSize: 14, fontWeight: '700', color: colors.dark },
+  miniSegmented: { flexDirection: 'row', backgroundColor: '#f1f5f9', padding: 4, borderRadius: 10, alignSelf: 'flex-start' },
+  miniSegBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  miniSegBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  miniSegText: { fontSize: 12, fontWeight: '700', color: colors.muted, textTransform: 'capitalize' },
+  miniSegTextActive: { color: colors.primary },
+  
+  generateBtn: { backgroundColor: colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 },
+  generateBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+
+  formContainer: { backgroundColor: '#fff', padding: 20, borderRadius: 20, marginBottom: 24, borderWidth: 1, borderColor: colors.border, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  formHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: '900', color: colors.dark },
+  inputGroup: { marginBottom: 18 },
+  labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  label: { fontSize: 13, fontWeight: '700', color: colors.dark, marginBottom: 8 },
+  quickSelectRow: { flexDirection: 'row', gap: 8 },
+  quickBtn: { backgroundColor: '#f1f5f9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  quickBtnText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+  
   rowInputs: { flexDirection: 'row', gap: 14 },
-  label: { fontSize: 13, fontWeight: '700', color: colors.dark, marginBottom: 6 },
-  input: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: colors.dark, fontWeight: '600' },
-  submitBtn: { backgroundColor: colors.green, padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 10 },
-  submitBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  timePresets: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  miniBtn: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: colors.border, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  miniBtnText: { fontSize: 10, fontWeight: '600', color: colors.muted },
 
-  listContainer: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  input: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: colors.dark, fontWeight: '600', fontSize: 15 },
+  
+  segmentedControl: { flexDirection: 'row', backgroundColor: '#f1f5f9', padding: 4, borderRadius: 12 },
+  segmentBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+  segmentBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  segmentText: { fontSize: 13, fontWeight: '600', color: colors.muted },
+  segmentTextActive: { color: colors.primary, fontWeight: '800' },
+
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: 'transparent' },
+  chipActive: { backgroundColor: 'rgba(19,127,236,0.1)', borderColor: colors.primary },
+  chipText: { fontSize: 13, fontWeight: '700', color: colors.muted },
+  chipTextActive: { color: colors.primary },
+  chipInput: { width: 60, height: 38, backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 8, textAlign: 'center', fontSize: 13, fontWeight: '700', color: colors.dark },
+
+  submitBtn: { backgroundColor: colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 10, shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  submitBtnText: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.5 },
+
+  listContainer: { backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   
   emptyBox: { padding: 40, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: colors.dark, fontSize: 16, fontWeight: '800', marginTop: 12 },
