@@ -54,8 +54,11 @@ type CitaItem = {
     pacienteid?: string;
     nombreCompleto?: string;
   };
+  montoTotal?: number;
+  montoPlataforma?: number;
+  montoMedico?: number;
+  comisionAplicada?: number;
 };
-
 
 type SideItem = {
   icon: string;
@@ -90,20 +93,12 @@ const formatDateTime = (value: string | null | undefined) => {
 
 const MIN_REFRESH_INTERVAL_MS = 12000;
 
-const toIsoDate = (value: Date) => {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const toHourMinute = (value: string | null | undefined) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+const formatPrice = (value: number | null | undefined) => {
+  const n = Number(value || 0);
+  return new Intl.NumberFormat('es-DO', {
+    style: 'currency',
+    currency: 'DOP',
+  }).format(n);
 };
 
 const MedicoCitasScreen: React.FC = () => {
@@ -150,7 +145,6 @@ const MedicoCitasScreen: React.FC = () => {
       setLoadingCitas(false);
     }
   }, [handleAuthExpired]);
-
 
   useFocusEffect(
     useCallback(() => {
@@ -220,6 +214,22 @@ const MedicoCitasScreen: React.FC = () => {
     return filteredCitas
       .filter((item) => parseDateMs(item?.fechaHoraInicio) < now)
       .sort((a, b) => parseDateMs(b?.fechaHoraInicio) - parseDateMs(a?.fechaHoraInicio));
+  }, [filteredCitas]);
+
+  const stats = useMemo(() => {
+    let totalEarnings = 0;
+    let platformFees = 0;
+    let netProfit = 0;
+    
+    filteredCitas.forEach(cita => {
+      if (cita.estadoCodigo === 'completada' || cita.estadoCodigo === 'confirmada' || cita.estadoCodigo === 'pendiente') {
+        totalEarnings += (cita.montoTotal || 0);
+        platformFees += (cita.montoPlataforma || 0);
+        netProfit += (cita.montoMedico || 0);
+      }
+    });
+
+    return { totalEarnings, platformFees, netProfit };
   }, [filteredCitas]);
 
   const dateText = useMemo(
@@ -383,58 +393,55 @@ const MedicoCitasScreen: React.FC = () => {
   return (
     <View style={[styles.container, isInsidePortal ? null : (!isDesktopLayout && styles.containerMobile)]}>
       {!isInsidePortal && (
-      <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
-        <View>
-          <View style={styles.logoWrap}>
-            <Image source={ViremLogo} style={styles.logo} resizeMode="contain" />
-            <View>
-              <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSub}>Portal Medico</Text>
+        <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
+          <View>
+            <View style={styles.logoWrap}>
+              <Image source={ViremLogo} style={styles.logo} resizeMode="contain" />
+              <View>
+                <Text style={styles.logoTitle}>VIREM</Text>
+                <Text style={styles.logoSub}>Portal Medico</Text>
+              </View>
+            </View>
+
+            <View style={styles.userCard}>
+              <Image source={userAvatarSource} style={styles.userAvatar} />
+              <Text style={styles.userName}>{doctorName}</Text>
+              <Text style={styles.userSpec}>{doctorSpec}</Text>
+            </View>
+
+            <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
+              {sideItems.map((item) => (
+                <TouchableOpacity
+                  key={item.label}
+                  style={[styles.menuItem, item.active ? styles.menuItemActive : null]}
+                  onPress={() => handleSideItemPress(item)}
+                >
+                  <MaterialIcons
+                    name={item.icon}
+                    size={20}
+                    color={item.active ? colors.primary : colors.muted}
+                  />
+                  <Text style={[styles.menuText, item.active ? styles.menuTextActive : null]}>
+                    {item.label}
+                  </Text>
+                  {item.badge ? (
+                    <View style={[styles.badge, { backgroundColor: item.badge.color }]}>
+                      <Text style={styles.badgeText}>{item.badge.text}</Text>
+                    </View>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
-          <View style={styles.userCard}>
-            <Image source={userAvatarSource} style={styles.userAvatar} />
-            <Text style={styles.userName}>{doctorName}</Text>
-            <Text style={styles.userSpec}>{doctorSpec}</Text>
-          </View>
-
-          <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
-            {sideItems.map((item) => (
-              <TouchableOpacity
-                key={item.label}
-                style={[styles.menuItem, item.active ? styles.menuItemActive : null]}
-                onPress={() => handleSideItemPress(item)}
-              >
-                <MaterialIcons
-                  name={item.icon}
-                  size={20}
-                  color={item.active ? colors.primary : colors.muted}
-                />
-                <Text style={[styles.menuText, item.active ? styles.menuTextActive : null]}>
-                  {item.label}
-                </Text>
-                {item.badge ? (
-                  <View style={[styles.badge, { backgroundColor: item.badge.color }]}>
-                    <Text style={styles.badgeText}>{item.badge.text}</Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
-            ))}
-          </View>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <MaterialIcons name="logout" size={20} color="#fff" />
+            <Text style={styles.logoutText}>Cerrar sesion</Text>
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Cerrar sesion</Text>
-        </TouchableOpacity>
-      </View>
       )}
 
-      <ScrollView
-        style={styles.main}
-        contentContainerStyle={{ paddingBottom: 28 }}
-      >
+      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
         <View style={styles.headerWrap}>
           <View style={[styles.headerRow, !isDesktopLayout && styles.headerRowMobile]}>
             <View style={styles.headerLeft}>
@@ -459,6 +466,20 @@ const MedicoCitasScreen: React.FC = () => {
           />
         </View>
 
+        <View style={styles.statsRow}>
+          <View style={[styles.statCard, { borderLeftColor: colors.primary }]}>
+            <Text style={styles.statLabel}>Ingresos Totales</Text>
+            <Text style={styles.statValue}>{formatPrice(stats.totalEarnings)}</Text>
+          </View>
+          <View style={[styles.statCard, { borderLeftColor: '#ef4444' }]}>
+            <Text style={styles.statLabel}>Comisión VIREM</Text>
+            <Text style={styles.statValue}>{formatPrice(stats.platformFees)}</Text>
+          </View>
+          <View style={[styles.statCard, { borderLeftColor: '#10b981' }]}>
+            <Text style={styles.statLabel}>Ganancia Neta</Text>
+            <Text style={[styles.statValue, { color: '#10b981' }]}>{formatPrice(stats.netProfit)}</Text>
+          </View>
+        </View>
 
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>Proximas citas</Text>
@@ -469,8 +490,8 @@ const MedicoCitasScreen: React.FC = () => {
             <ActivityIndicator size="small" color={colors.primary} />
           ) : upcomingCitas.length ? (
             upcomingCitas.map((cita) => (
-                <View key={cita.citaid} style={styles.citaCard}>
-                  <View style={[styles.citaTop, !isDesktopLayout && styles.citaTopMobile]}>
+              <View key={cita.citaid} style={styles.citaCard}>
+                <View style={[styles.citaTop, !isDesktopLayout && styles.citaTopMobile]}>
                   <View style={styles.citaMeta}>
                     <Text style={styles.citaPatient}>{normalizeText(cita?.paciente?.nombreCompleto || 'Paciente')}</Text>
                     <Text style={styles.citaSub}>
@@ -480,21 +501,33 @@ const MedicoCitasScreen: React.FC = () => {
                     <Text style={styles.citaNote}>
                       {normalizeText(cita?.nota || 'Consulta programada sin nota adicional.')}
                     </Text>
+                    {Number(cita.montoTotal) > 0 && (
+                      <View style={styles.financeRow}>
+                        <View style={styles.financeItem}>
+                          <Text style={styles.financeLabel}>Precio</Text>
+                          <Text style={styles.financeValue}>{formatPrice(cita.montoTotal)}</Text>
+                        </View>
+                        <View style={styles.financeItem}>
+                          <Text style={styles.financeLabel}>Tu Ganancia</Text>
+                          <Text style={[styles.financeValue, { color: '#10b981' }]}>{formatPrice(cita.montoMedico)}</Text>
+                        </View>
+                        <View style={styles.financeItem}>
+                          <Text style={styles.financeLabel}>Comisión</Text>
+                          <Text style={[styles.financeValue, { color: '#ef4444' }]}>{formatPrice(cita.montoPlataforma)}</Text>
+                        </View>
+                      </View>
+                    )}
                   </View>
                 </View>
                 <View style={styles.actionsRow}>
                   <TouchableOpacity
                     style={[
                       styles.primaryAction,
-                      (normalizeText(cita?.modalidad).toLowerCase() !== 'virtual' ||
-                        workingCitaId === cita.citaid) &&
+                      (normalizeText(cita?.modalidad).toLowerCase() !== 'virtual' || workingCitaId === cita.citaid) &&
                         styles.secondaryActionDisabled,
                     ]}
                     onPress={() => openVideoSala(cita)}
-                    disabled={
-                      normalizeText(cita?.modalidad).toLowerCase() !== 'virtual' ||
-                      workingCitaId === cita.citaid
-                    }
+                    disabled={normalizeText(cita?.modalidad).toLowerCase() !== 'virtual' || workingCitaId === cita.citaid}
                   >
                     <MaterialIcons name="videocam" size={16} color="#fff" />
                     <Text style={styles.primaryActionText}>Iniciar</Text>
@@ -652,6 +685,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 999,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   logoutBtn: {
@@ -699,18 +736,9 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    marginBottom: 12,
+    marginBottom: 20,
   },
   searchInput: { flex: 1, color: colors.dark, fontSize: 14, fontWeight: '600', paddingVertical: 4 },
-
-
-
-
-
-
-
-
-
   sectionHead: {
     marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     marginTop: 12,
@@ -729,26 +757,27 @@ const styles = StyleSheet.create({
     borderColor: '#e4edf7',
     padding: 12,
     gap: 10,
+    marginBottom: 24,
   },
   citaCard: {
     borderWidth: 1,
     borderColor: '#e8eff8',
     borderRadius: 12,
-    padding: 10,
-    gap: 10,
+    padding: 16,
+    gap: 12,
   },
   citaTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   citaTopMobile: { alignItems: 'flex-start' },
   citaMeta: { flex: 1 },
   citaPatient: { color: colors.dark, fontSize: 16, fontWeight: '900' },
   citaSub: { color: colors.primary, fontSize: 13, fontWeight: '700', marginTop: 1 },
-  citaNote: { color: colors.muted, fontSize: 12, marginTop: 3, fontWeight: '600' },
-  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  citaNote: { color: colors.muted, fontSize: 12, marginTop: 4, fontWeight: '600' },
+  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   primaryAction: {
     backgroundColor: colors.primary,
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -762,18 +791,18 @@ const styles = StyleSheet.create({
     borderColor: '#d6e2f0',
     backgroundColor: '#f6f9fd',
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   secondaryActionText: { color: colors.blue, fontSize: 12, fontWeight: '800' },
   historyRow: {
     borderWidth: 1,
     borderColor: '#e8eff8',
     borderRadius: 10,
-    padding: 10,
+    padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   historyName: { color: colors.dark, fontSize: 14, fontWeight: '800' },
   historySub: { color: colors.muted, fontSize: 12, fontWeight: '600' },
@@ -781,13 +810,69 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#d8e5f3',
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: '#f7fafe',
   },
   smallActionText: { color: colors.blue, fontSize: 12, fontWeight: '800' },
   emptyText: { color: colors.muted, fontSize: 13, fontWeight: '700', paddingVertical: 12 },
+
+  statsRow: {
+    flexDirection: 'row',
+    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
+    gap: 12,
+    marginBottom: 20,
+    flexWrap: 'wrap',
+  },
+  statCard: {
+    flex: 1,
+    minWidth: 150,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.muted,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.dark,
+    marginTop: 4,
+  },
+  financeRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    gap: 24,
+    flexWrap: 'wrap',
+  },
+  financeItem: {
+    minWidth: 80,
+  },
+  financeLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.muted,
+    textTransform: 'uppercase',
+  },
+  financeValue: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.dark,
+    marginTop: 2,
+  },
 });
 
 export default MedicoCitasScreen;
-

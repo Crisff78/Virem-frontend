@@ -1,8 +1,10 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -58,6 +60,7 @@ type BackendMedico = {
   cedula?: string;
   telefono?: string;
   fotoUrl?: string | null;
+  precio?: number;
 };
 
 type AgendaSlot = {
@@ -108,6 +111,7 @@ const toDoctorProfile = (value: {
   services?: string[];
   permitePresencial?: boolean;
   permiteVirtual?: boolean;
+  genero?: string;
 }): DoctorProfile => {
   const specialty = String(value.specialty || 'Medicina General').trim() || 'Medicina General';
   const name = String(value.name || '').trim() || 'Doctor';
@@ -120,20 +124,24 @@ const toDoctorProfile = (value: {
   const price = String(value.price || '').trim() || 'N/D';
   const about =
     String(value.about || '').trim() ||
-    `Especialista en ${specialty}. Puedes agendar una consulta virtual para evaluacion y seguimiento clinico.`;
+    `Especialista en ${specialty}. Puedes agendar una consulta virtual para evaluación y seguimiento clínico.`;
   const services =
     Array.isArray(value.services) && value.services.length
       ? value.services
       : [
           `Consulta de ${specialty}`,
-          'Orientacion clinica y plan de manejo',
+          'Orientación clínica y plan de manejo',
           'Seguimiento por plataforma',
         ];
+
+  const isFemale = String(value.genero || '').toLowerCase().startsWith('m') || String(value.genero || '').toLowerCase() === 'f';
+  const title = isFemale ? 'Dra.' : 'Dr.';
+  const nameWithTitle = name.toLowerCase().startsWith('dr') ? name : `${title} ${name}`;
 
   return {
     id: String(value.id || '').trim(),
     specialty,
-    name,
+    name: nameWithTitle,
     focus,
     years,
     rating,
@@ -162,20 +170,21 @@ const mapBackendMedicoToProfile = (
   return toDoctorProfile({
     id: String(medico?.medicoid || ''),
     specialty,
-    name,
+    name: nameWithTitle,
+    genero: medico?.genero,
     focus: specialty,
     years: 'No disponible',
     rating: 'N/D',
     reviews: 'N/D',
     languages: 'Español',
     license: cedula || 'No disponible',
-    price: 'N/D',
+    price: String(medico?.precio || 0),
     fotoUrl: fotoUrl || null,
     image: resolveDoctorImage({ fotoUrl }),
-    about: `Especialista en ${specialty}. Puedes agendar una consulta virtual para evaluacion y seguimiento clinico.`,
+    about: `Especialista en ${specialty}. Puedes agendar una consulta virtual para evaluación y seguimiento clínico.`,
     services: [
       `Consulta de ${specialty}`,
-      'Orientacion clinica y plan de manejo',
+      'Orientación clínica y plan de manejo',
       telefono ? `Contacto: ${telefono}` : 'Seguimiento por plataforma',
     ],
     permitePresencial: medico?.permitePresencial !== false,
@@ -203,7 +212,7 @@ const mapRouteSnapshotToProfile = (
     price: snapshot.price,
     fotoUrl: sanitizeFotoUrl(snapshot?.fotoUrl),
     image: resolveDoctorImage({ fotoUrl: sanitizeFotoUrl(snapshot?.fotoUrl) }),
-    about: `Especialista en ${specialty}. Consulta virtual disponible para evaluacion y seguimiento.`,
+    about: `Especialista en ${specialty}. Consulta virtual disponible para evaluación y seguimiento.`,
     services:
       Array.isArray(snapshot.tags) && snapshot.tags.length
         ? snapshot.tags
@@ -227,7 +236,7 @@ const createGenericFallbackDoctor = (specialty: string, doctorId: string): Docto
     price: 'N/D',
     image: DefaultAvatar,
     about: `Perfil temporal para ${specialty}. Actualiza la lista de especialistas para ver el perfil completo.`,
-    services: [`Consulta de ${specialty}`, 'Atencion virtual'],
+    services: [`Consulta de ${specialty}`, 'Atención virtual'],
     permitePresencial: true,
     permiteVirtual: true,
   });
@@ -248,8 +257,16 @@ const formatSlotHour = (isoValue: string) => {
   }).format(date);
 };
 
-const PerfilEspecialistaAgendarScreen: React.FC = () => {
+const formatPrice = (value: unknown) => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 'Consultar';
+  return new Intl.NumberFormat('es-DO', {
+    style: 'currency',
+    currency: 'DOP',
+  }).format(n);
+};
 
+const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const { t } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'PerfilEspecialistaAgendar'>>();
@@ -266,9 +283,14 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const [loadingDoctor, setLoadingDoctor] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<AgendaSlot[]>([]);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCVV, setCardCVV] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
-  const specialty = route.params?.specialty || 'Cardiologia';
+  const specialty = route.params?.specialty || 'Cardiología';
   const routeDoctorId = String(route.params?.doctorId || '').trim();
   const fallbackDoctor = useMemo(() => {
     if (route.params?.doctorSnapshot) {
@@ -508,7 +530,13 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
 
     const appointmentDate = new Date(selectedSlot.horaInicio);
     if (Number.isNaN(appointmentDate.getTime())) {
-      Alert.alert('Horario invalido', 'Selecciona un horario valido.');
+      Alert.alert('Horario inválido', 'Selecciona un horario válido.');
+      return;
+    }
+
+    const priceNum = Number.parseFloat(String(doctor.price || '').replace(/[^\d.]/g, ''));
+    if (priceNum > 0 && !paymentModalVisible) {
+      setPaymentModalVisible(true);
       return;
     }
 
@@ -530,16 +558,26 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
       }
       if (Number.isFinite(parsedPrice) && parsedPrice >= 0) {
         body.precio = parsedPrice;
+        if (parsedPrice > 0) {
+          body.pagoInfo = {
+            metodo: 'tarjeta',
+            titular: cardHolder,
+            terminacion: cardNumber.slice(-4),
+          };
+        }
       }
-
+ 
       const payload = await apiClient.post<any>('/api/agenda/me/citas', {
         authenticated: true,
         body,
       });
       if (!payload?.success) {
+        setPaymentModalVisible(false);
         Alert.alert('No se pudo agendar', payload?.message || 'Intenta nuevamente en unos minutos.');
         return;
       }
+ 
+      setPaymentModalVisible(false);
 
       const finalDateRaw = payload?.cita?.fechaHoraInicio || appointmentDate.toISOString();
       const finalDate = new Date(finalDateRaw);
@@ -572,11 +610,12 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
       <View style={styles.loaderWrap}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loaderText}>
-          {loadingDoctor ? 'Cargando especialista...' : 'Cargando informacion...'}
+          {loadingDoctor ? 'Cargando especialista...' : 'Cargando información...'}
         </Text>
       </View>
     );
   }
+
   return (
     <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
       <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
@@ -677,7 +716,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
             <View style={styles.searchBox}>
               <MaterialIcons name="search" size={20} color={colors.muted} />
               <TextInput
-                placeholder="Busca un medico para consulta online"
+                placeholder="Busca un médico para consulta online"
                 placeholderTextColor="#8aa7bf"
                 style={styles.searchInput}
               />
@@ -723,25 +762,33 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                     </View>
                     <Text style={styles.docFocus}>{doctor.focus}</Text>
 
-                    <View style={styles.dataItem}>
-                      <MaterialIcons name="work-outline" size={16} color={colors.blue} />
-                      <Text style={styles.dataText}>Experiencia: {doctor.years}</Text>
-                    </View>
-                    <View style={styles.dataItem}>
-                      <MaterialIcons name="star" size={16} color="#fbbf24" />
-                      <Text style={styles.dataText}>
-                        Valoracion: {doctor.rating} ({doctor.reviews} reseñas)
-                      </Text>
-                    </View>
+                    {doctor.years !== 'No disponible' && (
+                      <View style={styles.dataItem}>
+                        <MaterialIcons name="work-outline" size={16} color={colors.blue} />
+                        <Text style={styles.dataText}>Experiencia: {doctor.years}</Text>
+                      </View>
+                    )}
+                    
+                    {doctor.rating !== 'N/D' && (
+                      <View style={styles.dataItem}>
+                        <MaterialIcons name="star" size={16} color="#fbbf24" />
+                        <Text style={styles.dataText}>
+                          Valoración: {doctor.rating} ({doctor.reviews} reseñas)
+                        </Text>
+                      </View>
+                    )}
+                    
                     <View style={styles.dataItem}>
                       <MaterialIcons name="language" size={16} color={colors.blue} />
                       <Text style={styles.dataText}>Idiomas: {doctor.languages}</Text>
                     </View>
 
                     <View style={styles.tagsRow}>
-                      <View style={styles.tagBlue}>
-                        <Text style={styles.tagBlueText}>Colegiado {doctor.license}</Text>
-                      </View>
+                      {doctor.license !== 'No disponible' && (
+                        <View style={styles.tagBlue}>
+                          <Text style={styles.tagBlueText}>Colegiado {doctor.license}</Text>
+                        </View>
+                      )}
                       <View style={styles.tagGreen}>
                         <Text style={styles.tagGreenText}>Videoconsulta disponible</Text>
                       </View>
@@ -771,7 +818,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                 <View style={styles.bookingTop}>
                   <Text style={styles.priceLabel}>Precio de consulta</Text>
                   <Text style={styles.priceValue}>
-                    {doctor.price === 'N/D' ? 'N/D' : `$${doctor.price}`}
+                    {doctor.price === 'N/D' ? 'Consultar' : `$${doctor.price}`}
                   </Text>
                 </View>
                 <View style={styles.bookingBody}>
@@ -799,7 +846,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                   </View>
 
                   <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Horarios disponibles</Text>
-                    <View style={[styles.modeRow, !isDesktopLayout && styles.modeRowMobile]}>
+                  <View style={[styles.modeRow, !isDesktopLayout && styles.modeRowMobile]}>
                     {modalidadOptions.map((option) => (
                       <TouchableOpacity
                         key={option.id}
@@ -842,7 +889,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                   ) : (
                     <View style={styles.noTimeWrap}>
                       <Text style={styles.noTimeText}>
-                        No hay horarios disponibles para este dia con esos filtros.
+                        No hay horarios disponibles para este día con esos filtros.
                       </Text>
                     </View>
                   )}
@@ -865,6 +912,108 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
               </View>
             </View>
           </View>
+          {/* Modal de Simulación de Pago */}
+          <Modal
+            visible={paymentModalVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setPaymentModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.modalContainer}
+              >
+                <View style={styles.paymentCard}>
+                  <View style={styles.paymentHeader}>
+                    <Text style={styles.paymentTitle}>Confirmar Pago</Text>
+                    <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
+                      <MaterialIcons name="close" size={24} color={colors.dark} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.paymentSummary}>
+                    <Text style={styles.summaryLabel}>Total a pagar:</Text>
+                    <Text style={styles.summaryValue}>{formatPrice(doctor.price)}</Text>
+                  </View>
+
+                  <Text style={styles.paymentInstructions}>
+                    Esta es una simulación. Puedes ingresar datos de prueba.
+                  </Text>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Titular de la tarjeta</Text>
+                    <TextInput
+                      style={styles.paymentInput}
+                      placeholder="Ej. Juan Pérez"
+                      value={cardHolder}
+                      onChangeText={setCardHolder}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Número de tarjeta</Text>
+                    <TextInput
+                      style={styles.paymentInput}
+                      placeholder="0000 0000 0000 0000"
+                      keyboardType="numeric"
+                      value={cardNumber}
+                      onChangeText={setCardNumber}
+                      maxLength={19}
+                    />
+                  </View>
+
+                  <View style={styles.rowInputs}>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                      <Text style={styles.inputLabel}>Expiración</Text>
+                      <TextInput
+                        style={styles.paymentInput}
+                        placeholder="MM/AA"
+                        value={cardExpiry}
+                        onChangeText={setCardExpiry}
+                        maxLength={5}
+                      />
+                    </View>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                      <Text style={styles.inputLabel}>CVV</Text>
+                      <TextInput
+                        style={styles.paymentInput}
+                        placeholder="000"
+                        keyboardType="numeric"
+                        secureTextEntry
+                        value={cardCVV}
+                        onChangeText={setCardCVV}
+                        maxLength={4}
+                      />
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.payBtn,
+                      (!cardHolder || !cardNumber) && styles.payBtnDisabled,
+                    ]}
+                    onPress={handleCreateAppointment}
+                    disabled={creatingCita || !cardHolder || !cardNumber}
+                  >
+                    {creatingCita ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <>
+                        <MaterialIcons name="lock" size={18} color="#fff" />
+                        <Text style={styles.payBtnText}>Pagar y Agendar Cita</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <View style={styles.securityBox}>
+                    <MaterialIcons name="security" size={14} color={colors.muted} />
+                    <Text style={styles.securityText}>Pago 100% seguro y encriptado</Text>
+                  </View>
+                </View>
+              </KeyboardAvoidingView>
+            </View>
+          </Modal>
         </ScrollView>
       </View>
     </View>
@@ -1136,6 +1285,7 @@ const styles = StyleSheet.create({
     borderColor: '#dfeaf5',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 0,
   },
   dayBtnActive: { backgroundColor: colors.blue, borderColor: colors.blue },
   dayText: { color: colors.dark, fontWeight: '700', fontSize: 11 },
@@ -1198,10 +1348,129 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   confirmText: { color: '#fff', fontWeight: '900', fontSize: 14 },
+  
+  // Modal de Pago
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(10, 25, 49, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    width: '100%',
+    maxWidth: 450,
+  },
+  paymentCard: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  paymentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  paymentTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.dark,
+  },
+  paymentSummary: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#edf2f7',
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: colors.muted,
+    fontWeight: '700',
+  },
+  summaryValue: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.primary,
+  },
+  paymentInstructions: {
+    fontSize: 12,
+    color: colors.muted,
+    marginBottom: 20,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.dark,
+    marginBottom: 6,
+    marginLeft: 4,
+  },
+  paymentInput: {
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.dark,
+  },
+  rowInputs: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  payBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 10,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  payBtnDisabled: {
+    backgroundColor: '#cbd5e1',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  payBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  securityBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 20,
+  },
+  securityText: {
+    fontSize: 11,
+    color: colors.muted,
+    fontWeight: '700',
+  },
 });
 
 export default PerfilEspecialistaAgendarScreen;
-
-
-
-

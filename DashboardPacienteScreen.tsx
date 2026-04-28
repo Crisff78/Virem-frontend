@@ -80,11 +80,11 @@ const formatRelativeIn = (value: string | null) => {
   const diffHour = Math.round(diffMin / 60);
   if (diffHour < 24) return `en ${diffHour} h`;
   const diffDay = Math.round(diffHour / 24);
-  return `en ${diffDay} dia(s)`;
+  return `en ${diffDay} día(s)`;
 };
 
 const formatPrice = (value: number | null | undefined) => {
-  if (!Number.isFinite(value as number) || Number(value) <= 0) return 'No especificado';
+  if (!Number.isFinite(value as number) || Number(value) <= 0) return 'Consultar';
   return new Intl.NumberFormat('es-DO', {
     style: 'currency',
     currency: 'DOP',
@@ -643,8 +643,8 @@ const DashboardPacienteScreen: React.FC = () => {
 
             <Text style={styles.bigCardSub}>
               {primaryCita
-                ? `${primaryDoctorSpec || 'Medicina General'} · ${primaryDateLabel} · ${primaryRelative}`
-                : 'Agenda tu primera consulta médica.'}
+                ? `${primaryDoctorSpec} · ${primaryDateLabel} (${primaryRelative})`
+                : 'Agenda tu primera consulta médica con nuestros especialistas.'}
             </Text>
 
             <View style={styles.bigCardActions}>

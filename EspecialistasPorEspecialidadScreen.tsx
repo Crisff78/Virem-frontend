@@ -297,7 +297,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
   const route = useRoute<RouteProp<RootStackParamList, 'EspecialistasPorEspecialidad'>>();
   const { user, loadingUser, signOut, fullName, planLabel, fotoUrl } = usePatientPortalSession();
   const { width: viewportWidth } = useWindowDimensions();
-  const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('today');
+  const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('week');
   const [ratingMin, setRatingMin] = useState<'4.5' | '4.0' | null>('4.5');
   const [backendDoctors, setBackendDoctors] = useState<Doctor[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);

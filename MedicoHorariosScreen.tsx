@@ -123,6 +123,8 @@ const MedicoHorariosScreen: React.FC = () => {
 
   const handleGenerarRecurrente = async () => {
     const activeDays = weeklyPattern.filter(p => p.active);
+    console.log("Generando recurrente con dias:", activeDays.length);
+    
     if (activeDays.length === 0) {
       Alert.alert("Error", "Debes seleccionar al menos un día activo.");
       return;
@@ -130,6 +132,8 @@ const MedicoHorariosScreen: React.FC = () => {
 
     try {
       setGenerating(true);
+      console.log("Enviando peticion a /api/agenda/medico/me/disponibilidades/recurrente...");
+      
       const payload = await apiClient.post<any>("/api/agenda/medico/me/disponibilidades/recurrente", {
         authenticated: true,
         body: {
@@ -140,6 +144,8 @@ const MedicoHorariosScreen: React.FC = () => {
         }
       });
 
+      console.log("Respuesta recibida:", JSON.stringify(payload));
+
       if (payload?.success) {
         Alert.alert("Éxito", `Se han generado ${payload.createdCount} horarios para los próximos 30 días.`);
         setViewMode('specific');
@@ -148,7 +154,8 @@ const MedicoHorariosScreen: React.FC = () => {
         Alert.alert("Error", payload?.message || "No se pudo generar la agenda.");
       }
     } catch (e: any) {
-      Alert.alert("Error", "Ocurrió un error al generar la agenda.");
+      console.error("Error en handleGenerarRecurrente:", e);
+      Alert.alert("Error de Conexión", e.message || "No se pudo conectar con el servidor.");
     } finally {
       setGenerating(false);
     }
