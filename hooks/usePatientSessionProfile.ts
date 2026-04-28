@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { useAuth } from '../providers/AuthProvider';
 import { apiClient } from '../utils/api';
@@ -190,13 +190,42 @@ const mergeAuthMeUser = (baseUser: PatientSessionUser | null, authUser: PatientS
     } satisfies PatientSessionUser;
 };
 
+const toComparableUser = (user: PatientSessionUser | null) => ({
+    id: normalizeText(user?.id),
+    usuarioid: normalizeText(user?.usuarioid),
+    email: normalizeText(user?.email).toLowerCase(),
+    nombres: normalizeText(user?.nombres),
+    apellidos: normalizeText(user?.apellidos),
+    plan: normalizeText(user?.plan),
+    fotoUrl: sanitizeFotoUrl(user?.fotoUrl),
+    telefono: normalizeText(user?.telefono),
+    cedula: normalizeText(user?.cedula),
+    genero: normalizeText(user?.genero),
+    fechanacimiento: normalizeText(user?.fechanacimiento),
+    direccion: normalizeText(user?.direccion),
+    tipoSangre: normalizeText(user?.tipoSangre),
+    alergias: normalizeText(user?.alergias),
+    medicamentos: normalizeText(user?.medicamentos),
+    antecedentes: normalizeText(user?.antecedentes),
+});
+
+const areUsersEquivalent = (
+    left: PatientSessionUser | null,
+    right: PatientSessionUser | null
+) => JSON.stringify(toComparableUser(left)) === JSON.stringify(toComparableUser(right));
+
 export function usePatientSessionProfile() {
     const { user, updateUser } = useAuth<Record<string, unknown>>();
 
     const sessionUser = ensurePatientSessionUser(user as PatientSessionUser | null);
+    const sessionUserRef = useRef<PatientSessionUser | null>(sessionUser);
+
+    useEffect(() => {
+        sessionUserRef.current = sessionUser;
+    }, [sessionUser]);
 
     const syncProfile = useCallback(async () => {
-        let nextUser = ensurePatientSessionUser(user as PatientSessionUser | null);
+        let nextUser = ensurePatientSessionUser(sessionUserRef.current);
 
         try {
             const profilePayload = await apiClient.get<any>('/api/users/me/paciente-profile', {
@@ -204,7 +233,7 @@ export function usePatientSessionProfile() {
             });
             if (profilePayload?.success && profilePayload?.profile) {
                 nextUser = mergePatientProfile(nextUser, profilePayload.profile as PatientSessionUser);
-                if (nextUser) {
+                if (nextUser && !areUsersEquivalent(sessionUserRef.current, nextUser)) {
                     await updateUser(nextUser as Record<string, unknown>);
                 }
                 return nextUser;
@@ -219,7 +248,7 @@ export function usePatientSessionProfile() {
             });
             if (authPayload?.success && authPayload?.user) {
                 nextUser = mergeAuthMeUser(nextUser, authPayload.user as PatientSessionUser);
-                if (nextUser) {
+                if (nextUser && !areUsersEquivalent(sessionUserRef.current, nextUser)) {
                     await updateUser(nextUser as Record<string, unknown>);
                 }
                 return nextUser;
@@ -229,7 +258,7 @@ export function usePatientSessionProfile() {
         }
 
         return nextUser;
-    }, [updateUser, user]);
+    }, [updateUser]);
 
     return {
         sessionUser,

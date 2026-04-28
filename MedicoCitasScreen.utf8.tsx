@@ -46,6 +46,17 @@ type CitaItem = {
   };
 };
 
+type DisponibilidadItem = {
+  id: string;
+  fechaInicio: string | null;
+  fechaFin: string | null;
+  modalidad: 'presencial' | 'virtual' | 'ambas';
+  slotMinutos: number;
+  activo: boolean;
+  bloqueado: boolean;
+  especialidad?: string;
+  nota?: string;
+};
 
 type SideItem = {
   icon: string;
@@ -103,9 +114,19 @@ const MedicoCitasScreen: React.FC = () => {
     useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
   const { width: viewportWidth } = useWindowDimensions();
   const [loadingCitas, setLoadingCitas] = useState(false);
+  const [loadingDisponibilidades, setLoadingDisponibilidades] = useState(false);
+  const [savingDisponibilidad, setSavingDisponibilidad] = useState(false);
   const [workingCitaId, setWorkingCitaId] = useState('');
   const [searchText, setSearchText] = useState('');
   const [citas, setCitas] = useState<CitaItem[]>([]);
+  const [disponibilidades, setDisponibilidades] = useState<DisponibilidadItem[]>([]);
+  const [editingDisponibilidadId, setEditingDisponibilidadId] = useState('');
+  const [dispFecha, setDispFecha] = useState(() => toIsoDate(new Date()));
+  const [dispHoraInicio, setDispHoraInicio] = useState('09:00');
+  const [dispHoraFin, setDispHoraFin] = useState('12:00');
+  const [dispModalidad, setDispModalidad] = useState<'presencial' | 'virtual' | 'ambas'>('ambas');
+  const [dispSlotMinutos, setDispSlotMinutos] = useState<15 | 20 | 30 | 60>(30);
+  const [dispBloqueado, setDispBloqueado] = useState(false);
   const lastRefreshRef = React.useRef(0);
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
@@ -141,6 +162,57 @@ const MedicoCitasScreen: React.FC = () => {
     }
   }, [handleAuthExpired]);
 
+  const loadDisponibilidades = useCallback(async () => {
+    setLoadingDisponibilidades(true);
+    try {
+      const now = new Date();
+      const from = toIsoDate(now);
+      const to = toIsoDate(new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000));
+      const payload = await apiClient.get<any>('/api/agenda/medico/me/disponibilidades', {
+        authenticated: true,
+        query: { from, to },
+      });
+      if (!(payload?.success && Array.isArray(payload?.disponibilidades))) {
+        setDisponibilidades([]);
+        return;
+      }
+
+      const normalized = (payload.disponibilidades as any[])
+        .map((item) => {
+          const id = normalizeText(item?.id);
+          if (!id) return null;
+          const modalidadRaw = normalizeText(item?.modalidad).toLowerCase();
+          const modalidad =
+            modalidadRaw === 'virtual' || modalidadRaw === 'presencial' || modalidadRaw === 'ambas'
+              ? (modalidadRaw as 'presencial' | 'virtual' | 'ambas')
+              : 'ambas';
+          const slotMin = Number(item?.slotMinutos || 30);
+          return {
+            id,
+            fechaInicio: item?.fechaInicio || null,
+            fechaFin: item?.fechaFin || null,
+            modalidad,
+            slotMinutos: Number.isFinite(slotMin) ? slotMin : 30,
+            activo: Boolean(item?.activo),
+            bloqueado: Boolean(item?.bloqueado),
+            especialidad: normalizeText(item?.especialidad),
+            nota: normalizeText(item?.nota),
+          } as DisponibilidadItem;
+        })
+        .filter((item: DisponibilidadItem | null): item is DisponibilidadItem => Boolean(item))
+        .sort((a, b) => parseDateMs(a.fechaInicio) - parseDateMs(b.fechaInicio));
+
+      setDisponibilidades(normalized);
+    } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthExpired();
+        return;
+      }
+      setDisponibilidades([]);
+    } finally {
+      setLoadingDisponibilidades(false);
+    }
+  }, [handleAuthExpired]);
 
   useFocusEffect(
     useCallback(() => {
@@ -151,7 +223,8 @@ const MedicoCitasScreen: React.FC = () => {
       lastRefreshRef.current = now;
       refreshUser().catch(() => undefined);
       loadCitas();
-    }, [loadCitas, refreshUser])
+      loadDisponibilidades();
+    }, [loadCitas, loadDisponibilidades, refreshUser])
   );
 
   const upsertCita = useCallback((nextCita: CitaItem) => {
@@ -212,7 +285,30 @@ const MedicoCitasScreen: React.FC = () => {
       .sort((a, b) => parseDateMs(b?.fechaHoraInicio) - parseDateMs(a?.fechaHoraInicio));
   }, [filteredCitas]);
 
+  const resetDisponibilidadForm = useCallback(() => {
+    setEditingDisponibilidadId('');
+    setDispFecha(toIsoDate(new Date()));
+    setDispHoraInicio('09:00');
+    setDispHoraFin('12:00');
+    setDispModalidad('ambas');
+    setDispSlotMinutos(30);
+    setDispBloqueado(false);
+  }, []);
 
+  const startEditDisponibilidad = useCallback((item: DisponibilidadItem) => {
+    setEditingDisponibilidadId(item.id);
+    setDispFecha(toIsoDate(new Date(item.fechaInicio || Date.now())));
+    setDispHoraInicio(toHourMinute(item.fechaInicio) || '09:00');
+    setDispHoraFin(toHourMinute(item.fechaFin) || '12:00');
+    setDispModalidad(item.modalidad || 'ambas');
+    const nextSlot = Number(item.slotMinutos);
+    if (nextSlot === 15 || nextSlot === 20 || nextSlot === 30 || nextSlot === 60) {
+      setDispSlotMinutos(nextSlot);
+    } else {
+      setDispSlotMinutos(30);
+    }
+    setDispBloqueado(Boolean(item.bloqueado));
+  }, []);
 
   const saveDisponibilidad = useCallback(async () => {
     if (!dispFecha || !/^\d{4}-\d{2}-\d{2}$/.test(dispFecha)) {
@@ -276,7 +372,68 @@ const MedicoCitasScreen: React.FC = () => {
     resetDisponibilidadForm,
   ]);
 
+  const toggleBloqueoDisponibilidad = useCallback(
+    async (item: DisponibilidadItem) => {
+      setWorkingCitaId(`disp-block-${item.id}`);
+      try {
+        const payload = await apiClient.patch<any>(
+          `/api/agenda/medico/me/disponibilidades/${item.id}/bloquear`,
+          {
+            authenticated: true,
+            body: { bloqueado: !item.bloqueado },
+          }
+        );
+        if (!payload?.success) {
+          Alert.alert('No se pudo actualizar', payload?.message || 'Intenta nuevamente.');
+          return;
+        }
 
+        setDisponibilidades((prev) =>
+          prev.map((row) => (row.id === item.id ? { ...row, bloqueado: !row.bloqueado } : row))
+        );
+      } catch (error) {
+        if (isAuthError(error)) {
+          await handleAuthExpired();
+          return;
+        }
+        Alert.alert('Error', getApiErrorMessage(error, 'No se pudo actualizar el bloqueo.'));
+      } finally {
+        setWorkingCitaId('');
+      }
+    },
+    [handleAuthExpired]
+  );
+
+  const toggleActivoDisponibilidad = useCallback(
+    async (item: DisponibilidadItem) => {
+      setWorkingCitaId(`disp-active-${item.id}`);
+      try {
+        const payload = await apiClient.put<any>(`/api/agenda/medico/me/disponibilidades/${item.id}`, {
+          authenticated: true,
+          body: {
+            activo: !item.activo,
+          },
+        });
+        if (!payload?.success) {
+          Alert.alert('No se pudo actualizar', payload?.message || 'Intenta nuevamente.');
+          return;
+        }
+
+        setDisponibilidades((prev) =>
+          prev.map((row) => (row.id === item.id ? { ...row, activo: !row.activo } : row))
+        );
+      } catch (error) {
+        if (isAuthError(error)) {
+          await handleAuthExpired();
+          return;
+        }
+        Alert.alert('Error', getApiErrorMessage(error, 'No se pudo actualizar el estado.'));
+      } finally {
+        setWorkingCitaId('');
+      }
+    },
+    [handleAuthExpired]
+  );
 
   const dateText = useMemo(
     () =>
@@ -515,6 +672,173 @@ const MedicoCitasScreen: React.FC = () => {
           />
         </View>
 
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>Disponibilidad</Text>
+          <Text style={styles.sectionCount}>{disponibilidades.length}</Text>
+        </View>
+        <View style={styles.sectionCard}>
+          <View style={[styles.availabilityFormGrid, !isDesktopLayout && styles.availabilityFormGridMobile]}>
+            <View style={styles.availabilityField}>
+              <Text style={styles.availabilityLabel}>Fecha (YYYY-MM-DD)</Text>
+              <TextInput
+                value={dispFecha}
+                onChangeText={setDispFecha}
+                style={styles.availabilityInput}
+                placeholder="2026-03-20"
+                placeholderTextColor="#8ca7bd"
+              />
+            </View>
+            <View style={styles.availabilityField}>
+              <Text style={styles.availabilityLabel}>Hora inicio</Text>
+              <TextInput
+                value={dispHoraInicio}
+                onChangeText={setDispHoraInicio}
+                style={styles.availabilityInput}
+                placeholder="09:00"
+                placeholderTextColor="#8ca7bd"
+              />
+            </View>
+            <View style={styles.availabilityField}>
+              <Text style={styles.availabilityLabel}>Hora fin</Text>
+              <TextInput
+                value={dispHoraFin}
+                onChangeText={setDispHoraFin}
+                style={styles.availabilityInput}
+                placeholder="12:00"
+                placeholderTextColor="#8ca7bd"
+              />
+            </View>
+          </View>
+
+          <Text style={styles.availabilityLabel}>Modalidad del bloque</Text>
+          <View style={styles.actionsRow}>
+            {(['ambas', 'virtual', 'presencial'] as const).map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.secondaryAction,
+                  dispModalidad === mode && styles.availabilityModeActive,
+                ]}
+                onPress={() => setDispModalidad(mode)}
+              >
+                <Text
+                  style={[
+                    styles.secondaryActionText,
+                    dispModalidad === mode && styles.availabilityModeActiveText,
+                  ]}
+                >
+                  {mode}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.availabilityLabel}>Duracion por slot</Text>
+          <View style={styles.actionsRow}>
+            {([15, 20, 30, 60] as const).map((minutes) => (
+              <TouchableOpacity
+                key={minutes}
+                style={[
+                  styles.secondaryAction,
+                  dispSlotMinutos === minutes && styles.availabilityModeActive,
+                ]}
+                onPress={() => setDispSlotMinutos(minutes)}
+              >
+                <Text
+                  style={[
+                    styles.secondaryActionText,
+                    dispSlotMinutos === minutes && styles.availabilityModeActiveText,
+                  ]}
+                >
+                  {minutes} min
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={[styles.secondaryAction, dispBloqueado && styles.availabilityModeActive]}
+              onPress={() => setDispBloqueado((prev) => !prev)}
+            >
+              <Text
+                style={[
+                  styles.secondaryActionText,
+                  dispBloqueado && styles.availabilityModeActiveText,
+                ]}
+              >
+                {dispBloqueado ? 'Bloqueado' : 'Disponible'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.primaryAction, savingDisponibilidad && styles.secondaryActionDisabled]}
+              onPress={saveDisponibilidad}
+              disabled={savingDisponibilidad}
+            >
+              {savingDisponibilidad ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <MaterialIcons name="save" size={16} color="#fff" />
+                  <Text style={styles.primaryActionText}>
+                    {editingDisponibilidadId ? 'Actualizar bloque' : 'Crear bloque'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {editingDisponibilidadId ? (
+              <TouchableOpacity style={styles.secondaryAction} onPress={resetDisponibilidadForm}>
+                <Text style={styles.secondaryActionText}>Cancelar edicion</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          {loadingDisponibilidades ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : disponibilidades.length ? (
+            disponibilidades.slice(0, 40).map((item) => (
+              <View
+                key={`disp-${item.id}`}
+                style={[styles.availabilityRow, !isDesktopLayout && styles.availabilityRowMobile]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.historyName}>
+                    {formatDateTime(item.fechaInicio)} - {formatDateTime(item.fechaFin)}
+                  </Text>
+                  <Text style={styles.historySub}>
+                    {normalizeText(item.especialidad || doctorSpec)} · {item.modalidad} · {item.slotMinutos} min
+                  </Text>
+                  <Text style={styles.historySub}>
+                    {item.activo ? 'Activo' : 'Inactivo'} · {item.bloqueado ? 'Bloqueado' : 'Disponible'}
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.smallAction} onPress={() => startEditDisponibilidad(item)}>
+                  <Text style={styles.smallActionText}>Editar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.smallAction}
+                  disabled={workingCitaId === `disp-block-${item.id}`}
+                  onPress={() => toggleBloqueoDisponibilidad(item)}
+                >
+                  <Text style={styles.smallActionText}>
+                    {item.bloqueado ? 'Desbloquear' : 'Bloquear'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.smallAction}
+                  disabled={workingCitaId === `disp-active-${item.id}`}
+                  onPress={() => toggleActivoDisponibilidad(item)}
+                >
+                  <Text style={styles.smallActionText}>{item.activo ? 'Desactivar' : 'Activar'}</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyText}>Aun no has configurado bloques de disponibilidad.</Text>
+          )}
+        </View>
 
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>Proximas citas</Text>
@@ -768,15 +1092,56 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   searchInput: { flex: 1, color: colors.dark, fontSize: 14, fontWeight: '600', paddingVertical: 4 },
-
-
-
-
-
-
-
-
-
+  availabilityFormGrid: {
+    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  availabilityFormGridMobile: {
+    flexDirection: 'column',
+  },
+  availabilityField: {
+    flex: Platform.OS === 'web' ? 1 : 0,
+    minWidth: Platform.OS === 'web' ? 180 : 0,
+  },
+  availabilityLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  availabilityInput: {
+    borderWidth: 1,
+    borderColor: '#d6e4f3',
+    backgroundColor: '#f9fbff',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    color: colors.dark,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  availabilityModeActive: {
+    backgroundColor: 'rgba(19,127,236,0.14)',
+    borderColor: colors.primary,
+  },
+  availabilityModeActiveText: {
+    color: colors.primary,
+  },
+  availabilityRow: {
+    borderWidth: 1,
+    borderColor: '#e8eff8',
+    borderRadius: 10,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  availabilityRowMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
   sectionHead: {
     marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     marginTop: 12,
