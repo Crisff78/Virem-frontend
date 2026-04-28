@@ -38,7 +38,7 @@ const LandingScreen: React.FC = () => {
       {/* TOP NAVBAR - UNTOUCHED AS REQUESTED */}
       <View style={[styles.navbar, isDesktop && styles.navbarDesktop]}>
         <View style={styles.navLeft}>
-          <Image source={ViremLogo} style={styles.logoImage} />
+          <Image source={ViremLogo} style={styles.logoImage} resizeMode="contain" />
           <Text style={styles.logoText}>VIREM</Text>
         </View>
         
@@ -79,7 +79,7 @@ const LandingScreen: React.FC = () => {
           <ImageBackground 
             source={EquipoVirem} 
             style={{ width: "100%", height: "100%", justifyContent: "center" }}
-            imageStyle={{ resizeMode: "cover" }}
+            resizeMode="cover"
           >
             <View style={{ zIndex: 2, paddingHorizontal: isDesktop ? 80 : 24, paddingVertical: 40, width: isDesktop ? "55%" : "100%" }}>
               <Text style={{ fontSize: isDesktop ? 48 : 36, fontWeight: "900", color: colors.secondary, marginBottom: 16, lineHeight: isDesktop ? 56 : 42 }}>
@@ -270,7 +270,7 @@ const LandingScreen: React.FC = () => {
             <View style={styles.footerBrandSection}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                 <View style={styles.footerLogoContainer}>
-                  <Image source={ViremLogo} style={styles.footerLogoImage} />
+                  <Image source={ViremLogo} style={styles.footerLogoImage} resizeMode="contain" />
                 </View>
                 <Text style={[styles.logoText, { color: '#fff', fontSize: 32 }]}>VIREM</Text>
               </View>
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   navbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: colors.white, zIndex: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
   navbarDesktop: { paddingHorizontal: 40, paddingVertical: 16 },
   navLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logoImage: { width: 32, height: 32, resizeMode: 'contain' },
+  logoImage: { width: 32, height: 32 },
   logoText: { fontSize: 26, fontWeight: '900', color: colors.dark, letterSpacing: 0 },
   
   navLinksCenter: { flexDirection: 'row', gap: 24 },
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   
   footerBrandSection: { alignItems: 'flex-start', maxWidth: 300 },
   footerLogoContainer: { backgroundColor: '#fff', padding: 6, borderRadius: 8, marginRight: 12 },
-  footerLogoImage: { width: 28, height: 28, resizeMode: 'contain' },
+  footerLogoImage: { width: 28, height: 28 },
   socialRow: { flexDirection: 'row', gap: 12 },
   socialCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
 

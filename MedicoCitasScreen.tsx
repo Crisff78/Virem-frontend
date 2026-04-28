@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -24,10 +24,20 @@ import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 import { useSocketEvent } from './hooks/useSocketEvent';
 import { apiClient } from './utils/api';
 import { getApiErrorMessage, isAuthError } from './utils/apiErrors';
-import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
+import { resolveRemoteImageSource } from './utils/imageSources';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
+
+const colors = {
+  primary: '#137fec',
+  bg: '#F6FAFD',
+  dark: '#0A1931',
+  blue: '#1A3D63',
+  muted: '#4A7FA7',
+  light: '#B3CFE5',
+  white: '#FFFFFF',
+};
 
 type CitaItem = {
   citaid: string;
@@ -212,72 +222,6 @@ const MedicoCitasScreen: React.FC = () => {
       .sort((a, b) => parseDateMs(b?.fechaHoraInicio) - parseDateMs(a?.fechaHoraInicio));
   }, [filteredCitas]);
 
-
-
-  const saveDisponibilidad = useCallback(async () => {
-    if (!dispFecha || !/^\d{4}-\d{2}-\d{2}$/.test(dispFecha)) {
-      Alert.alert('Fecha invalida', 'Usa formato YYYY-MM-DD.');
-      return;
-    }
-    if (!/^\d{2}:\d{2}$/.test(dispHoraInicio) || !/^\d{2}:\d{2}$/.test(dispHoraFin)) {
-      Alert.alert('Hora invalida', 'Usa formato HH:mm para inicio y fin.');
-      return;
-    }
-
-    setSavingDisponibilidad(true);
-    try {
-      const body = {
-        fecha: dispFecha,
-        horaInicio: dispHoraInicio,
-        horaFin: dispHoraFin,
-        modalidad: dispModalidad,
-        slotMinutos: dispSlotMinutos,
-        bloqueado: dispBloqueado,
-        activo: true,
-      };
-      const endpoint = editingDisponibilidadId
-        ? `/api/agenda/medico/me/disponibilidades/${editingDisponibilidadId}`
-        : '/api/agenda/medico/me/disponibilidades';
-
-      const responseBody = editingDisponibilidadId
-        ? await apiClient.put<any>(endpoint, { authenticated: true, body })
-        : await apiClient.post<any>(endpoint, { authenticated: true, body });
-
-      if (!responseBody?.success) {
-        Alert.alert(
-          'No se pudo guardar',
-          responseBody?.message || 'Revisa los datos e intenta nuevamente.'
-        );
-        return;
-      }
-
-      await loadDisponibilidades();
-      resetDisponibilidadForm();
-      Alert.alert('Disponibilidad guardada', 'El bloque horario se actualizo correctamente.');
-    } catch (error) {
-      if (isAuthError(error)) {
-        await handleAuthExpired();
-        return;
-      }
-      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo guardar la disponibilidad.'));
-    } finally {
-      setSavingDisponibilidad(false);
-    }
-  }, [
-    dispBloqueado,
-    dispFecha,
-    dispHoraFin,
-    dispHoraInicio,
-    dispModalidad,
-    dispSlotMinutos,
-    editingDisponibilidadId,
-    handleAuthExpired,
-    loadDisponibilidades,
-    resetDisponibilidadForm,
-  ]);
-
-
-
   const dateText = useMemo(
     () =>
       new Intl.DateTimeFormat('es-DO', {
@@ -442,7 +386,7 @@ const MedicoCitasScreen: React.FC = () => {
       <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
         <View>
           <View style={styles.logoWrap}>
-            <Image source={ViremLogo} style={styles.logo} />
+            <Image source={ViremLogo} style={styles.logo} resizeMode="contain" />
             <View>
               <Text style={styles.logoTitle}>VIREM</Text>
               <Text style={styles.logoSub}>Portal Medico</Text>
@@ -642,16 +586,6 @@ const MedicoCitasScreen: React.FC = () => {
   );
 };
 
-const colors = {
-  primary: '#137fec',
-  bg: '#F6FAFD',
-  dark: '#0A1931',
-  blue: '#1A3D63',
-  muted: '#4A7FA7',
-  light: '#B3CFE5',
-  white: '#FFFFFF',
-};
-
 const styles = StyleSheet.create({
   loaderWrap: {
     flex: 1,
@@ -686,7 +620,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, resizeMode: 'contain' },
+  logo: { width: 44, height: 44 },
   logoTitle: { color: colors.dark, fontSize: 20, fontWeight: '800' },
   logoSub: { color: colors.muted, fontSize: 11, fontWeight: '700' },
   userCard: { alignItems: 'center', marginTop: 18, marginBottom: 10 },
