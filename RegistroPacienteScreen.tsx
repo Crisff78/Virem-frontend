@@ -16,6 +16,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useResponsive } from './hooks/useResponsive';
 import { RootStackParamList } from './navigation/types';
 import { apiUrl } from './config/backend';
 
@@ -254,10 +255,10 @@ const styles = StyleSheet.create({
 
 const RegistroPacienteScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
-  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
-  const isWideLayout = viewportWidth > 768;
-  const isTabletLayout = viewportWidth > 640;
-  const isMobileWeb = Platform.OS === 'web' && viewportWidth <= 768;
+  const { isDesktop, isTablet, isMobile, height: viewportHeight } = useResponsive();
+  const isWideLayout = isDesktop || isTablet;
+  const isTabletLayout = isTablet;
+  const isMobileWeb = Platform.OS === 'web' && isMobile;
   const mobileScrollHeight = Math.max(viewportHeight - 64, 320);
 
   const [names, setNames] = useState('');

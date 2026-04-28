@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { useResponsive } from './hooks/useResponsive';
 
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -138,12 +139,14 @@ const LoginScreen: React.FC = () => {
   const handleForgotPassword = () => navigation.navigate('RecuperarContrasena');
   const handleGoToRegister = () => navigation.navigate('SeleccionPerfil');
 
+  const { isDesktop, isTablet, isMobile, select } = useResponsive();
+
   return (
     <View style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
 
       <View style={styles.container}>
-        <View style={styles.card}>
+        <View style={[styles.card, { padding: select({ mobile: 20, tablet: 30, desktop: 40 }) }]}>
           <View style={styles.logoSectionHorizontal}>
             <Image source={ViremLogo} style={styles.logoSmallOriginal} />
             <Text style={styles.appNameHorizontal}>VIREM</Text>
@@ -231,8 +234,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     backgroundColor: COLORS.cardLight,
-    borderRadius: 16,
-    padding: 30,
+    borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,

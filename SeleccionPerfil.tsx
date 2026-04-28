@@ -1,5 +1,6 @@
-﻿import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView, useWindowDimensions } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView } from 'react-native';
+import { useResponsive } from './hooks/useResponsive';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,9 +20,9 @@ const colors = {
 
 const SeleccionPerfil: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
-  const { width: viewportWidth } = useWindowDimensions();
-  const isMobileLayout = viewportWidth <= 600;
-  const isMobileWeb = Platform.OS === 'web' && viewportWidth <= 768;
+  const { isDesktop, isTablet, isMobile, select, height: viewportHeight } = useResponsive();
+  const isMobileLayout = isMobile;
+  const isMobileWeb = Platform.OS === 'web' && isMobile;
 
   const handleRegister = (profile: 'Medico' | 'Paciente') => {
     navigation.navigate(profile === 'Paciente' ? 'RegistroPaciente' : 'RegistroMedico');

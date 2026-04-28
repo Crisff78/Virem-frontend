@@ -2,7 +2,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";
-import { Image, Platform, ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { Image, Platform, ScrollView, Text, View } from "react-native";
+import { useResponsive } from "./hooks/useResponsive";
 
 import { RegistroMedicoFormCard } from "./components/registro-medico/RegistroMedicoFormCard";
 import { RegistroMedicoSelectionModals } from "./components/registro-medico/RegistroMedicoSelectionModals";
@@ -17,11 +18,11 @@ const ViremLogo = require("./assets/imagenes/descarga.png");
 const RegistroMedicoScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
   const controller = useRegistroMedicoForm(navigation);
-  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const { isDesktop, isTablet, isMobile, select, height: viewportHeight } = useResponsive();
 
-  const isWideLayout = viewportWidth > 768;
-  const isTabletLayout = viewportWidth > 640;
-  const isMobileWeb = Platform.OS === "web" && viewportWidth <= 768;
+  const isWideLayout = isDesktop || isTablet;
+  const isTabletLayout = isTablet;
+  const isMobileWeb = Platform.OS === "web" && isMobile;
   const mobileScrollHeight = Math.max(viewportHeight - 64, 320);
 
   return (

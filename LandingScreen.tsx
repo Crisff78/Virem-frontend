@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, useWindowDimensions, Image, ImageBackground, Alert } from 'react-native';
+import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Image, ImageBackground, Alert } from 'react-native';
+import { useResponsive } from './hooks/useResponsive';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -27,8 +28,7 @@ const LandingScreen: React.FC = () => {
   const scrollTo = (y: number) => {
     scrollViewRef.current?.scrollTo({ y, animated: true });
   };
-  const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' && width >= 1024;
+  const { isDesktop, isTablet, isMobile, select, width } = useResponsive();
 
   const navigateToLogin = () => navigation.navigate('Login');
   const navigateToRegister = () => navigation.navigate('SeleccionPerfil');
@@ -75,17 +75,34 @@ const LandingScreen: React.FC = () => {
       <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent}>
         
         {/* HERO SECTION */}
-        <View style={{ width: "100%", minHeight: isDesktop ? 600 : 400 }}>
+        <View style={{ width: "100%", minHeight: select({ mobile: 400, tablet: 500, desktop: 600 }) }}>
           <ImageBackground 
             source={EquipoVirem} 
             style={{ width: "100%", height: "100%", justifyContent: "center" }}
             resizeMode="cover"
           >
-            <View style={{ zIndex: 2, paddingHorizontal: isDesktop ? 80 : 24, paddingVertical: 40, width: isDesktop ? "55%" : "100%" }}>
-              <Text style={{ fontSize: isDesktop ? 48 : 36, fontWeight: "900", color: colors.secondary, marginBottom: 16, lineHeight: isDesktop ? 56 : 42 }}>
+            <View style={{ 
+              zIndex: 2, 
+              paddingHorizontal: select({ mobile: 24, tablet: 40, desktop: 80 }), 
+              paddingVertical: 40, 
+              width: select({ mobile: "100%", tablet: "70%", desktop: "55%" }) 
+            }}>
+              <Text style={{ 
+                fontSize: select({ mobile: 32, tablet: 40, desktop: 48 }), 
+                fontWeight: "900", 
+                color: colors.secondary, 
+                marginBottom: 16, 
+                lineHeight: select({ mobile: 38, tablet: 48, desktop: 56 }) 
+              }}>
                 ¡TU SALUD ES NUESTRA PRIORIDAD!
               </Text>
-              <Text style={{ fontSize: isDesktop ? 18 : 16, color: colors.secondary, lineHeight: 28, marginBottom: 30, fontWeight: "500" }}>
+              <Text style={{ 
+                fontSize: select({ mobile: 16, tablet: 17, desktop: 18 }), 
+                color: colors.secondary, 
+                lineHeight: 28, 
+                marginBottom: 30, 
+                fontWeight: "500" 
+              }}>
                 Somos líderes en atención primaria en salud. Nos enfocamos en prestar un servicio de salud integral destinado a proteger tu salud y bienestar.
               </Text>
               <TouchableOpacity style={styles.heroActionBtn} onPress={navigateToRegister}>
@@ -128,23 +145,30 @@ const LandingScreen: React.FC = () => {
             Desde consultas virtuales con especialistas hasta la descarga inmediata de tus recetas médicas, en VIREM contamos con todas las herramientas necesarias para brindarte una atención integral y precisa.
           </Text>
           
-          <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 30, maxWidth: 1200, paddingHorizontal: 20 }}>
+          <View style={{ 
+            flexDirection: select({ mobile: 'column', tablet: 'row', desktop: 'row' }), 
+            gap: 30, 
+            maxWidth: 1200, 
+            paddingHorizontal: 20,
+            flexWrap: 'wrap',
+            justifyContent: 'center'
+          }}>
             
-            <View style={{ width: isDesktop ? 350 : '100%', backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, elevation: 5 }}>
+            <View style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, elevation: 5 }}>
               <View style={{ backgroundColor: colors.primary, paddingVertical: 16, alignItems: 'center' }}>
                 <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>Consultas Virtuales</Text>
               </View>
               <Image source={{ uri: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?q=80&w=600&auto=format&fit=crop' }} style={{ width: '100%', height: 250, resizeMode: 'cover' }} />
             </View>
 
-            <View style={{ width: isDesktop ? 350 : '100%', backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, elevation: 5 }}>
+            <View style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, elevation: 5 }}>
               <View style={{ backgroundColor: colors.primary, paddingVertical: 16, alignItems: 'center' }}>
                 <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>Recetas Digitales</Text>
               </View>
               <Image source={{ uri: 'https://images.unsplash.com/photo-1585435557343-3b092031a831?q=80&w=600&auto=format&fit=crop' }} style={{ width: '100%', height: 250, resizeMode: 'cover' }} />
             </View>
 
-            <View style={{ width: isDesktop ? 350 : '100%', backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, elevation: 5 }}>
+            <View style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, elevation: 5 }}>
               <View style={{ backgroundColor: colors.primary, paddingVertical: 16, alignItems: 'center' }}>
                 <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>Historial Clínico</Text>
               </View>
@@ -162,7 +186,14 @@ const LandingScreen: React.FC = () => {
             <Text style={{ fontSize: 15, fontWeight: "800", color: colors.dark }}>12 disponibles</Text>
           </View>
 
-          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 20, maxWidth: 1200, paddingHorizontal: 20 }}>
+          <View style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            gap: select({ mobile: 16, tablet: 20, desktop: 24 }),
+            maxWidth: 1200,
+            paddingHorizontal: select({ mobile: 16, tablet: 24, desktop: 40 })
+          }}>
             {[
               { icon: "medical-services", title: "Medicina General", sub: "Atención primaria inicial", count: "6 médico(s) disponible(s)" },
               { icon: "psychology", title: "Psicología", sub: "Salud mental y emocional", count: "3 médico(s) disponible(s)" },
@@ -177,7 +208,15 @@ const LandingScreen: React.FC = () => {
               { icon: "accessible-forward", title: "Reumatología", sub: "Consulta médica especializada", count: "Disponibilidad variable" },
               { icon: "transgender", title: "Sexología", sub: "Consulta médica especializada", count: "Disponibilidad variable" },
             ].map((esp, i) => (
-              <View key={i} style={{ width: isDesktop ? 270 : "100%", alignItems: "center", marginBottom: 10 }}>
+              <View key={i} style={{
+                width: select({
+                  mobile: "100%",
+                  tablet: "45%",
+                  desktop: 270
+                }),
+                alignItems: "center",
+                marginBottom: 10
+              }}>
                 <View style={{ width: "100%", backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: "#E2E8F0", padding: 24, alignItems: "center", marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 1 }}>
                   <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: "#F0F7FA", justifyContent: "center", alignItems: "center", marginBottom: 16 }}>
                     <MaterialIcons name={esp.icon} size={28} color={colors.secondary} />
@@ -192,11 +231,35 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* NUEVA SECCIÓN: ACCESO EN LÍNEA */}
-        <View style={{ flexDirection: isDesktop ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', paddingVertical: 80, backgroundColor: '#fff', paddingHorizontal: 20 }}>
+        <View style={{ 
+          flexDirection: select({ mobile: 'column', tablet: 'column', desktop: 'row' }), 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          paddingVertical: 80, 
+          backgroundColor: '#fff', 
+          paddingHorizontal: 20 
+        }}>
           
-          <View style={{ flex: isDesktop ? 0.4 : 1, alignItems: 'center', marginBottom: isDesktop ? 0 : 40 }}>
+          <View style={{ 
+            flex: select({ mobile: 1, tablet: 1, desktop: 0.4 }), 
+            alignItems: 'center', 
+            marginBottom: select({ mobile: 40, tablet: 60, desktop: 0 }) 
+          }}>
             {/* Phone/App Graphic representation */}
-            <View style={{ width: 220, height: 380, backgroundColor: colors.primary, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 30, elevation: 10, borderWidth: 10, borderColor: '#EBF5FB' }}>
+            <View style={{ 
+              width: 220, 
+              height: 380, 
+              backgroundColor: colors.primary, 
+              borderRadius: 30, 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              shadowColor: colors.primary, 
+              shadowOpacity: 0.4, 
+              shadowRadius: 30, 
+              elevation: 10, 
+              borderWidth: 10, 
+              borderColor: '#EBF5FB' 
+            }}>
               <MaterialIcons name="fact-check" size={80} color="#fff" style={{ marginBottom: 20 }} />
               <View style={{ width: 140, height: 12, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 6, marginBottom: 15 }} />
               <View style={{ width: 160, height: 12, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 6, marginBottom: 15 }} />
@@ -207,12 +270,30 @@ const LandingScreen: React.FC = () => {
             </View>
           </View>
           
-          <View style={{ flex: isDesktop ? 0.5 : 1, paddingLeft: isDesktop ? 60 : 0 }}>
-            <Text style={{ fontSize: 32, fontWeight: '300', color: colors.secondary, marginBottom: 20 }}>GESTIONA TU SALUD EN LÍNEA</Text>
-            <Text style={{ fontSize: 16, color: colors.muted, lineHeight: 28, marginBottom: 30 }}>
+          <View style={{ 
+            flex: select({ mobile: 1, tablet: 1, desktop: 0.5 }), 
+            paddingLeft: select({ mobile: 0, tablet: 0, desktop: 60 }),
+            alignItems: select({ mobile: 'center', tablet: 'center', desktop: 'flex-start' })
+          }}>
+            <Text style={{ 
+              fontSize: select({ mobile: 28, tablet: 32, desktop: 32 }), 
+              fontWeight: '300', 
+              color: colors.secondary, 
+              marginBottom: 20,
+              textAlign: select({ mobile: 'center', tablet: 'center', desktop: 'left' })
+            }}>
+              GESTIONA TU SALUD EN LÍNEA
+            </Text>
+            <Text style={{ 
+              fontSize: 16, 
+              color: colors.muted, 
+              lineHeight: 28, 
+              marginBottom: 30,
+              textAlign: select({ mobile: 'center', tablet: 'center', desktop: 'left' })
+            }}>
               Accede y descarga tus recetas médicas de forma rápida y segura desde cualquier lugar con nuestra plataforma en línea. También podrás visualizar tu historial completo y el seguimiento de tus especialistas.
             </Text>
-            <TouchableOpacity style={{ backgroundColor: colors.primary, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 8, alignSelf: 'flex-start' }} onPress={navigateToLogin}>
+            <TouchableOpacity style={{ backgroundColor: colors.primary, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 8 }} onPress={navigateToLogin}>
               <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>INGRESAR A LA PLATAFORMA</Text>
             </TouchableOpacity>
           </View>
@@ -221,12 +302,12 @@ const LandingScreen: React.FC = () => {
 
         {/* NOSOTROS */}
         <View onLayout={(e) => setLayoutY(prev => ({...prev, nosotros: e.nativeEvent.layout.y}))} style={[styles.howItWorksSection, { backgroundColor: '#F8FAFC' }, isDesktop && styles.howItWorksDesktop]}>
-          <View style={[styles.howItWorksTextContainer, isDesktop && { paddingRight: 60 }]}>
-            <Text style={styles.sectionHeadingLeft}>SOBRE NOSOTROS</Text>
-            <Text style={styles.sectionBodyLeft}>
+          <View style={[styles.howItWorksTextContainer, isDesktop && { paddingRight: 60 }, (isTablet || isMobile) && { alignItems: 'center' }]}>
+            <Text style={[styles.sectionHeadingLeft, (isTablet || isMobile) && { textAlign: 'center' }]}>SOBRE NOSOTROS</Text>
+            <Text style={[styles.sectionBodyLeft, (isTablet || isMobile) && { textAlign: 'center' }]}>
               VIREM nace con la misión de democratizar y facilitar el acceso a la salud. Somos un equipo interdisciplinario que une la medicina y la tecnología para romper las barreras geográficas.
             </Text>
-            <Text style={styles.sectionBodyLeft}>
+            <Text style={[styles.sectionBodyLeft, (isTablet || isMobile) && { textAlign: 'center' }]}>
               Creemos firmemente en el cuidado continuo del paciente, promoviendo espacios donde puedas encontrar desde médicos generales hasta terapeutas que guíen tu bienestar emocional.
             </Text>
           </View>
@@ -244,8 +325,8 @@ const LandingScreen: React.FC = () => {
           <Text style={styles.sectionHeadingCenter}>NUESTRO BLOG</Text>
           <Text style={styles.sectionBodyCenter}>Información, consejos y noticias sobre bienestar físico y mental.</Text>
           
-          <View style={[styles.cardsGrid, isDesktop && styles.cardsGridDesktop]}>
-            <View style={styles.serviceCard}>
+          <View style={[styles.cardsGrid, isDesktop && styles.cardsGridDesktop, isTablet && { flexDirection: 'row', justifyContent: 'center' }]}>
+            <View style={[styles.serviceCard, isTablet && { flex: 1, maxWidth: '48%' }]}>
               <Image source={{ uri: 'https://images.unsplash.com/photo-1527689368864-3a821dbccc34?q=80&w=400&auto=format&fit=crop' }} style={styles.cardImage} />
               <View style={{ padding: 20 }}>
                 <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 5 }}>SALUD MENTAL</Text>
@@ -253,7 +334,7 @@ const LandingScreen: React.FC = () => {
                 <Text style={{ color: colors.muted, fontSize: 14 }}>Descubre cómo nuestras reuniones virtuales con especialistas están ayudando a cientos de pacientes a manejar el estrés diario.</Text>
               </View>
             </View>
-            <View style={styles.serviceCard}>
+            <View style={[styles.serviceCard, isTablet && { flex: 1, maxWidth: '48%' }]}>
               <Image source={{ uri: 'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?q=80&w=400&auto=format&fit=crop' }} style={styles.cardImage} />
               <View style={{ padding: 20 }}>
                 <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 5 }}>PREVENCIÓN</Text>
@@ -267,7 +348,7 @@ const LandingScreen: React.FC = () => {
         {/* FOOTER */}
         <View onLayout={(e) => setLayoutY(prev => ({...prev, contacto: e.nativeEvent.layout.y}))} style={[styles.footerContainer, isDesktop && { borderTopLeftRadius: 150 }]}>
           <View style={[styles.footer, isDesktop && styles.footerDesktop]}>
-            <View style={styles.footerBrandSection}>
+            <View style={[styles.footerBrandSection, (isTablet || isMobile) && { alignItems: 'center', maxWidth: '100%' }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                 <View style={styles.footerLogoContainer}>
                   <Image source={ViremLogo} style={styles.footerLogoImage} resizeMode="contain" />

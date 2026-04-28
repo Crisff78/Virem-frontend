@@ -13,6 +13,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useResponsive } from './hooks/useResponsive';
 import type { ImageSourcePropType } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
@@ -106,13 +107,13 @@ const MedicoCitasScreen: React.FC = () => {
   const { isInsidePortal } = useMedicoModule();
   const { loadingUser, refreshUser, signOut, doctorName, doctorSpec, fotoUrl } =
     useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
-  const { width: viewportWidth } = useWindowDimensions();
+  const { isDesktop, isTablet, isMobile, select } = useResponsive();
+  const isDesktopLayout = isDesktop;
   const [loadingCitas, setLoadingCitas] = useState(false);
   const [workingCitaId, setWorkingCitaId] = useState('');
   const [searchText, setSearchText] = useState('');
   const [citas, setCitas] = useState<CitaItem[]>([]);
   const lastRefreshRef = React.useRef(0);
-  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
   const handleAuthExpired = useCallback(
     async (message = 'Inicia sesion nuevamente.') => {
@@ -391,9 +392,9 @@ const MedicoCitasScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.container, isInsidePortal ? null : (!isDesktopLayout && styles.containerMobile)]}>
+    <View style={[styles.container, isInsidePortal ? null : (!isDesktop && (isTablet ? styles.containerTablet : styles.containerMobile))]}>
       {!isInsidePortal && (
-        <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
+        <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : (isTablet ? styles.sidebarTablet : styles.sidebarMobile)]}>
           <View>
             <View style={styles.logoWrap}>
               <Image source={ViremLogo} style={styles.logo} resizeMode="contain" />
@@ -443,12 +444,12 @@ const MedicoCitasScreen: React.FC = () => {
 
       <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
         <View style={styles.headerWrap}>
-          <View style={[styles.headerRow, !isDesktopLayout && styles.headerRowMobile]}>
+          <View style={[styles.headerRow, !isDesktop && styles.headerRowMobile]}>
             <View style={styles.headerLeft}>
               <Text style={styles.pageTitle}>Agenda Medica</Text>
               <Text style={styles.pageSubtitle}>Administra tus citas y acciones de seguimiento.</Text>
             </View>
-            <View style={[styles.headerRight, !isDesktopLayout && styles.headerRightMobile]}>
+            <View style={[styles.headerRight, !isDesktop && styles.headerRightMobile]}>
               <Text style={styles.headerDate}>{dateText}</Text>
               <Text style={styles.headerTime}>{timeText}</Text>
             </View>
@@ -466,16 +467,16 @@ const MedicoCitasScreen: React.FC = () => {
           />
         </View>
 
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, { borderLeftColor: colors.primary }]}>
+        <View style={[styles.statsRow, (isTablet || isMobile) && { flexWrap: 'wrap' }]}>
+          <View style={[styles.statCard, { borderLeftColor: colors.primary }, (isTablet || isMobile) && { width: '48%', minWidth: 150 }]}>
             <Text style={styles.statLabel}>Ingresos Totales</Text>
             <Text style={styles.statValue}>{formatPrice(stats.totalEarnings)}</Text>
           </View>
-          <View style={[styles.statCard, { borderLeftColor: '#ef4444' }]}>
+          <View style={[styles.statCard, { borderLeftColor: '#ef4444' }, (isTablet || isMobile) && { width: '48%', minWidth: 150 }]}>
             <Text style={styles.statLabel}>Comisión VIREM</Text>
             <Text style={styles.statValue}>{formatPrice(stats.platformFees)}</Text>
           </View>
-          <View style={[styles.statCard, { borderLeftColor: '#10b981' }]}>
+          <View style={[styles.statCard, { borderLeftColor: '#10b981' }, (isTablet || isMobile) && { width: '100%', marginTop: isMobile ? 10 : 0 }]}>
             <Text style={styles.statLabel}>Ganancia Neta</Text>
             <Text style={[styles.statValue, { color: '#10b981' }]}>{formatPrice(stats.netProfit)}</Text>
           </View>
@@ -491,7 +492,7 @@ const MedicoCitasScreen: React.FC = () => {
           ) : upcomingCitas.length ? (
             upcomingCitas.map((cita) => (
               <View key={cita.citaid} style={styles.citaCard}>
-                <View style={[styles.citaTop, !isDesktopLayout && styles.citaTopMobile]}>
+                <View style={[styles.citaTop, (isTablet || isMobile) && styles.citaTopMobile]}>
                   <View style={styles.citaMeta}>
                     <Text style={styles.citaPatient}>{normalizeText(cita?.paciente?.nombreCompleto || 'Paciente')}</Text>
                     <Text style={styles.citaSub}>
@@ -636,15 +637,26 @@ const styles = StyleSheet.create({
   containerMobile: {
     flexDirection: 'column',
   },
+  containerTablet: {
+    flexDirection: 'row',
+  },
   sidebar: {
-    width: Platform.OS === 'web' ? 280 : '100%',
     backgroundColor: colors.white,
-    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-    borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
     borderRightColor: '#eef2f7',
     borderBottomColor: '#eef2f7',
-    padding: Platform.OS === 'web' ? 20 : 14,
+    padding: 20,
     justifyContent: 'space-between',
+  },
+  sidebarDesktop: {
+    width: 280,
+    borderRightWidth: 1,
+    borderBottomWidth: 0,
+  },
+  sidebarTablet: {
+    width: 80,
+    borderRightWidth: 1,
+    borderBottomWidth: 0,
+    paddingHorizontal: 8,
   },
   sidebarMobile: {
     width: '100%',

@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useResponsive } from './hooks/useResponsive';
 import type { ImageSourcePropType } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -22,6 +23,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { DoctorRouteSnapshot, RootStackParamList } from './navigation/types';
+import { usePacienteModule } from './navigation/PacienteModuleContext';
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 import { usePatientSessionProfile, type PatientSessionUser } from './hooks/usePatientSessionProfile';
@@ -270,9 +272,10 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const { t } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'PerfilEspecialistaAgendar'>>();
+  const { isInsidePortal } = usePacienteModule();
   const { signOut } = useAuth();
   const { syncProfile } = usePatientSessionProfile();
-  const { width: viewportWidth } = useWindowDimensions();
+  const { isDesktop, isTablet, isMobile, select } = useResponsive();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [selectedDayOffset, setSelectedDayOffset] = useState(0);
@@ -288,7 +291,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCVV, setCardCVV] = useState('');
   const [cardHolder, setCardHolder] = useState('');
-  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
+  const isDesktopLayout = isDesktop;
 
   const specialty = route.params?.specialty || 'Cardiología';
   const routeDoctorId = String(route.params?.doctorId || '').trim();
@@ -617,8 +620,8 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
-      <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
+    <View style={[styles.container, isInsidePortal ? null : (isDesktop ? styles.containerDesktop : (isTablet ? styles.containerTablet : styles.containerMobile))]}>
+      <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : (isTablet ? styles.sidebarTablet : styles.sidebarMobile)]}>
         <View>
           <View style={styles.logoBox}>
             <Image source={ViremLogo} style={styles.logo} />
@@ -634,7 +637,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
             <Text style={styles.sidebarUserPlan}>{planLabel}</Text>
           </View>
 
-          <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
+          <View style={[styles.menu, (isDesktop || isTablet) ? styles.menuDesktop : styles.menuMobile]}>
             <TouchableOpacity
               style={styles.menuItemRow}
               onPress={() => navigation.navigate('DashboardPaciente')}
@@ -709,7 +712,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
 
       <View style={{ flex: 1 }}>
         <ScrollView
-          style={[styles.main, !isDesktopLayout && styles.mainMobile]}
+          style={[styles.main, !isDesktop && styles.mainMobile]}
           contentContainerStyle={{ paddingBottom: 28 }}
         >
           <View style={styles.header}>
@@ -731,7 +734,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.breadcrumbRow, !isDesktopLayout && styles.breadcrumbRowMobile]}>
+          <View style={[styles.breadcrumbRow, (isTablet || isMobile) && styles.breadcrumbRowMobile]}>
             <TouchableOpacity onPress={() => navigation.navigate('DashboardPaciente')}>
               <Text style={styles.breadcrumbLink}>Inicio</Text>
             </TouchableOpacity>
@@ -747,10 +750,10 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
             <Text style={styles.breadcrumbCurrent}>{doctor.name}</Text>
           </View>
 
-          <View style={[styles.contentRow, !isDesktopLayout && styles.contentRowMobile]}>
+          <View style={[styles.contentRow, (isTablet || isMobile) && styles.contentRowMobile]}>
             <View style={{ flex: 1 }}>
               <View style={styles.profileCard}>
-                <View style={[styles.profileTop, !isDesktopLayout && styles.profileTopMobile]}>
+                <View style={[styles.profileTop, (isTablet || isMobile) && styles.profileTopMobile]}>
                   <View style={styles.docImageWrap}>
                     <Image source={doctor.image} style={styles.docImage} />
                     <View style={styles.onlineDot} />
@@ -1035,21 +1038,28 @@ const styles = StyleSheet.create({
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
   },
-  containerMobile: {
-    flexDirection: 'column',
-  },
+  containerDesktop: { flexDirection: 'row' },
+  containerTablet: { flexDirection: 'row' },
+  containerMobile: { flexDirection: 'column' },
   loaderWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
   loaderText: { marginTop: 8, color: colors.muted, fontWeight: '700' },
-
   sidebar: {
-    width: Platform.OS === 'web' ? 280 : '100%',
     backgroundColor: colors.white,
-    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-    borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
     borderRightColor: '#eef2f7',
     borderBottomColor: '#eef2f7',
-    padding: Platform.OS === 'web' ? 20 : 14,
+    padding: 20,
     justifyContent: 'space-between',
+  },
+  sidebarDesktop: {
+    width: 280,
+    borderRightWidth: 1,
+    borderBottomWidth: 0,
+  },
+  sidebarTablet: {
+    width: 80,
+    borderRightWidth: 1,
+    borderBottomWidth: 0,
+    paddingHorizontal: 8,
   },
   sidebarMobile: {
     width: '100%',
@@ -1094,10 +1104,8 @@ const styles = StyleSheet.create({
     flexDirection: Platform.OS === 'web' ? 'column' : 'row',
     flexWrap: 'wrap',
   },
-  menuMobile: {
-    flex: 0,
-    flexDirection: 'row',
-  },
+  menuDesktop: { flexDirection: 'column' },
+  menuMobile: { flexDirection: 'column', paddingBottom: 20 },
   menuItemRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -12,6 +12,7 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
+import { useResponsive } from './hooks/useResponsive';
 import type { ImageSourcePropType } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { RootStackParamList } from './navigation/types';
@@ -234,20 +235,24 @@ const DocRow: React.FC<DocRowProps> = ({ icon, title, sub, onDownload }) => (
   </View>
 );
 
-const DoctorCard: React.FC<DoctorCardProps> = ({ name, spec, avatar, onReserve }) => (
-  <View style={styles.doctorCard}>
-    <Image source={avatar} style={styles.doctorAvatar} />
-    <Text style={styles.doctorName} numberOfLines={1}>
-      {name}
-    </Text>
-    <Text style={styles.doctorSpec} numberOfLines={1}>
-      {spec}
-    </Text>
-    <TouchableOpacity style={styles.reserveBtn} onPress={onReserve}>
-      <Text style={styles.reserveText}>RESERVAR</Text>
-    </TouchableOpacity>
-  </View>
-);
+const DoctorCard: React.FC<DoctorCardProps> = ({ name, spec, avatar, onReserve }) => {
+  const { select } = useResponsive();
+
+  return (
+    <View style={[styles.doctorCard, { width: select({ mobile: '100%', tablet: '48%', desktop: '31%' }) }]}>
+      <Image source={avatar} style={styles.doctorAvatar} />
+      <Text style={styles.doctorName} numberOfLines={1}>
+        {name}
+      </Text>
+      <Text style={styles.doctorSpec} numberOfLines={1}>
+        {spec}
+      </Text>
+      <TouchableOpacity style={styles.reserveBtn} onPress={onReserve}>
+        <Text style={styles.reserveText}>RESERVAR</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 /* ===================== PANTALLA ===================== */
 const DashboardPacienteScreen: React.FC = () => {
@@ -255,9 +260,9 @@ const DashboardPacienteScreen: React.FC = () => {
   const { isInsidePortal } = usePacienteModule();
   const { signOut } = useAuth();
   const { syncProfile } = usePatientSessionProfile();
-  const { width: viewportWidth } = useWindowDimensions();
-  const { t, tx } = useLanguage();
-  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
+  const { t } = useLanguage();
+  const { isDesktop, isTablet, isMobile, select } = useResponsive();
+  const isDesktopLayout = isDesktop;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -491,7 +496,10 @@ const DashboardPacienteScreen: React.FC = () => {
   };
 
   return (
-    <View style={[styles.container, isInsidePortal ? null : (isDesktopLayout ? styles.containerDesktop : styles.containerMobile)]}>
+    <View style={[
+      styles.container, 
+      isInsidePortal ? null : (isDesktop ? styles.containerDesktop : (isTablet ? styles.containerTablet : styles.containerMobile))
+    ]}>
       {!isInsidePortal && !isDesktopLayout ? (
         <View style={styles.mobileMenuBar}>
           <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
@@ -504,8 +512,11 @@ const DashboardPacienteScreen: React.FC = () => {
       ) : null}
 
       {/* ===================== SIDEBAR ===================== */}
-      {!isInsidePortal && (isDesktopLayout || isMobileMenuOpen) && (
-      <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}>
+      {!isInsidePortal && (isDesktop || isTablet || isMobileMenuOpen) && (
+      <View style={[
+        styles.sidebar, 
+        isDesktop ? styles.sidebarDesktop : (isTablet ? styles.sidebarTablet : styles.sidebarMobile)
+      ]}>
         <View>
           {/* Logo */}
           <View style={styles.logoBox}>
@@ -525,7 +536,7 @@ const DashboardPacienteScreen: React.FC = () => {
           </View>
 
           {/* Menú */}
-          <View style={[styles.menu, isDesktopLayout ? styles.menuDesktop : styles.menuMobile]}>
+          <View style={[styles.menu, (isDesktop || isTablet) ? styles.menuDesktop : styles.menuMobile]}>
             <TouchableOpacity
               style={[styles.menuItemRow, styles.menuItemActive]}
               onPress={() => handleSidebarNavigation('DashboardPaciente')}
@@ -599,7 +610,7 @@ const DashboardPacienteScreen: React.FC = () => {
       )}
 
       {/* ===================== MAIN ===================== */}
-      <ScrollView style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]} contentContainerStyle={{ paddingBottom: 30 }}>
+      <ScrollView style={[styles.main, !isDesktop ? styles.mainMobile : null]} contentContainerStyle={{ paddingBottom: 30 }}>
         <View style={styles.header}>
           <View style={styles.searchBox}>
             <MaterialIcons name="search" size={20} color={colors.muted} />
@@ -626,7 +637,7 @@ const DashboardPacienteScreen: React.FC = () => {
         </Text>
 
         {/* Card grande */}
-        <View style={styles.bigCard}>
+        <View style={[styles.bigCard, (isTablet || isMobile) && styles.bigCardMobile]}>
           <View style={styles.bigCardLeft}>
             {primaryCita && (
               <View style={styles.liveRow}>
@@ -647,9 +658,9 @@ const DashboardPacienteScreen: React.FC = () => {
                 : 'Agenda tu primera consulta médica con nuestros especialistas.'}
             </Text>
 
-            <View style={styles.bigCardActions}>
+            <View style={[styles.bigCardActions, isMobile && styles.bigCardActionsMobile]}>
               <TouchableOpacity
-                style={styles.primaryBtn}
+                style={[styles.primaryBtn, isMobile && { flex: 1, justifyContent: 'center' }]}
                 activeOpacity={0.8}
                 onPress={primaryCita ? handleJoinVideoCall : () => navigation.navigate('NuevaConsultaPaciente')}
               >
@@ -661,7 +672,7 @@ const DashboardPacienteScreen: React.FC = () => {
 
               {primaryCita && (
                 <TouchableOpacity
-                  style={styles.secondaryBtn}
+                  style={[styles.secondaryBtn, isMobile && { flex: 1, justifyContent: 'center' }]}
                   activeOpacity={0.8}
                   onPress={() => navigation.navigate('PacienteCitas')}
                 >
@@ -671,14 +682,16 @@ const DashboardPacienteScreen: React.FC = () => {
             </View>
           </View>
 
-          <View style={styles.bigCardRight}>
-            <Image source={primaryDoctorAvatar} style={styles.bigCardImage} />
-          </View>
+          {!isMobile && (
+            <View style={styles.bigCardRight}>
+              <Image source={primaryDoctorAvatar} style={styles.bigCardImage} />
+            </View>
+          )}
         </View>
 
         {/* CTA Principal */}
         <TouchableOpacity
-          style={styles.ctaButton}
+          style={[styles.ctaButton, isMobile && { paddingHorizontal: 16 }]}
           activeOpacity={0.85}
           onPress={() => navigation.navigate('NuevaConsultaPaciente')}
         >
@@ -687,14 +700,14 @@ const DashboardPacienteScreen: React.FC = () => {
           </View>
           <View style={styles.ctaTextBox}>
             <Text style={styles.ctaTitle}>Consultar ahora</Text>
-            <Text style={styles.ctaSub}>Agenda una consulta con un especialista</Text>
+            <Text style={styles.ctaSub} numberOfLines={1}>Agenda una consulta con un especialista</Text>
           </View>
           <MaterialIcons name="arrow-forward-ios" size={16} color="#fff" />
         </TouchableOpacity>
 
-        <View style={styles.quickRow}>
+        <View style={[styles.quickRow, isMobile && { flexWrap: 'wrap' }]}>
           <TouchableOpacity
-            style={styles.quickTile}
+            style={[styles.quickTile, isMobile && { width: '47%' }]}
             onPress={() => navigation.navigate('NuevaConsultaPaciente')}
             activeOpacity={0.7}
           >
@@ -705,7 +718,7 @@ const DashboardPacienteScreen: React.FC = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.quickTile}
+            style={[styles.quickTile, isMobile && { width: '47%' }]}
             onPress={() => navigation.navigate('PacienteCitas')}
             activeOpacity={0.7}
           >
@@ -716,7 +729,7 @@ const DashboardPacienteScreen: React.FC = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.quickTile}
+            style={[styles.quickTile, isMobile && { width: '47%' }]}
             onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
             activeOpacity={0.7}
           >
@@ -916,7 +929,7 @@ const DashboardPacienteScreen: React.FC = () => {
                   </Text>
                 </View>
 
-                <View style={styles.detailsActions}>
+                <View style={[styles.detailsActions, !(isDesktop || isTablet) && styles.detailsActionsMobile]}>
                   <TouchableOpacity
                     style={[
                       styles.detailsSecondaryBtn,
@@ -996,6 +1009,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   containerDesktop: { flexDirection: 'row' },
+  containerTablet: { flexDirection: 'row' },
   containerMobile: { flexDirection: 'column' },
   mobileMenuBar: {
     paddingHorizontal: 14,
@@ -1031,8 +1045,16 @@ const styles = StyleSheet.create({
     borderRightColor: '#eef2f7',
     padding: 20,
   },
+  sidebarTablet: {
+    width: 80,
+    borderRightWidth: 1,
+    borderRightColor: '#eef2f7',
+    paddingHorizontal: 8,
+    paddingVertical: 20,
+  },
   sidebarMobile: {
     width: '100%',
+    borderRightWidth: 0,
     borderBottomWidth: 1,
     borderBottomColor: '#eef2f7',
     padding: 14,
@@ -1167,6 +1189,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
+  bigCardMobile: {
+    flexDirection: 'column',
+  },
   bigCardLeft: { flex: 1 },
   bigCardRight: {
     width: Platform.OS === 'web' ? 160 : '100%',
@@ -1183,6 +1208,7 @@ const styles = StyleSheet.create({
   bigCardSub: { color: colors.muted, fontWeight: '700', marginBottom: 14 },
 
   bigCardActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  bigCardActionsMobile: { flexDirection: 'column' },
   primaryBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16, shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   primaryBtnText: { color: '#fff', fontWeight: '900' },
   secondaryBtn: { backgroundColor: '#f1f5f9', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16 },
@@ -1492,7 +1518,6 @@ const styles = StyleSheet.create({
 
   doctorsGrid: { flexDirection: 'row', gap: 12, marginTop: 10, flexWrap: 'wrap' },
   doctorCard: {
-    width: Platform.OS === 'web' ? '48%' : '100%',
     backgroundColor: '#fff',
     padding: 14,
     borderRadius: 22,
@@ -1584,8 +1609,11 @@ const styles = StyleSheet.create({
   },
   detailsActions: {
     marginTop: 14,
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    flexDirection: 'row',
     gap: 10,
+  },
+  detailsActionsMobile: {
+    flexDirection: 'column',
   },
   detailsPrimaryBtn: {
     flex: 1,
@@ -1667,6 +1695,7 @@ const styles = StyleSheet.create({
   },
   prepGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 16,
   },
   prepCard: {
