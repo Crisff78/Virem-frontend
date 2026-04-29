@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -46,6 +47,9 @@ type SessionUser = {
   cedula?: string;
   telefono?: string;
   fotoUrl?: string;
+  medicoid?: string;
+  precio_chat?: number;
+  precio_videollamada?: number;
   medico?: {
     nombreCompleto?: string;
     especialidad?: string;
@@ -54,6 +58,9 @@ type SessionUser = {
     cedula?: string;
     telefono?: string;
     fotoUrl?: string;
+    medicoid?: string;
+    precio_chat?: number;
+    precio_videollamada?: number;
   };
 };
 
@@ -66,12 +73,15 @@ type MedicoProfile = {
   cedula: string;
   telefono: string;
   fotoUrl: string;
+  medicoid?: string;
+  precio_chat?: number;
+  precio_videollamada?: number;
 };
 
 type SideItem = {
   icon: string;
   label: string;
-  route?: 'DashboardMedico' | 'MedicoPerfil' | 'MedicoCitas' | 'MedicoPacientes' | 'MedicoChat';
+  route?: 'DashboardMedico' | 'MedicoCitas' | 'MedicoPacientes' | 'MedicoChat' | 'MedicoPerfil' | 'MedicoConfiguracion';
   active?: boolean;
   badge?: { text: string; color: string };
 };
@@ -164,6 +174,9 @@ const buildProfile = (user: SessionUser | null): MedicoProfile => ({
   cedula: normalizeValue(user?.cedula || user?.medico?.cedula),
   telefono: normalizeValue(user?.telefono || user?.medico?.telefono),
   fotoUrl: sanitizeRemoteImageUrl(user?.fotoUrl || user?.medico?.fotoUrl),
+  medicoid: user?.medicoid || user?.medico?.medicoid,
+  precio_chat: user?.precio_chat || user?.medico?.precio_chat,
+  precio_videollamada: user?.precio_videollamada || user?.medico?.precio_videollamada,
 });
 
 const VerifiedField: React.FC<{
@@ -190,6 +203,18 @@ const MedicoPerfilScreen: React.FC = () => {
     signOut,
     fotoUrl,
   } = useMedicoPortalSession({ syncOnMount: false });
+  
+  const [medicoId, setMedicoId] = useState('');
+  const [precioChat, setPrecioChat] = useState('0');
+  const [precioVideo, setPrecioVideo] = useState('1000');
+  const [savingPrices, setSavingPrices] = useState(false);
+  const [localNombre, setLocalNombre] = useState('');
+  const [localSpec, setLocalSpec] = useState('');
+  const [localGenero, setLocalGenero] = useState('');
+  const [localCedula, setLocalCedula] = useState('');
+  const [localTelefono, setLocalTelefono] = useState('');
+  const [localFechaNac, setLocalFechaNac] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [savingPhoto, setSavingPhoto] = useState(false);
   const [profile, setProfile] = useState<MedicoProfile>(EMPTY_PROFILE);
@@ -199,8 +224,55 @@ const MedicoPerfilScreen: React.FC = () => {
   }, [fotoUrl, profile.fotoUrl]);
 
   useEffect(() => {
-    setProfile(buildProfile((user as SessionUser | null) || null));
+    const p = buildProfile((user as SessionUser | null) || null);
+    setProfile(p);
+    setMedicoId(String(p?.medicoid || ''));
+    setPrecioChat('0');
+    setPrecioVideo(String(p?.precio_videollamada || '1000'));
+    setLocalNombre(p?.nombreCompleto || '');
+    setLocalSpec(p?.especialidad || '');
+    setLocalGenero(p?.genero || '');
+    setLocalCedula(p?.cedula || '');
+    setLocalTelefono(p?.telefono || '');
+    setLocalFechaNac(p?.fechanacimiento || '');
   }, [user]);
+
+  const handleSavePrices = async () => {
+    const pVideo = Number(precioVideo);
+
+    if (pVideo < 500 || pVideo > 5000) {
+      Alert.alert('Precio inválido', 'El precio de la videollamada debe estar entre RD$500 y RD$5000.');
+      return;
+    }
+
+    setSavingPrices(true);
+    try {
+      const payload = await apiClient.put<any>(`/api/medicos/${medicoId}`, {
+        authenticated: true,
+        body: {
+          precio_chat: 0,
+          precio_videollamada: pVideo,
+          nombreCompleto: localNombre,
+          especialidad: localSpec,
+          genero: localGenero,
+          cedula: localCedula,
+          telefono: localTelefono,
+          fechanacimiento: localFechaNac,
+        },
+      });
+
+      if (payload?.success) {
+        Alert.alert('Éxito', 'Precios actualizados correctamente.');
+        await refreshUser();
+      } else {
+        Alert.alert('Error', payload?.message || 'No se pudo actualizar los precios.');
+      }
+    } catch (error) {
+      Alert.alert('Error', getApiErrorMessage(error, 'Error al guardar los precios.'));
+    } finally {
+      setSavingPrices(false);
+    }
+  };
 
   const handleAuthExpired = useCallback(
     async (message = 'Inicia sesion nuevamente para continuar.') => {
@@ -332,7 +404,7 @@ const MedicoPerfilScreen: React.FC = () => {
     { icon: 'notification-important', label: 'Solicitudes', badge: { text: '5', color: '#ef4444' } },
     { icon: 'chat-bubble', label: 'Mensajes', badge: { text: '3', color: colors.primary }, route: 'MedicoChat' },
     { icon: 'person', label: 'Perfil', route: 'MedicoPerfil', active: true },
-    { icon: 'settings', label: 'Configuracion', route: 'MedicoPerfil' },
+    { icon: 'settings', label: 'Configuracion', route: 'MedicoConfiguracion' },
   ];
 
   const handleSideItemPress = (item: SideItem) => {
@@ -432,6 +504,51 @@ const MedicoPerfilScreen: React.FC = () => {
               )}
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* PRECIOS DE CONSULTA */}
+        <View style={styles.card}>
+          <View style={styles.sectionHeader}>
+            <MaterialIcons name="payments" size={20} color={colors.primary} />
+            <Text style={styles.cardTitle}>Precios y Consultas</Text>
+          </View>
+          <Text style={styles.sectionSub}>Define el costo de tus servicios (RD$500 - RD$5000)</Text>
+          
+          <View style={styles.priceGrid}>
+            <View style={styles.priceInputBox}>
+              <Text style={styles.priceLabel}>Coordinación por Chat</Text>
+              <View style={[styles.priceInputWrapper, { backgroundColor: '#f0f9ff', borderColor: '#bae6fd' }]}>
+                <MaterialIcons name="info-outline" size={14} color={colors.primary} style={{ marginRight: 6 }} />
+                <Text style={[styles.currency, { color: colors.primary, marginRight: 0 }]}>GRATIS</Text>
+              </View>
+            </View>
+
+            <View style={styles.priceInputBox}>
+              <Text style={styles.priceLabel}>Consulta por Videollamada</Text>
+              <View style={styles.priceInputWrapper}>
+                <Text style={styles.currency}>RD$</Text>
+                <TextInput
+                  style={styles.priceInput}
+                  value={precioVideo}
+                  onChangeText={setPrecioVideo}
+                  keyboardType="numeric"
+                  placeholder="1000"
+                />
+              </View>
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.savePricesBtn, savingPrices && { opacity: 0.7 }]} 
+            onPress={handleSavePrices}
+            disabled={savingPrices}
+          >
+            {savingPrices ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.savePricesText}>Guardar Precios</Text>
+            )}
+          </TouchableOpacity>
         </View>
 
         <View style={styles.card}>
@@ -636,6 +753,67 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   successText: { color: '#166534', fontSize: 12, fontWeight: '700' },
+  priceGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 14,
+    marginBottom: 16,
+  },
+  priceInputBox: {
+    flex: 1,
+  },
+  priceLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.muted,
+    marginBottom: 6,
+  },
+  priceInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 12,
+    height: 48,
+  },
+  currency: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.dark,
+    marginRight: 4,
+  },
+  priceInput: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  savePricesBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  savePricesText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  sectionHeader: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.dark,
+    marginBottom: 4,
+  },
+  sectionSub: {
+    fontSize: 12,
+    color: colors.muted,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
 });
 
 export default MedicoPerfilScreen;

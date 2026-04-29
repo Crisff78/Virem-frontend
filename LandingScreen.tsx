@@ -213,7 +213,7 @@ const LandingScreen: React.FC = () => {
                   mobile: "100%",
                   tablet: "45%",
                   desktop: 270
-                }),
+                }) as any,
                 alignItems: "center",
                 marginBottom: 10
               }}>

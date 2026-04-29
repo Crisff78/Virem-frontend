@@ -14,6 +14,7 @@ import RegistroCredencialesMedicoScreen from "./RegistroCredencialesMedicoScreen
 import RegistroMedicoScreen from "./RegistroMedicoScreen";
 import RegistroPacienteScreen from "./RegistroPacienteScreen";
 import SeleccionPerfil from "./SeleccionPerfil";
+import VerificarEmailScreen from "./VerificarEmailScreen";
 import VerificarIdentidadScreen from "./VerificarIdentidadScreen";
 
 import DashboardPacienteScreen from "./DashboardPacienteScreen";
@@ -31,6 +32,7 @@ import PerfilEspecialistaAgendarScreen from "./PerfilEspecialistaAgendarScreen";
 import PacienteRecetasDocumentosScreen from "./PacienteRecetasDocumentosScreen";
 import PacientePerfilScreen from "./PacientePerfilScreen";
 import MedicoPerfilScreen from "./MedicoPerfilScreen";
+import MedicoConfiguracionScreen from "./MedicoConfiguracionScreen";
 import PacienteNotificacionesScreen from "./PacienteNotificacionesScreen";
 import PacienteConfiguracionScreen from "./PacienteConfiguracionScreen";
 import PacienteCambiarContrasenaScreen from "./PacienteCambiarContrasenaScreen";
@@ -90,6 +92,7 @@ const linking = {
       MedicoPacientes: "medico-pacientes",
       MedicoChat: "medico-chat",
       MedicoPerfil: "medico-perfil",
+      MedicoConfiguracion: "medico-configuracion",
       AdminPanel: "admin-panel",
     },
   },
@@ -114,6 +117,7 @@ const DoctorCitasScreen = withRoleGuard(MedicoCitasScreen, [MEDICO_ROLE_ID]);
 const DoctorPacientesScreen = withRoleGuard(MedicoPacientesScreen, [MEDICO_ROLE_ID]);
 const DoctorChatScreen = withRoleGuard(MedicoChatScreen, [MEDICO_ROLE_ID]);
 const DoctorPerfilScreen = withRoleGuard(MedicoPerfilScreen, [MEDICO_ROLE_ID]);
+const DoctorConfiguracionScreen = withRoleGuard(MedicoConfiguracionScreen, [MEDICO_ROLE_ID]);
 
 const AdminOnlyPanelScreen = withRoleGuard(AdminPanelScreen, [ADMIN_ROLE_ID]);
 
@@ -149,6 +153,7 @@ const App: React.FC = () => {
 
                   <Stack.Screen name="RecuperarContrasena" component={RecuperarContrasenaScreen} />
                   <Stack.Screen name="VerificarIdentidad" component={VerificarIdentidadScreen} />
+                  <Stack.Screen name="VerificarEmail" component={VerificarEmailScreen} />
                   <Stack.Screen
                     name="EstablecerNuevaContrasena"
                     component={EstablecerNuevaContrasenaScreen}
@@ -200,6 +205,7 @@ const App: React.FC = () => {
                   <Stack.Screen name="MedicoPacientes" component={DoctorPacientesScreen} />
                   <Stack.Screen name="MedicoChat" component={DoctorChatScreen} />
                   <Stack.Screen name="MedicoPerfil" component={DoctorPerfilScreen} />
+                  <Stack.Screen name="MedicoConfiguracion" component={DoctorConfiguracionScreen} />
                   <Stack.Screen name="AdminPanel" component={AdminOnlyPanelScreen} />
                 </Stack.Navigator>
               </NavigationContainer>

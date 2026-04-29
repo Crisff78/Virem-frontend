@@ -50,7 +50,7 @@ type PatientRow = {
 type SideItem = {
   icon: string;
   label: string;
-  route?: 'DashboardMedico' | 'MedicoCitas' | 'MedicoPacientes' | 'MedicoChat' | 'MedicoPerfil';
+  route?: 'DashboardMedico' | 'MedicoCitas' | 'MedicoPacientes' | 'MedicoChat' | 'MedicoPerfil' | 'MedicoConfiguracion';
   active?: boolean;
   badge?: { text: string; color: string };
 };
@@ -246,7 +246,7 @@ const MedicoPacientesScreen: React.FC = () => {
     { icon: 'notification-important', label: 'Solicitudes', badge: { text: '5', color: '#ef4444' } },
     { icon: 'chat-bubble', label: 'Mensajes', route: 'MedicoChat', badge: { text: '3', color: colors.primary } },
     { icon: 'person', label: 'Perfil', route: 'MedicoPerfil' },
-    { icon: 'settings', label: 'Configuracion', route: 'MedicoPerfil' },
+    { icon: 'settings', label: 'Configuracion', route: 'MedicoConfiguracion' },
   ];
 
   const handleSideItemPress = (item: SideItem) => {

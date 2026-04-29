@@ -21,6 +21,8 @@ import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 import { getApiErrorMessage } from './utils/apiErrors';
 import { useMedicoSessionProfile, type MedicoSessionUser } from './hooks/useMedicoSessionProfile';
+import VideoCallFrame from './components/VideoCallFrame';
+import { useVideoCall } from './hooks/useVideoCall';
 
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -296,6 +298,7 @@ const DashboardMedico: React.FC = () => {
   const [loadingDashboard, setLoadingDashboard] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
   const [openingCitaId, setOpeningCitaId] = useState('');
+  const { isInCall, roomInfo, startCall, endCall, error: callError, setError: setCallError } = useVideoCall();
   
   const lastRefreshRef = useRef(0);
 
@@ -453,24 +456,8 @@ const DashboardMedico: React.FC = () => {
     if (!targetCita) return;
 
     setOpeningCitaId(targetCita.citaid);
-    try {
-      const payload = await apiClient.post<any>(
-        `/api/jitsi/citas/${targetCita.citaid}/sala`,
-        { authenticated: true }
-      );
-      if (!payload?.success || !payload?.salaUrl) {
-        throw new Error(payload?.message || 'Error al obtener la sala.');
-      }
-      if (Platform.OS === 'web') {
-        window.open(payload.salaUrl, '_blank', 'noopener,noreferrer');
-      } else {
-        await Linking.openURL(payload.salaUrl);
-      }
-    } catch (error: any) {
-      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo abrir la sala de espera'));
-    } finally {
-      setOpeningCitaId('');
-    }
+    await startCall(targetCita.citaid, true);
+    setOpeningCitaId('');
   };
 
   const nextCita = upcomingCitas[0] || null;
@@ -539,6 +526,11 @@ const DashboardMedico: React.FC = () => {
               <MaterialIcons name="account-circle" size={20} color={colors.muted} />
               <Text style={styles.menuText}>Perfil</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => handleSidebarNavigation('MedicoConfiguracion')}>
+              <MaterialIcons name="settings" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>Configuración</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -551,189 +543,201 @@ const DashboardMedico: React.FC = () => {
       )}
 
       {/* ===================== MAIN ===================== */}
-      <ScrollView style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]} contentContainerStyle={{ paddingBottom: 40 }}>
-        
-        {/* Header simple */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Panel Médico</Text>
-          <TouchableOpacity style={styles.notifBtn}>
-            <MaterialIcons name="notifications-none" size={24} color={colors.dark} />
-            {dashboardData.stats.mensajesPendientes > 0 && <View style={styles.notifDot} />}
-          </TouchableOpacity>
+      {isInCall && roomInfo ? (
+        <View style={styles.mainCallContainer}>
+          <VideoCallFrame
+            roomName={roomInfo.roomName}
+            displayName={doctorName}
+            onHangup={endCall}
+            jwtToken={roomInfo.jwtToken}
+            jitsiDomain={roomInfo.jitsiDomain}
+          />
         </View>
-        <Text style={styles.subtitle}>Aquí tienes un resumen de tu jornada y próximos pacientes.</Text>
+      ) : (
+        <ScrollView style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]} contentContainerStyle={{ paddingBottom: 40 }}>
+          
+          {/* Header simple */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Panel Médico</Text>
+            <TouchableOpacity style={styles.notifBtn}>
+              <MaterialIcons name="notifications-none" size={24} color={colors.dark} />
+              {dashboardData.stats.mensajesPendientes > 0 && <View style={styles.notifDot} />}
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.subtitle}>Aquí tienes un resumen de tu jornada y próximos pacientes.</Text>
 
-        {/* Hero Card (Big Card) */}
-        <View style={styles.bigCard}>
-          <View style={styles.bigCardLeft}>
-            <View style={styles.liveRow}>
-              <View style={[styles.liveDot, { backgroundColor: nextCita ? '#22c55e' : colors.primary }]} />
-              <Text style={[styles.liveText, { color: nextCita ? '#22c55e' : colors.primary }]}>
-                {nextCita ? 'PRÓXIMA CITA' : 'JORNADA ACTIVA'}
-              </Text>
-            </View>
-            <Text style={styles.bigCardTitle}>Bienvenido de nuevo, {doctorName}</Text>
-            <Text style={styles.bigCardSub}>
-              {nextCita 
-                ? `Tienes una videollamada programada con ${bannerPatientName} para las ${formatDateTime(nextCita.fechaHoraInicio)}.` 
-                : 'No tienes citas virtuales programadas para este momento.'}
-            </Text>
-
-            <View style={styles.bigCardActions}>
-              <TouchableOpacity
-                style={styles.primaryBtn}
-                activeOpacity={0.8}
-                onPress={() => nextCita ? handleVideoCall(nextCita.citaid) : navigation.navigate('MedicoCitas')}
-                disabled={openingCitaId === (nextCita?.citaid || '')}
-              >
-                <MaterialIcons name={nextCita ? 'videocam' : 'calendar-today'} size={18} color="#fff" />
-                <Text style={styles.primaryBtnText}>
-                  {openingCitaId === (nextCita?.citaid || '') 
-                    ? 'Abriendo...' 
-                    : (nextCita ? 'Iniciar Videollamada' : 'Ver agenda completa')}
+          {/* Hero Card (Big Card) */}
+          <View style={styles.bigCard}>
+            <View style={styles.bigCardLeft}>
+              <View style={styles.liveRow}>
+                <View style={[styles.liveDot, { backgroundColor: nextCita ? '#22c55e' : colors.primary }]} />
+                <Text style={[styles.liveText, { color: nextCita ? '#22c55e' : colors.primary }]}>
+                  {nextCita ? 'PRÓXIMA CITA' : 'JORNADA ACTIVA'}
                 </Text>
-              </TouchableOpacity>
+              </View>
+              <Text style={styles.bigCardTitle}>Bienvenido de nuevo, {doctorName}</Text>
+              <Text style={styles.bigCardSub}>
+                {nextCita 
+                  ? `Tienes una videollamada programada con ${bannerPatientName} para las ${formatDateTime(nextCita.fechaHoraInicio)}.` 
+                  : 'No tienes citas virtuales programadas para este momento.'}
+              </Text>
 
-              {nextCita && (
+              <View style={styles.bigCardActions}>
                 <TouchableOpacity
-                  style={styles.secondaryBtn}
+                  style={styles.primaryBtn}
                   activeOpacity={0.8}
-                  onPress={() => navigation.navigate('MedicoPacientes')}
+                  onPress={() => nextCita ? handleVideoCall(nextCita.citaid) : navigation.navigate('MedicoCitas')}
+                  disabled={openingCitaId === (nextCita?.citaid || '')}
                 >
-                  <Text style={styles.secondaryBtnText}>Ver paciente</Text>
+                  <MaterialIcons name={nextCita ? 'videocam' : 'calendar-today'} size={18} color="#fff" />
+                  <Text style={styles.primaryBtnText}>
+                    {openingCitaId === (nextCita?.citaid || '') 
+                      ? 'Abriendo...' 
+                      : (nextCita ? 'Iniciar Videollamada' : 'Ver agenda completa')}
+                  </Text>
                 </TouchableOpacity>
+
+                {nextCita && (
+                  <TouchableOpacity
+                    style={styles.secondaryBtn}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('MedicoPacientes')}
+                  >
+                    <Text style={styles.secondaryBtnText}>Ver paciente</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.bigCardRight}>
+              <Image source={doctorAvatar} style={styles.bigCardImage} />
+            </View>
+          </View>
+
+          {/* Quick Tiles */}
+          <View style={styles.quickRow}>
+            <TouchableOpacity
+              style={styles.quickTile}
+              onPress={() => navigation.navigate('MedicoCitas')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickTileIcon, { backgroundColor: 'rgba(19,127,236,0.12)' }]}>
+                <MaterialIcons name="event-note" size={22} color={colors.primary} />
+              </View>
+              <Text style={styles.quickTileLabel}>Agenda</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickTile}
+              onPress={() => navigation.navigate('MedicoPacientes')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickTileIcon, { backgroundColor: '#fff7ed' }]}>
+                <MaterialIcons name="people-outline" size={22} color="#f97316" />
+              </View>
+              <Text style={styles.quickTileLabel}>Pacientes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickTile}
+              onPress={() => navigation.navigate('MedicoChat')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickTileIcon, { backgroundColor: '#faf5ff' }]}>
+                <MaterialIcons name="chat-bubble-outline" size={22} color="#a855f7" />
+              </View>
+              <Text style={styles.quickTileLabel}>Mensajes</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Two Columns */}
+          <View style={styles.twoCols}>
+            <View style={[styles.colLeft, styles.colLeftFull]}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.sectionTitle}>Próximas videocitas</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('MedicoCitas')} activeOpacity={0.7}>
+                  <Text style={styles.link}>Ver todas</Text>
+                </TouchableOpacity>
+              </View>
+
+              {loadingDashboard && upcomingCitas.length === 0 ? (
+                <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 20 }} />
+              ) : upcomingCitas.length ? (
+                upcomingCitas.slice(0, 5).map((cita) => (
+                  <AppointmentCard
+                    key={cita.citaid}
+                    patient={cita.paciente.nombreCompleto}
+                    detail={`Virtual • ${formatDateTime(cita.fechaHoraInicio)}`}
+                    avatar={resolveAvatarSource(cita.paciente.fotoUrl)}
+                    onVideoCall={() => handleVideoCall(cita.citaid)}
+                    videoCallDisabled={openingCitaId === cita.citaid}
+                    videoCallLabel={openingCitaId === cita.citaid ? 'Abriendo...' : 'Iniciar Sala'}
+                    onDetails={() => navigation.navigate('MedicoCitas')}
+                  />
+                ))
+              ) : (
+                <View style={styles.emptyCard}>
+                  <MaterialCommunityIcons name="calendar-blank" size={32} color={colors.muted} />
+                  <Text style={styles.emptyText}>No hay videocitas programadas.</Text>
+                </View>
+              )}
+
+              <View style={styles.rowBetween}>
+                <Text style={styles.sectionTitle}>Expedientes Recientes</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('MedicoPacientes')} activeOpacity={0.7}>
+                  <Text style={styles.link}>Buscar paciente</Text>
+                </TouchableOpacity>
+              </View>
+
+              {dashboardData.expedientesRecientes.length > 0 ? (
+                dashboardData.expedientesRecientes.map((exp) => (
+                  <FileCard 
+                    key={exp.id} 
+                    name={exp.name} 
+                    id={exp.code} 
+                    lastSeen={exp.lastSeenText} 
+                    onPress={() => navigation.navigate('MedicoPacientes')} 
+                  />
+                ))
+              ) : (
+                <View style={styles.emptyCard}>
+                  <MaterialIcons name="folder-open" size={32} color={colors.muted} />
+                  <Text style={styles.emptyText}>No hay expedientes recientes.</Text>
+                </View>
               )}
             </View>
-          </View>
 
-          <View style={styles.bigCardRight}>
-            <Image source={doctorAvatar} style={styles.bigCardImage} />
-          </View>
-        </View>
-
-        {/* Quick Tiles */}
-        <View style={styles.quickRow}>
-          <TouchableOpacity
-            style={styles.quickTile}
-            onPress={() => navigation.navigate('MedicoCitas')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.quickTileIcon, { backgroundColor: 'rgba(19,127,236,0.12)' }]}>
-              <MaterialIcons name="event-note" size={22} color={colors.primary} />
-            </View>
-            <Text style={styles.quickTileLabel}>Agenda</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickTile}
-            onPress={() => navigation.navigate('MedicoPacientes')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.quickTileIcon, { backgroundColor: '#fff7ed' }]}>
-              <MaterialIcons name="people-outline" size={22} color="#f97316" />
-            </View>
-            <Text style={styles.quickTileLabel}>Pacientes</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickTile}
-            onPress={() => navigation.navigate('MedicoChat')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.quickTileIcon, { backgroundColor: '#faf5ff' }]}>
-              <MaterialIcons name="chat-bubble-outline" size={22} color="#a855f7" />
-            </View>
-            <Text style={styles.quickTileLabel}>Mensajes</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Two Columns */}
-        <View style={styles.twoCols}>
-          <View style={[styles.colLeft, styles.colLeftFull]}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.sectionTitle}>Próximas videocitas</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('MedicoCitas')} activeOpacity={0.7}>
-                <Text style={styles.link}>Ver todas</Text>
-              </TouchableOpacity>
-            </View>
-
-            {loadingDashboard && upcomingCitas.length === 0 ? (
-              <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 20 }} />
-            ) : upcomingCitas.length ? (
-              upcomingCitas.slice(0, 5).map((cita) => (
-                <AppointmentCard
-                  key={cita.citaid}
-                  patient={cita.paciente.nombreCompleto}
-                  detail={`Virtual • ${formatDateTime(cita.fechaHoraInicio)}`}
-                  avatar={resolveAvatarSource(cita.paciente.fotoUrl)}
-                  onVideoCall={() => handleVideoCall(cita.citaid)}
-                  videoCallDisabled={openingCitaId === cita.citaid}
-                  videoCallLabel={openingCitaId === cita.citaid ? 'Abriendo...' : 'Iniciar Sala'}
-                  onDetails={() => navigation.navigate('MedicoCitas')}
+            {/* Right Column: Stats */}
+            <View style={[styles.colRight, !isDesktopLayout && { marginTop: 10 }]}>
+              <Text style={styles.sectionTitle}>Resumen Actividad</Text>
+              <View style={styles.statsContainer}>
+                <StatPill
+                  title="Citas Completadas"
+                  value={String(dashboardData.stats.citasCompletadas)}
+                  icon="check-circle"
+                  trendText={`${dashboardData.stats.citasHoy} hoy`}
+                  trendUp
                 />
-              ))
-            ) : (
-              <View style={styles.emptyCard}>
-                <MaterialCommunityIcons name="calendar-blank" size={32} color={colors.muted} />
-                <Text style={styles.emptyText}>No hay videocitas programadas.</Text>
-              </View>
-            )}
-
-            <View style={styles.rowBetween}>
-              <Text style={styles.sectionTitle}>Expedientes Recientes</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('MedicoPacientes')} activeOpacity={0.7}>
-                <Text style={styles.link}>Buscar paciente</Text>
-              </TouchableOpacity>
-            </View>
-
-            {dashboardData.expedientesRecientes.length > 0 ? (
-              dashboardData.expedientesRecientes.map((exp) => (
-                <FileCard 
-                  key={exp.id} 
-                  name={exp.name} 
-                  id={exp.code} 
-                  lastSeen={exp.lastSeenText} 
-                  onPress={() => navigation.navigate('MedicoPacientes')} 
+                <StatPill
+                  title="Nuevos Pacientes"
+                  value={String(dashboardData.stats.nuevosPacientesMes)}
+                  icon="person-add"
+                  trendText="Este mes"
+                  trendUp
                 />
-              ))
-            ) : (
-              <View style={styles.emptyCard}>
-                <MaterialIcons name="folder-open" size={32} color={colors.muted} />
-                <Text style={styles.emptyText}>No hay expedientes recientes.</Text>
+                <StatPill
+                  title="Mensajes Pendientes"
+                  value={String(dashboardData.stats.mensajesPendientes)}
+                  icon="mail"
+                  trendText={loadingDashboard ? '...' : 'Sincronizado'}
+                  trendUp={dashboardData.stats.mensajesPendientes === 0}
+                />
               </View>
-            )}
-          </View>
-
-          {/* Right Column: Stats */}
-          <View style={[styles.colRight, !isDesktopLayout && { marginTop: 10 }]}>
-            <Text style={styles.sectionTitle}>Resumen Actividad</Text>
-            <View style={styles.statsContainer}>
-              <StatPill
-                title="Citas Completadas"
-                value={String(dashboardData.stats.citasCompletadas)}
-                icon="check-circle"
-                trendText={`${dashboardData.stats.citasHoy} hoy`}
-                trendUp
-              />
-              <StatPill
-                title="Nuevos Pacientes"
-                value={String(dashboardData.stats.nuevosPacientesMes)}
-                icon="person-add"
-                trendText="Este mes"
-                trendUp
-              />
-              <StatPill
-                title="Mensajes Pendientes"
-                value={String(dashboardData.stats.mensajesPendientes)}
-                icon="mail"
-                trendText={loadingDashboard ? '...' : 'Sincronizado'}
-                trendUp={dashboardData.stats.mensajesPendientes === 0}
-              />
             </View>
           </View>
-        </View>
 
-      </ScrollView>
+        </ScrollView>
+      )}
     </View>
   );
 };
@@ -741,9 +745,18 @@ const DashboardMedico: React.FC = () => {
 export default DashboardMedico;
 
 const styles = StyleSheet.create({
+  fullScreenCall: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
   container: { flex: 1, backgroundColor: colors.bg },
   containerDesktop: { flexDirection: 'row' },
   containerMobile: { flexDirection: 'column' },
+  mainCallContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    overflow: 'hidden',
+  },
   
   mobileMenuBar: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8, backgroundColor: colors.bg },
   mobileMenuButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#d8e4f0', backgroundColor: colors.white },

@@ -171,16 +171,19 @@ const RegistroCredencialesMedicoScreen: React.FC = () => {
       });
       await clearMedicoDraft(dm.draftKey);
 
-      if (res?.requiresAdminApproval) {
+      if (res?.requiresEmailVerification) {
+        navigation.replace('VerificarEmail', { email: emailTrim, roleId: 2 });
+      } else if (res?.requiresAdminApproval) {
         showAlert(
           'Registro enviado',
           res?.message ||
             'Tu cuenta de medico fue creada y quedo pendiente de aprobacion administrativa.'
         );
+        navigation.replace('Login', { prefillEmail: emailTrim });
       } else {
         showAlert('Exito', 'Cuenta de medico creada correctamente. Ahora inicia sesion.');
+        navigation.replace('Login', { prefillEmail: emailTrim });
       }
-      navigation.replace('Login');
     } catch (error) {
       const detail =
         error instanceof ApiError &&

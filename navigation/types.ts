@@ -40,6 +40,7 @@ export type RootStackParamList = {
 
   RecuperarContrasena: undefined;
   VerificarIdentidad: { email: string };
+  VerificarEmail: { email: string; roleId?: number };
   EstablecerNuevaContrasena: { email: string };
 
   RegistroPaciente: undefined;
@@ -93,6 +94,7 @@ export type RootStackParamList = {
       }
     | undefined;
   MedicoPerfil: undefined;
+  MedicoConfiguracion: undefined;
   MedicoHorarios: undefined;
   MedicoFinanzas: undefined;
   MedicoRecetas: undefined;

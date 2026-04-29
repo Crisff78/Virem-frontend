@@ -37,6 +37,7 @@ const MENU_ITEMS: MenuItem[] = [
   { module: 'MedicoChat', icon: 'chat-bubble', label: 'Mensajes' },
   { module: 'MedicoFinanzas', icon: 'account-balance-wallet', label: 'Finanzas' },
   { module: 'MedicoPerfil', icon: 'person', label: 'Perfil' },
+  { module: 'MedicoConfiguracion', icon: 'settings', label: 'Configuración' },
 ];
 
 const colors = {

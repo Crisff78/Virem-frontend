@@ -50,6 +50,9 @@ type DoctorProfile = {
   services: string[];
   permitePresencial: boolean;
   permiteVirtual: boolean;
+  precio?: number;
+  precio_chat?: number;
+  precio_videollamada?: number;
 };
 
 type BackendMedico = {
@@ -63,6 +66,8 @@ type BackendMedico = {
   telefono?: string;
   fotoUrl?: string | null;
   precio?: number;
+  precio_chat?: number;
+  precio_videollamada?: number;
 };
 
 type AgendaSlot = {
@@ -114,6 +119,9 @@ const toDoctorProfile = (value: {
   permitePresencial?: boolean;
   permiteVirtual?: boolean;
   genero?: string;
+  precio?: number;
+  precio_chat?: number;
+  precio_videollamada?: number;
 }): DoctorProfile => {
   const specialty = String(value.specialty || 'Medicina General').trim() || 'Medicina General';
   const name = String(value.name || '').trim() || 'Doctor';
@@ -156,6 +164,9 @@ const toDoctorProfile = (value: {
     services,
     permitePresencial: value.permitePresencial !== false,
     permiteVirtual: value.permiteVirtual !== false,
+    precio: value.precio,
+    precio_chat: value.precio_chat,
+    precio_videollamada: value.precio_videollamada,
   };
 };
 
@@ -191,6 +202,9 @@ const mapBackendMedicoToProfile = (
     ],
     permitePresencial: medico?.permitePresencial !== false,
     permiteVirtual: medico?.permiteVirtual !== false,
+    precio: medico?.precio,
+    precio_chat: medico?.precio_chat,
+    precio_videollamada: medico?.precio_videollamada,
   });
 };
 
@@ -281,6 +295,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const [selectedDayOffset, setSelectedDayOffset] = useState(0);
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedModalidad, setSelectedModalidad] = useState<'all' | 'presencial' | 'virtual'>('all');
+  const [virtualSubtype, setVirtualSubtype] = useState<'chat' | 'videollamada'>('videollamada');
   const [creatingCita, setCreatingCita] = useState(false);
   const [backendDoctor, setBackendDoctor] = useState<DoctorProfile | null>(null);
   const [loadingDoctor, setLoadingDoctor] = useState(false);
@@ -292,6 +307,11 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const [cardCVV, setCardCVV] = useState('');
   const [cardHolder, setCardHolder] = useState('');
   const isDesktopLayout = isDesktop;
+  
+  const handleLogout = async () => {
+    await signOut();
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+  };
 
   const specialty = route.params?.specialty || 'Cardiología';
   const routeDoctorId = String(route.params?.doctorId || '').trim();
@@ -520,7 +540,26 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
     return resolveDoctorImage({ fotoUrl: user?.fotoUrl || null });
   }, [user]);
 
-  const handleLogout = async () => {
+  const currentCalculatedPrice = useMemo(() => {
+    if (!selectedSlot) return 0;
+    if (selectedSlot.modalidad !== 'virtual') {
+      return Number(backendDoctor?.precio || 1000);
+    }
+    if (virtualSubtype === 'chat') {
+      return 0;
+    }
+    return Number(backendDoctor?.precio_videollamada || 1000);
+  }, [backendDoctor, selectedSlot, virtualSubtype]);
+
+  const commissionAmount = useMemo(() => {
+    return Number((currentCalculatedPrice * 0.15).toFixed(2));
+  }, [currentCalculatedPrice]);
+
+  const netDoctorProfit = useMemo(() => {
+    return Number((currentCalculatedPrice - commissionAmount).toFixed(2));
+  }, [currentCalculatedPrice, commissionAmount]);
+
+  const handleBookingConfirm = async () => {
     await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
@@ -537,8 +576,8 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
       return;
     }
 
-    const priceNum = Number.parseFloat(String(doctor.price || '').replace(/[^\d.]/g, ''));
-    if (priceNum > 0 && !paymentModalVisible) {
+    const finalPriceToPay = currentCalculatedPrice;
+    if (finalPriceToPay > 0 && !paymentModalVisible) {
       setPaymentModalVisible(true);
       return;
     }
@@ -553,15 +592,24 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
         fechaHoraInicio: selectedSlot.horaInicio,
         duracionMin: selectedSlot.slotMinutos,
         modalidad: selectedSlot.modalidad,
+        virtualSubtype: selectedSlot.modalidad === 'virtual' ? virtualSubtype : null,
         motivoConsulta: `Solicitud desde portal paciente - ${doctor.focus}`,
         especialidad: requestSpecialty,
+        precio: currentCalculatedPrice,
       };
-      if (requestDoctorId) {
-        body.medicoId = requestDoctorId;
+      if (paymentModalVisible && currentCalculatedPrice > 0) {
+        body.pagoInfo = {
+          metodo: 'tarjeta',
+          titular: cardHolder,
+          terminacion: cardNumber.slice(-4),
+        };
       }
       if (Number.isFinite(parsedPrice) && parsedPrice >= 0) {
-        body.precio = parsedPrice;
-        if (parsedPrice > 0) {
+        body.precio = currentCalculatedPrice; // Use the UI calculated price
+        if (selectedSlot.modalidad === 'virtual') {
+          body.virtualSubtype = virtualSubtype;
+        }
+        if (currentCalculatedPrice > 0) {
           body.pagoInfo = {
             metodo: 'tarjeta',
             titular: cardHolder,
@@ -935,16 +983,57 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                     </TouchableOpacity>
                   </View>
 
-                  <View style={styles.paymentSummary}>
-                    <Text style={styles.summaryLabel}>Total a pagar:</Text>
-                    <Text style={styles.summaryValue}>{formatPrice(doctor.price)}</Text>
+                  {selectedSlot?.modalidad === 'virtual' && (
+                    <View style={styles.modalidadSelector}>
+                      <Text style={styles.selectorLabel}>Selecciona tipo de atención</Text>
+                      <View style={styles.selectorRow}>
+                        <TouchableOpacity
+                          style={[styles.selectorBtn, virtualSubtype === 'chat' && styles.selectorBtnActive]}
+                          onPress={() => setVirtualSubtype('chat')}
+                        >
+                          <MaterialIcons name="chat" size={20} color={virtualSubtype === 'chat' ? '#fff' : colors.muted} />
+                          <View>
+                            <Text style={[styles.selectorBtnText, virtualSubtype === 'chat' && styles.selectorBtnActiveText]}>Chat</Text>
+                            <Text style={[styles.selectorBtnSubtext, virtualSubtype === 'chat' && styles.selectorBtnActiveText]}>Coordinación</Text>
+                          </View>
+                          <Text style={[styles.selectorPrice, virtualSubtype === 'chat' && styles.selectorBtnActiveText]}>GRATIS</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.selectorBtn, virtualSubtype === 'videollamada' && styles.selectorBtnActive]}
+                          onPress={() => setVirtualSubtype('videollamada')}
+                        >
+                          <MaterialIcons name="videocam" size={20} color={virtualSubtype === 'videollamada' ? '#fff' : colors.muted} />
+                          <View>
+                            <Text style={[styles.selectorBtnText, virtualSubtype === 'videollamada' && styles.selectorBtnActiveText]}>Video</Text>
+                            <Text style={[styles.selectorBtnSubtext, virtualSubtype === 'videollamada' && styles.selectorBtnActiveText]}>Consulta Médica</Text>
+                          </View>
+                          <Text style={[styles.selectorPrice, virtualSubtype === 'videollamada' && styles.selectorBtnActiveText]}>${backendDoctor?.precio_videollamada || 1000}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+
+                  <View style={styles.paymentBreakdown}>
+                    <View style={styles.breakdownRow}>
+                      <Text style={styles.breakdownLabel}>Total a pagar</Text>
+                      <Text style={styles.breakdownValue}>${currentCalculatedPrice}</Text>
+                    </View>
+                    <View style={styles.breakdownDivider} />
+                    <View style={styles.breakdownRow}>
+                      <Text style={styles.breakdownSubLabel}>Comisión plataforma (15%)</Text>
+                      <Text style={styles.breakdownSubValue}>-${commissionAmount}</Text>
+                    </View>
+                    <View style={styles.breakdownRow}>
+                      <Text style={styles.breakdownSubLabel}>Neto para especialista</Text>
+                      <Text style={styles.breakdownSubValue}>${netDoctorProfit}</Text>
+                    </View>
                   </View>
 
                   <Text style={styles.paymentInstructions}>
                     Esta es una simulación. Puedes ingresar datos de prueba.
                   </Text>
 
-                  <View style={styles.inputGroup}>
+                  <View style={styles.cardInputGroup}>
                     <Text style={styles.inputLabel}>Titular de la tarjeta</Text>
                     <TextInput
                       style={styles.paymentInput}
@@ -954,7 +1043,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                     />
                   </View>
 
-                  <View style={styles.inputGroup}>
+                  <View style={styles.cardInputGroup}>
                     <Text style={styles.inputLabel}>Número de tarjeta</Text>
                     <TextInput
                       style={styles.paymentInput}
@@ -967,7 +1056,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                   </View>
 
                   <View style={styles.rowInputs}>
-                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <View style={[styles.cardInputGroup, { flex: 1 }]}>
                       <Text style={styles.inputLabel}>Expiración</Text>
                       <TextInput
                         style={styles.paymentInput}
@@ -977,7 +1066,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                         maxLength={5}
                       />
                     </View>
-                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <View style={[styles.cardInputGroup, { flex: 1 }]}>
                       <Text style={styles.inputLabel}>CVV</Text>
                       <TextInput
                         style={styles.paymentInput}
@@ -1389,27 +1478,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.dark,
   },
-  paymentSummary: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#edf2f7',
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: colors.muted,
-    fontWeight: '700',
-  },
-  summaryValue: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: colors.primary,
-  },
   paymentInstructions: {
     fontSize: 12,
     color: colors.muted,
@@ -1417,7 +1485,91 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
   },
-  inputGroup: {
+  modalidadSelector: {
+    marginBottom: 20,
+  },
+  selectorLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.dark,
+    marginBottom: 10,
+  },
+  selectorRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  selectorBtn: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 4,
+  },
+  selectorBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  selectorBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.dark,
+  },
+  selectorBtnActiveText: {
+    color: '#fff',
+  },
+  selectorBtnSubtext: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.muted,
+    textAlign: 'center',
+    marginTop: -2,
+  },
+  selectorPrice: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.muted,
+  },
+  paymentBreakdown: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  breakdownLabel: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.dark,
+  },
+  breakdownValue: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: colors.primary,
+  },
+  breakdownDivider: {
+    height: 1,
+    backgroundColor: '#cbd5e1',
+    marginVertical: 8,
+  },
+  breakdownSubLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.muted,
+  },
+  breakdownSubValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.dark,
+  },
+  cardInputGroup: {
     marginBottom: 16,
   },
   inputLabel: {

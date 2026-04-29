@@ -637,7 +637,7 @@ const DashboardPacienteScreen: React.FC = () => {
         </Text>
 
         {/* Card grande */}
-        <View style={[styles.bigCard, (isTablet || isMobile) && styles.bigCardMobile]}>
+        <View style={[styles.bigCard, (isTablet || isMobile) ? { flexDirection: 'column' } : null]}>
           <View style={styles.bigCardLeft}>
             {primaryCita && (
               <View style={styles.liveRow}>
@@ -658,7 +658,7 @@ const DashboardPacienteScreen: React.FC = () => {
                 : 'Agenda tu primera consulta médica con nuestros especialistas.'}
             </Text>
 
-            <View style={[styles.bigCardActions, isMobile && styles.bigCardActionsMobile]}>
+            <View style={[styles.bigCardActions, isMobile ? { flexDirection: 'column' } : null]}>
               <TouchableOpacity
                 style={[styles.primaryBtn, isMobile && { flex: 1, justifyContent: 'center' }]}
                 activeOpacity={0.8}
@@ -1619,171 +1619,33 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.primary,
     borderRadius: 12,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
   },
   detailsPrimaryBtnText: {
     color: '#fff',
-    fontSize: 14,
     fontWeight: '900',
+    fontSize: 14,
   },
   detailsSecondaryBtn: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#d6e3f0',
+    backgroundColor: '#f1f5f9',
     borderRadius: 12,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#f8fbff',
   },
   detailsSecondaryBtnDisabled: {
     backgroundColor: '#e2e8f0',
-    borderColor: '#e2e8f0',
   },
   detailsSecondaryBtnText: {
-    color: colors.blue,
-    fontSize: 14,
+    color: colors.muted,
     fontWeight: '900',
+    fontSize: 14,
   },
   detailsSecondaryBtnTextDisabled: {
     color: '#94a3b8',
-  },
-
-  prepOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(10, 25, 49, 0.42)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-  prepModal: {
-    width: '100%',
-    maxWidth: 980,
-    backgroundColor: colors.bg,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#d9e6f2',
-    padding: 22,
-    maxHeight: '90%',
-  },
-  prepHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  prepBreadcrumb: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  prepTitle: {
-    marginTop: 8,
-    fontSize: 34,
-    fontWeight: '900',
-    color: colors.dark,
-    lineHeight: 40,
-  },
-  prepSub: {
-    marginTop: 6,
-    marginBottom: 16,
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.muted,
-  },
-  prepGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  prepCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#cfe0ee',
-    borderRadius: 16,
-    padding: 16,
-  },
-  prepCardTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: colors.dark,
-    marginBottom: 11,
-  },
-  prepItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: '#f8fbff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e6eef6',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-  },
-  prepItemTitle: {
-    color: colors.dark,
-    fontWeight: '900',
-    fontSize: 14,
-  },
-  prepItemSub: {
-    marginTop: 2,
-    color: colors.muted,
-    fontWeight: '600',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  testBox: {
-    backgroundColor: '#edf3fa',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#d8e4f0',
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  testBar: {
-    marginTop: 10,
-    width: '78%',
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: '#d7e3ef',
-    overflow: 'hidden',
-  },
-  testBarFill: {
-    width: '4%',
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: '#22c55e',
-  },
-  testBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 2,
-    borderColor: colors.blue,
-    borderRadius: 12,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-    backgroundColor: '#fff',
-  },
-  testBtnText: {
-    color: colors.blue,
-    fontWeight: '900',
-    fontSize: 15,
-  },
-  testStatusText: {
-    marginTop: 8,
-    marginBottom: 12,
-    color: colors.muted,
-    fontWeight: '600',
-    fontSize: 12,
-    textAlign: 'center',
   },
   readyBtn: {
     flexDirection: 'row',
@@ -1824,7 +1686,4 @@ const styles = StyleSheet.create({
 });
 
 export default DashboardPacienteScreen;
-
-
-
 

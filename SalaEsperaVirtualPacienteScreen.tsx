@@ -21,6 +21,8 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
 import { usePacienteModule } from './navigation/PacienteModuleContext';
+import VideoCallFrame from './components/VideoCallFrame';
+import { useVideoCall } from './hooks/useVideoCall';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { RootStackParamList } from './navigation/types';
@@ -159,6 +161,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const roomReadyPulse = useRef(new Animated.Value(0)).current;
   const panelTranslateX = useRef(new Animated.Value(430)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const { isInCall, roomInfo, startCall, endCall, error: callError, setError: setCallError } = useVideoCall();
   const requestedCitaId = String(route.params?.citaId || '').trim();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
@@ -439,57 +442,17 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
   useSocketRoom('cita', selectedCitaId, Boolean(selectedCitaId));
 
-  useSocketEvent('cita_actualizada', (payload: any) => {
-    const citaId = String(payload?.citaId || '').trim();
-    if (!citaId || citaId !== String(selectedCitaId || '').trim()) return;
-    const videoSala = payload?.videoSala;
-    if (videoSala) {
-      const nextStatus = String(videoSala?.estado || '').trim().toLowerCase();
-      setRoomJoinUrl(String(videoSala?.joinUrl || '').trim());
-      setRoomStatus(nextStatus);
-      if (videoSala?.canJoin !== undefined) {
-        setRoomCanJoin(Boolean(videoSala.canJoin));
-      } else if (nextStatus === 'abierta') {
-        setRoomCanJoin(true);
-      } else if (nextStatus === 'finalizada') {
-        setRoomCanJoin(false);
-      }
-    }
-  });
-
   const enterVideoRoom = async () => {
     if (!nextCita?.citaid) return;
     setRoomError('');
-    setOpeningRoom(true);
-    try {
-      const token = await getAuthToken();
-      if (!token) { setRoomError('Tu sesión ha expirado. Por favor, vuelve a iniciar sesión para continuar.'); return; }
-
-      const citaId = String(nextCita.citaid).trim();
-      const openResponse = await fetch(apiUrl(`/api/agenda/me/citas/${citaId}/video-sala`), {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const openPayload = await openResponse.json().catch(() => null);
-      const joinUrl = String(openPayload?.videoSala?.joinUrl || roomJoinUrl || '').trim();
-      const canJoin = Boolean(openPayload?.videoSala?.canJoin ?? roomCanJoin);
-      if (!joinUrl) { setRoomError('La sala aún no está disponible. Esto es normal si tu médico no ha iniciado la sesión.'); return; }
-      if (!canJoin) { setRoomError('Tu médico aún no ha abierto la videollamada. Espera unos momentos e intenta de nuevo.'); return; }
-
-      if (Platform.OS === 'web') {
-        const webOpen = (globalThis as any)?.open;
-        if (typeof webOpen === 'function') {
-          const opened = webOpen(joinUrl, '_blank');
-          if (opened) return;
-        }
-      }
-      await Linking.openURL(joinUrl);
-    } catch {
-      setRoomError('No pudimos conectarte a la consulta. Verifica tu conexión a internet e intenta nuevamente.');
-    } finally {
-      setOpeningRoom(false);
-    }
+    await startCall(nextCita.citaid, false);
   };
+
+  useEffect(() => {
+    if (callError) {
+      setRoomError(callError);
+    }
+  }, [callError]);
 
   const openSettings = () => {
     setSettingsOpen(true);
@@ -632,6 +595,20 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
+
+  if (isInCall && roomInfo) {
+    return (
+      <View style={styles.fullScreenCall}>
+        <VideoCallFrame
+          roomName={roomInfo.roomName}
+          displayName={fullName}
+          onHangup={endCall}
+          jwtToken={roomInfo.jwtToken}
+          jitsiDomain={roomInfo.jitsiDomain}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, isInsidePortal ? null : (!isDesktopLayout && styles.containerMobile)]}>
@@ -1175,6 +1152,10 @@ const colors = {
 };
 
 const styles = StyleSheet.create({
+  fullScreenCall: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
   container: {
     flex: 1,
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',

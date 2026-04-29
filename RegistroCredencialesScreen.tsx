@@ -157,44 +157,11 @@ const RegistroCredencialesScreen: React.FC = () => {
       }
 
       if (res?.requiresEmailVerification) {
-        if (res?.devVerificationCode) {
-          try {
-            const verifyResponse = await fetch(apiUrl('/api/auth/verify-email'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: emailTrim,
-                codigo: String(res.devVerificationCode),
-              }),
-            });
-            const verifyPayload = await verifyResponse.json().catch(() => null);
-            if (verifyResponse.ok && verifyPayload?.success) {
-              showAlert(
-                '¡Éxito!',
-                'Cuenta creada y correo verificado automaticamente en entorno de desarrollo.'
-              );
-            } else {
-              showAlert(
-                'Verificación pendiente',
-                res?.message || 'Tu cuenta fue creada. Verifica tu correo antes de iniciar sesión.'
-              );
-            }
-          } catch {
-            showAlert(
-              'Verificación pendiente',
-              res?.message || 'Tu cuenta fue creada. Verifica tu correo antes de iniciar sesión.'
-            );
-          }
-        } else {
-          showAlert(
-            'Verificación requerida',
-            res?.message || 'Tu cuenta fue creada. Revisa tu correo y verifica antes de iniciar sesión.'
-          );
-        }
+        navigation.replace('VerificarEmail', { email: emailTrim, roleId: 1 });
       } else {
         showAlert('¡Éxito!', 'Cuenta creada correctamente. Ahora inicia sesión.');
+        navigation.replace('Login', { prefillEmail: emailTrim });
       }
-      navigation.replace('Login');
     } catch (error) {
       showAlert('Error de Red', `No se pudo conectar al servidor.\n\nBackend actual: ${BACKEND_URL}`);
     } finally {
