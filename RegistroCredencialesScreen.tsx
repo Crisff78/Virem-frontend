@@ -80,10 +80,15 @@ const RegistroCredencialesScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
+  const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [requiresEmailVerification, setRequiresEmailVerification] = useState(false);
+  const [showCodeField, setShowCodeField] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  
   const passwordRuleState = useMemo(() => passwordChecks(password), [password]);
 
-  const handleFinish = async () => {
+  const handleSendCode = async () => {
     if (!route.params?.datosPersonales) {
       showAlert('Error', 'Faltan datos personales para completar el registro.');
       return;
@@ -96,7 +101,7 @@ const RegistroCredencialesScreen: React.FC = () => {
     }
 
     if (!email || !password || !confirmPassword) {
-      showAlert('Error', 'Complete todos los campos.');
+      showAlert('Error', 'Complete todos los campos obligatorios.');
       return;
     }
 
@@ -150,14 +155,21 @@ const RegistroCredencialesScreen: React.FC = () => {
       const res = await response.json().catch(() => null);
 
       if (!response.ok || !res?.success) {
-        // ✅ aquí mostramos el error real del backend si viene
         const detalle = res?.error ? `\n\nDetalle: ${res.error}` : '';
         showAlert('Error', (res?.message || `Fallo (HTTP ${response.status}).`) + detalle);
         return;
       }
 
       if (res?.requiresEmailVerification) {
-        navigation.replace('VerificarEmail', { email: emailTrim, roleId: 1 });
+        setRequiresEmailVerification(true);
+        setShowCodeField(true);
+        setResendCooldown(60);
+        
+        if (res?.devVerificationCode) {
+          showAlert('📧 Código de Verificación', `Tu código es: ${res.devVerificationCode}\n\n(Se envió a tu correo)`);
+        } else {
+          showAlert('📧 Código Enviado', `Hemos enviado un código de verificación a:\n\n${emailTrim}\n\nRevisa tu bandeja de entrada o spam.`);
+        }
       } else {
         showAlert('¡Éxito!', 'Cuenta creada correctamente. Ahora inicia sesión.');
         navigation.replace('Login', { prefillEmail: emailTrim });
@@ -168,6 +180,94 @@ const RegistroCredencialesScreen: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const handleVerifyCode = async () => {
+    if (!verificationCode.trim()) {
+      showAlert('Error', 'Por favor ingresa el código de verificación.');
+      return;
+    }
+
+    if (!email) {
+      showAlert('Error', 'El correo no está disponible.');
+      return;
+    }
+
+    const emailTrim = email.toLowerCase().trim();
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(apiUrl('/api/auth/register/confirm'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: emailTrim,
+          codigo: verificationCode.trim(),
+        }),
+      });
+
+      const res = await response.json().catch(() => null);
+
+      if (!response.ok || !res?.success) {
+        const detalle = res?.error ? `\n\nDetalle: ${res.error}` : '';
+        showAlert('Error', (res?.message || `Fallo (HTTP ${response.status}).`) + detalle);
+        return;
+      }
+
+      showAlert('¡Éxito!', 'Registro completado correctamente. Ahora inicia sesión.');
+      navigation.replace('Login', { prefillEmail: emailTrim });
+    } catch (error) {
+      showAlert('Error de Red', `No se pudo conectar al servidor.\n\nBackend actual: ${BACKEND_URL}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0) {
+      showAlert('Espera', `Por favor espera ${resendCooldown} segundos antes de reenviar el código.`);
+      return;
+    }
+
+    setIsLoading(true);
+    setResendCooldown(60);
+
+    try {
+      const emailTrim = email.toLowerCase().trim();
+      const response = await fetch(apiUrl('/api/auth/resend-verification-pending'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailTrim }),
+      });
+
+      const res = await response.json().catch(() => null);
+
+      if (!response.ok || !res?.success) {
+        const detalle = res?.error ? `\n\nDetalle: ${res.error}` : '';
+        showAlert('Error', (res?.message || `Fallo (HTTP ${response.status}).`) + detalle);
+        setResendCooldown(0);
+        return;
+      }
+
+      if (res?.devVerificationCode) {
+        showAlert('📧 Nuevo Código', `Tu código es: ${res.devVerificationCode}\n\n(Se envió a tu correo)`);
+      } else {
+        showAlert('📧 Código Reenviado', 'Se envió un nuevo código de verificación a tu correo.');
+      }
+    } catch (error) {
+      showAlert('Error de Red', `No se pudo conectar al servidor.`);
+      setResendCooldown(0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setInterval(() => setResendCooldown((p) => (p > 0 ? p - 1 : 0)), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [resendCooldown]);
 
   return (
     <View style={styles.mainWrapper}>
@@ -257,12 +357,67 @@ const RegistroCredencialesScreen: React.FC = () => {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.btnPrimary} onPress={handleFinish} disabled={isLoading}>
-              {isLoading ? <ActivityIndicator color="white" /> : <Text style={styles.btnPrimaryText}>Crear Cuenta</Text>}
-            </TouchableOpacity>
+            {/* VERIFICATION CODE SECTION */}
+            {showCodeField && (
+              <View style={styles.verificationSection}>
+                <View style={styles.verificationCard}>
+                  <MaterialIcons name="verified-user" size={32} color={colors.primary} style={{ marginBottom: 10 }} />
+                  <Text style={styles.verificationTitle}>Verificar tu Correo</Text>
+                  <Text style={styles.verificationSubtitle}>
+                    Se ha enviado un código de verificación a {email}. Ingrésalo aquí para completar tu registro.
+                  </Text>
 
-            <TouchableOpacity style={styles.btnBack} onPress={() => navigation.goBack()}>
-              <Text style={styles.btnBackText}>Volver</Text>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Código de Verificación</Text>
+                    <View style={styles.inputContainer}>
+                      <MaterialIcons name="vpn-key" size={20} color={colors.blueGray} style={{ marginRight: 10 }} />
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Ej: 123456"
+                        value={verificationCode}
+                        onChangeText={setVerificationCode}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        textAlign="center"
+                      />
+                    </View>
+                  </View>
+
+                  <TouchableOpacity style={styles.btnPrimary} onPress={handleVerifyCode} disabled={isLoading || !verificationCode.trim()}>
+                    {isLoading ? <ActivityIndicator color="white" /> : <Text style={styles.btnPrimaryText}>✓ Verificar Código</Text>}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.btnSecondary, resendCooldown > 0 && styles.btnSecondaryDisabled]}
+                    onPress={handleResendCode}
+                    disabled={resendCooldown > 0}
+                  >
+                    <Text style={[styles.btnSecondaryText, resendCooldown > 0 && styles.btnSecondaryTextDisabled]}>
+                      {resendCooldown > 0 ? `Reenviar en ${resendCooldown}s` : '↻ Reenviar Código'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* MAIN ACTION BUTTON */}
+            {!showCodeField && (
+              <TouchableOpacity style={styles.btnPrimary} onPress={handleSendCode} disabled={isLoading}>
+                {isLoading ? <ActivityIndicator color="white" /> : <Text style={styles.btnPrimaryText}>📧 Enviar Código de Verificación</Text>}
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={styles.btnBack} onPress={() => {
+              if (showCodeField) {
+                setShowCodeField(false);
+                setRequiresEmailVerification(false);
+                setVerificationCode('');
+                setResendCooldown(0);
+              } else {
+                navigation.goBack();
+              }
+            }}>
+              <Text style={styles.btnBackText}>{showCodeField ? '← Volver a Editar' : '← Volver'}</Text>
             </TouchableOpacity>
 
             <Text style={{ marginTop: 14, fontSize: 12, color: colors.blueGray, textAlign: 'center' }}>
@@ -297,7 +452,7 @@ const styles = StyleSheet.create({
   progressBarBackground: { height: 8, backgroundColor: '#e2e8f0', borderRadius: 4, overflow: 'hidden' },
   progressBarFill: { height: '100%', width: '100%', backgroundColor: colors.primary },
 
-  formCard: { backgroundColor: 'white', borderRadius: 20, padding: 25, elevation: 5 },
+  formCard: { backgroundColor: 'white', borderRadius: 20, padding: 25, elevation: 5, marginBottom: 20 },
   cardTitle: { fontSize: 24, fontWeight: 'bold', color: colors.navyDark, textAlign: 'center', marginBottom: 10 },
   cardSubtitle: { fontSize: 15, color: colors.blueGray, textAlign: 'center', marginBottom: 25 },
 
@@ -327,6 +482,30 @@ const styles = StyleSheet.create({
   passwordRuleText: { marginLeft: 8, fontSize: 12, color: colors.blueGray },
   passwordRuleTextOk: { color: colors.success, fontWeight: '600' },
 
+  verificationSection: { marginBottom: 20 },
+  verificationCard: {
+    backgroundColor: '#f0f9ff',
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+  },
+  verificationTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.navyDark,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  verificationSubtitle: {
+    fontSize: 13,
+    color: colors.blueGray,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 1.5,
+  },
+
   btnPrimary: {
     backgroundColor: colors.primary,
     height: 55,
@@ -334,11 +513,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
+    marginBottom: 10,
   },
   btnPrimaryText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
 
-  btnBack: { marginTop: 20, alignItems: 'center' },
-  btnBackText: { color: colors.blueGray, fontWeight: '600' },
+  btnSecondary: {
+    backgroundColor: '#e8f4f8',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  btnSecondaryText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+  btnSecondaryDisabled: { backgroundColor: '#f1f5f9', borderColor: '#cbd5e1' },
+  btnSecondaryTextDisabled: { color: '#94a3b8' },
+
+  btnBack: { marginTop: 10, alignItems: 'center', paddingVertical: 12 },
+  btnBackText: { color: colors.blueGray, fontWeight: '600', fontSize: 14 },
 });
 
 export default RegistroCredencialesScreen;

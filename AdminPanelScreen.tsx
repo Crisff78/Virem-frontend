@@ -136,6 +136,51 @@ type PanelStats = {
   clinica?: Record<string, unknown>;
 };
 
+type AdminBudgetRow = {
+  id: string;
+  concepto: string;
+  valor: number;
+  notas: string;
+};
+
+type AdminBudget = {
+  moneda?: string;
+  periodo?: {
+    mes?: string;
+    inicio?: string;
+    fin?: string;
+  };
+  ingresosMes?: {
+    suscripciones?: number;
+    comisionesPresenciales?: number;
+    comisionesVirtuales?: number;
+    comisiones?: number;
+    total?: number;
+  };
+  ingresosMesAnterior?: number;
+  variacionPorcentaje?: number;
+  tabla?: {
+    titulo?: string;
+    columnas?: {
+      concepto?: string;
+      valor?: string;
+      notas?: string;
+    };
+    filas?: AdminBudgetRow[];
+    total?: number;
+    fuente?: string;
+  };
+  estadisticas?: {
+    citasTotales?: number;
+    citasPagadas?: number;
+    medicoActivos?: number;
+    medicosConMembresia?: number;
+    consultasPresencialesPagadas?: number;
+    consultasVirtualesPagadas?: number;
+    montoMedicosMes?: number;
+  };
+};
+
 const tabs: Array<{ key: TabKey; label: string; icon: string }> = [
   { key: 'resumen', label: 'Resumen', icon: 'dashboard' },
   { key: 'usuarios', label: 'Usuarios', icon: 'groups' },
@@ -197,6 +242,19 @@ const formatMoney = (value: unknown, currency = 'DOP') => {
     }).format(toMoney(value));
   } catch {
     return `${toMoney(value).toFixed(0)} ${currency || 'DOP'}`;
+  }
+};
+
+const formatBudgetMoney = (value: unknown, currency = 'DOP') => {
+  try {
+    return new Intl.NumberFormat('es-DO', {
+      style: 'currency',
+      currency: currency || 'DOP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(toMoney(value));
+  } catch {
+    return `${toMoney(value).toFixed(2)} ${currency || 'DOP'}`;
   }
 };
 
@@ -297,6 +355,7 @@ const AdminPanelScreen: React.FC = () => {
   const { isAuthenticated, isReady, signOut } = useAuth();
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === 'web' && width >= 1020;
+  const showBudgetColumns = width >= 860;
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -315,6 +374,7 @@ const AdminPanelScreen: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [citas, setCitas] = useState<AdminCita[]>([]);
   const [pagos, setPagos] = useState<AdminPago[]>([]);
+  const [budget, setBudget] = useState<AdminBudget | null>(null);
   const [audit, setAudit] = useState<AuditItem[]>([]);
 
   const handleAuthExpired = useCallback(
@@ -341,7 +401,7 @@ const AdminPanelScreen: React.FC = () => {
     }
 
     try {
-      const [panelRes, doctorsRes, reviewsRes, usersRes, citasRes, pagosRes, auditRes] =
+      const [panelRes, doctorsRes, reviewsRes, usersRes, citasRes, pagosRes, budgetRes, auditRes] =
         await Promise.all([
           apiClient.get<any>('/api/admin/panel', { authenticated: true }),
           apiClient.get<any>('/api/admin/medicos/pendientes', {
@@ -364,6 +424,9 @@ const AdminPanelScreen: React.FC = () => {
             authenticated: true,
             query: { limit: 120 },
           }),
+          apiClient.get<any>('/api/admin/presupuesto', {
+            authenticated: true,
+          }),
           apiClient.get<any>('/api/admin/usuarios/modificaciones', {
             authenticated: true,
             query: { limit: 80 },
@@ -381,6 +444,7 @@ const AdminPanelScreen: React.FC = () => {
       setUsers(Array.isArray(usersRes?.usuarios) ? usersRes.usuarios : []);
       setCitas(Array.isArray(citasRes?.citas) ? citasRes.citas : []);
       setPagos(Array.isArray(pagosRes?.pagos) ? pagosRes.pagos : []);
+      setBudget(budgetRes?.success ? (budgetRes?.presupuesto as AdminBudget) || null : null);
       setAudit(Array.isArray(auditRes?.modificaciones) ? auditRes.modificaciones : []);
       setLastUpdatedAt(new Date().toISOString());
       hasLoadedRef.current = true;
@@ -635,6 +699,12 @@ const AdminPanelScreen: React.FC = () => {
     [pagos]
   );
 
+  const budgetRows = budget?.tabla?.filas || [];
+  const budgetCurrency = normalizeText(budget?.moneda) || 'DOP';
+  const budgetVariation = toMoney(budget?.variacionPorcentaje);
+  const budgetVariationTone: Tone =
+    budgetVariation > 0 ? 'success' : budgetVariation < 0 ? 'danger' : 'neutral';
+
   const pendingTasks = pendingDoctors.length + pendingReviews.length;
 
   const renderKpis = () => (
@@ -667,6 +737,36 @@ const AdminPanelScreen: React.FC = () => {
       {typeof count === 'number' ? <Badge label={String(count)} tone={count ? 'warning' : 'success'} /> : null}
     </View>
   );
+
+  const renderBudgetRow = (row: AdminBudgetRow) => {
+    if (!showBudgetColumns) {
+      return (
+        <View key={row.id} style={styles.budgetCardRow}>
+          <View style={styles.rowTop}>
+            <View style={styles.itemMain}>
+              <Text style={styles.itemTitle}>{row.concepto}</Text>
+            </View>
+            <Text style={styles.budgetAmount}>{formatBudgetMoney(row.valor, budgetCurrency)}</Text>
+          </View>
+          <Text style={styles.commentText}>{row.notas}</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View key={row.id} style={styles.budgetTableRow}>
+        <View style={styles.budgetConceptCell}>
+          <Text style={styles.itemTitle}>{row.concepto}</Text>
+        </View>
+        <View style={styles.budgetValueCell}>
+          <Text style={styles.budgetAmount}>{formatBudgetMoney(row.valor, budgetCurrency)}</Text>
+        </View>
+        <View style={styles.budgetNotesCell}>
+          <Text style={styles.commentText}>{row.notas}</Text>
+        </View>
+      </View>
+    );
+  };
 
   const renderDoctorCard = (doctor: PendingMedico, compact = false) => (
     <View key={`doctor-${doctor.usuarioid}`} style={styles.itemCard}>
@@ -1017,13 +1117,66 @@ const AdminPanelScreen: React.FC = () => {
   const renderPagos = () => (
     <View style={styles.tabContent}>
       <View style={styles.panelSection}>
-        {renderSectionHeader('Pagos', 'payments', pagos.length)}
+        {renderSectionHeader(budget?.tabla?.titulo || 'Ingresos estimados del mes', 'payments')}
+        {budget ? (
+          <>
+            <View style={styles.rowTop}>
+              <View style={styles.itemMain}>
+                <Text style={styles.itemSub}>
+                  {budget?.periodo?.mes || 'Periodo actual'}
+                </Text>
+                <Text style={styles.metaText}>
+                  {toInt(budget?.estadisticas?.medicosConMembresia)} membresias activas ·{' '}
+                  {toInt(budget?.estadisticas?.consultasPresencialesPagadas)} presenciales ·{' '}
+                  {toInt(budget?.estadisticas?.consultasVirtualesPagadas)} virtuales
+                </Text>
+              </View>
+              <Badge
+                label={`${budgetVariation > 0 ? '+' : ''}${budgetVariation.toFixed(1)}% vs mes anterior`}
+                tone={budgetVariationTone}
+              />
+            </View>
+
+            <View style={styles.totalBand}>
+              <Text style={styles.totalLabel}>Total estimado de ingresos</Text>
+              <Text style={styles.totalValue}>
+                {formatBudgetMoney(budget?.tabla?.total ?? budget?.ingresosMes?.total ?? 0, budgetCurrency)}
+              </Text>
+            </View>
+
+            {showBudgetColumns ? (
+              <View style={styles.budgetHeaderRow}>
+                <View style={styles.budgetConceptCell}>
+                  <Text style={styles.budgetHeaderText}>
+                    {budget?.tabla?.columnas?.concepto || 'Concepto'}
+                  </Text>
+                </View>
+                <View style={styles.budgetValueCell}>
+                  <Text style={styles.budgetHeaderText}>
+                    {budget?.tabla?.columnas?.valor || 'Valor'}
+                  </Text>
+                </View>
+                <View style={styles.budgetNotesCell}>
+                  <Text style={styles.budgetHeaderText}>
+                    {budget?.tabla?.columnas?.notas || 'Notas'}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            <View>{budgetRows.map(renderBudgetRow)}</View>
+            {budget?.tabla?.fuente ? <Text style={styles.budgetFootnote}>{budget.tabla.fuente}</Text> : null}
+          </>
+        ) : (
+          <EmptyState icon="analytics" text="No se pudo calcular el desglose de ingresos." />
+        )}
+      </View>
+      <View style={styles.panelSection}>
+        {renderSectionHeader('Pagos registrados', 'payments', pagos.length)}
         <View style={styles.totalBand}>
           <Text style={styles.totalLabel}>Total registrado</Text>
           <Text style={styles.totalValue}>{formatMoney(paymentTotal)}</Text>
         </View>
-      </View>
-      <View style={styles.panelSection}>
         {pagos.length ? pagos.map(renderPagoRow) : <EmptyState icon="receipt" text="No hay pagos registrados." />}
       </View>
     </View>
@@ -1661,6 +1814,59 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: '900',
     fontSize: 18,
+  },
+  budgetHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#edf2f7',
+    backgroundColor: '#f8fbff',
+  },
+  budgetHeaderText: {
+    color: colors.muted,
+    fontWeight: '900',
+    fontSize: 11,
+    textTransform: 'uppercase',
+  },
+  budgetTableRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#edf2f7',
+  },
+  budgetCardRow: {
+    gap: 6,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#edf2f7',
+  },
+  budgetConceptCell: {
+    flex: 1.05,
+    minWidth: 0,
+  },
+  budgetValueCell: {
+    width: 130,
+    alignItems: 'flex-end',
+  },
+  budgetNotesCell: {
+    flex: 1.6,
+    minWidth: 0,
+  },
+  budgetAmount: {
+    color: colors.text,
+    fontWeight: '900',
+    fontSize: 14,
+    textAlign: 'right',
+  },
+  budgetFootnote: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
   },
   auditRow: {
     flexDirection: 'row',
