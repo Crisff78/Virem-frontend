@@ -165,11 +165,15 @@ const RegistroCredencialesScreen: React.FC = () => {
         setShowCodeField(true);
         setResendCooldown(60);
         
-        if (res?.devVerificationCode) {
-          showAlert('📧 Código de Verificación', `Tu código es: ${res.devVerificationCode}\n\n(Se envió a tu correo)`);
-        } else {
-          showAlert('📧 Código Enviado', `Hemos enviado un código de verificación a:\n\n${emailTrim}\n\nRevisa tu bandeja de entrada o spam.`);
+        if (res.devVerificationCode) {
+          console.log(`[DEV] Código de verificación: ${res.devVerificationCode}`);
+          // Mostrar en alert solo en desarrollo para facilitar pruebas
+          if (__DEV__) {
+            showAlert('MODO DESARROLLO', `El código es: ${res.devVerificationCode}\n(Esto solo se ve en desarrollo porque el correo falló o está en modo fallback)`);
+          }
         }
+        
+        showAlert('📧 Código Enviado', `Hemos enviado un código de verificación a:\n\n${emailTrim}\n\nRevisa tu bandeja de entrada o spam.`);
       } else {
         showAlert('¡Éxito!', 'Cuenta creada correctamente. Ahora inicia sesión.');
         navigation.replace('Login', { prefillEmail: emailTrim });
