@@ -95,8 +95,11 @@ const RegistroCredencialesScreen: React.FC = () => {
     }
 
     const dpAny = route.params.datosPersonales;
-    if (!esDatosPaciente(dpAny)) {
-      showAlert('Error', 'Este registro de credenciales está configurado para Paciente.');
+    console.log('📦 Datos personales recibidos:', JSON.stringify(dpAny, null, 2));
+
+    // Validamos que al menos existan los datos básicos para no bloquear el flujo
+    if (!dpAny || typeof dpAny !== 'object') {
+      showAlert('Error', 'No se recibieron los datos personales correctamente. Por favor, vuelve atrás e intenta de nuevo.');
       return;
     }
 
