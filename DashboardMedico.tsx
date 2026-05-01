@@ -303,6 +303,59 @@ const DashboardMedico: React.FC = () => {
   
   const lastRefreshRef = useRef(0);
 
+  // --- Sub-componentes internos para acceder a styles ---
+  const PatientRow: React.FC<{ name: string; id: string; lastSeen: string; avatar: ImageSourcePropType; onPress?: () => void }> = ({
+    name,
+    id,
+    lastSeen,
+    avatar,
+    onPress,
+  }) => (
+    <View style={styles.docRow}>
+      <View style={styles.docLeft}>
+        <View style={styles.docIconBox}>
+          <Image source={avatar} style={styles.docAvatar} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.docTitle} numberOfLines={1}>
+            {name}
+          </Text>
+          <Text style={styles.docSub} numberOfLines={1}>
+            Expediente #{id} • {lastSeen}
+          </Text>
+        </View>
+      </View>
+      <TouchableOpacity onPress={onPress}>
+        <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const StatPill: React.FC<{ title: string; value: string; icon: MaterialIconName; trendText: string; trendUp?: boolean }> = ({ title, value, icon, trendText, trendUp = true }) => {
+    return (
+      <View style={styles.statCard}>
+        <View style={styles.statTopRow}>
+          <Text style={styles.statTitle}>{title}</Text>
+          <MaterialIcons name={icon} size={20} color={colors.primary} />
+        </View>
+
+        <View style={styles.statBottomRow}>
+          <Text style={styles.statValue}>{value}</Text>
+          <View style={styles.trendRow}>
+            <MaterialIcons
+              name={trendUp ? 'trending-up' : 'trending-down'}
+              size={16}
+              color={trendUp ? colors.green : colors.red}
+            />
+            <Text style={[styles.trendText, { color: trendUp ? colors.green : colors.red }]}>
+              {trendText}
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   // -------------------------------------------------------------
   // ESTILOS DINÁMICOS (Premium Responsive)
   // -------------------------------------------------------------
