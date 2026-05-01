@@ -167,7 +167,7 @@ const RegistroCredencialesScreen: React.FC = () => {
       if (res?.requiresEmailVerification) {
         setRequiresEmailVerification(true);
         setShowCodeField(true);
-        setResendCooldown(60);
+        setResendCooldown(30);
         
         if (res.devVerificationCode) {
           console.log(`[DEV] Código de verificación: ${res.devVerificationCode}`);
@@ -238,7 +238,7 @@ const RegistroCredencialesScreen: React.FC = () => {
     }
 
     setIsLoading(true);
-    setResendCooldown(60);
+    setResendCooldown(30);
 
     try {
       const emailTrim = email.toLowerCase().trim();
