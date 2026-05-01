@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -259,12 +259,12 @@ const DashboardPacienteScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
   const { isInsidePortal } = usePacienteModule();
   const { signOut } = useAuth();
-  const { syncProfile } = usePatientSessionProfile();
+  const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { t } = useLanguage();
   const { isDesktop, isTablet, isMobile, select } = useResponsive();
   const isDesktopLayout = isDesktop;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => (ensurePatientSessionUser(sessionUser) as User | null) || null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([
@@ -312,6 +312,12 @@ const DashboardPacienteScreen: React.FC = () => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedCita, setSelectedCita] = useState<CitaItem | null>(null);
   const lastRefreshRef = useRef(0);
+
+  useEffect(() => {
+    if (sessionUser) {
+      setUser((ensurePatientSessionUser(sessionUser) as User | null) || null);
+    }
+  }, [sessionUser]);
 
   const loadUser = useCallback(async () => {
     setLoadingUser(true);

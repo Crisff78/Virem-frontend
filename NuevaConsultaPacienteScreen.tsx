@@ -153,9 +153,9 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
   const { isInsidePortal } = usePacienteModule();
   const { signOut } = useAuth();
-  const { syncProfile } = usePatientSessionProfile();
+  const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { width: viewportWidth } = useWindowDimensions();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => (ensurePatientSessionUser(sessionUser) as User | null) || null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [specialtyList, setSpecialtyList] = useState<SpecialtyItem[]>(FALLBACK_SPECIALTIES);
@@ -164,10 +164,17 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
   const isTabletLayout = viewportWidth >= 720;
 
   useEffect(() => {
+    if (sessionUser) {
+      setUser((ensurePatientSessionUser(sessionUser) as User | null) || null);
+      setLoadingUser(false);
+    }
+  }, [sessionUser]);
+
+  useEffect(() => {
     const loadUser = async () => {
       try {
-        const sessionUser = (await syncProfile()) as User | null;
-        setUser((ensurePatientSessionUser(sessionUser) as User | null) || null);
+        const nextSessionUser = (await syncProfile()) as User | null;
+        setUser((ensurePatientSessionUser(nextSessionUser) as User | null) || null);
       } catch {
         setUser(null);
       } finally {

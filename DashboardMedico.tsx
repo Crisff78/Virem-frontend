@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -284,7 +284,7 @@ const DashboardMedico: React.FC = () => {
   const navigation = usePortalAwareMedicoNavigation();
   const { isInsidePortal } = useMedicoModule();
   const { signOut } = useAuth();
-  const { syncProfile } = useMedicoSessionProfile();
+  const { sessionUser, syncProfile } = useMedicoSessionProfile();
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
   
@@ -301,6 +301,24 @@ const DashboardMedico: React.FC = () => {
   const { isInCall, roomInfo, startCall, endCall, error: callError, setError: setCallError } = useVideoCall();
   
   const lastRefreshRef = useRef(0);
+
+  useEffect(() => {
+    if (sessionUser) {
+      const nombreBase = String(
+        sessionUser.nombreCompleto || sessionUser.medico?.nombreCompleto || ''
+      ).replace(/\s+/g, ' ').trim();
+      const especialidadBase = String(
+        sessionUser.especialidad || sessionUser.medico?.especialidad || ''
+      ).replace(/\s+/g, ' ').trim();
+      const fotoBase = sanitizeFotoUrl(
+        sessionUser.fotoUrl || sessionUser.medico?.fotoUrl || ''
+      );
+
+      setDoctorName(nombreBase ? addDoctorPrefix(nombreBase) : 'Doctor');
+      setDoctorSpec(especialidadBase || 'Especialidad no definida');
+      setDoctorAvatar(fotoBase ? { uri: fotoBase } : DefaultAvatar);
+    }
+  }, [sessionUser]);
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);

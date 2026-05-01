@@ -17,11 +17,11 @@ export const ensurePatientSessionUser = <T>(user: T | null | undefined): T | nul
 
 export const getPatientDisplayName = (user: unknown, fallback = 'Paciente'): string => {
   const source = (user ?? {}) as Record<string, unknown>;
-  const fullName = normalizeText(source.nombreCompleto ?? source.fullName);
+  const fullName = normalizeText(source.nombreCompleto ?? source.fullName ?? source.name);
   if (fullName) return fullName;
 
   const firstName = normalizeText(source.nombres ?? source.nombre ?? source.firstName);
   const lastName = normalizeText(source.apellidos ?? source.apellido ?? source.lastName);
   const combined = normalizeText(`${firstName} ${lastName}`);
-  return combined || fallback;
+  return combined || normalizeText(source.username) || fallback;
 };

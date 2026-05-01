@@ -10,7 +10,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const EquipoVirem = require('./assets/imagenes/equipo_virem.png');
-const TelemedicinaImg = require('./assets/imagenes/telemedicina.png');
+const VcImg = require('./assets/imagenes/vc.png');
 
 const colors = {
   primary: '#2B6CB0', // Professional, muted blue
@@ -78,9 +78,7 @@ const LandingScreen: React.FC = () => {
         {/* HERO SECTION */}
         <View style={[styles.heroSection, isDesktop && styles.heroDesktop]}>
           <View style={[styles.heroTextContainer, isDesktop && styles.heroTextDesktop]}>
-            <View style={{ backgroundColor: 'rgba(43, 108, 176, 0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, alignSelf: 'flex-start', marginBottom: 20 }}>
-              <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>🌟 Atención Médica de Calidad</Text>
-            </View>
+
             <Text style={[styles.heroTitle, { fontSize: select({ mobile: 36, tablet: 48, desktop: 56 }), lineHeight: select({ mobile: 44, tablet: 56, desktop: 64 }) }]}>
               ¡TU SALUD ES NUESTRA <Text style={{ color: colors.primary }}>PRIORIDAD</Text>!
             </Text>
@@ -93,13 +91,7 @@ const LandingScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
             
-            {/* Trust Indicators */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 40, gap: 20 }}>
-              <View style={{ flexDirection: 'row' }}>
-                {[1, 2, 3, 4, 5].map((i) => <MaterialIcons key={i} name="star" size={20} color="#F59E0B" />)}
-              </View>
-              <Text style={{ color: colors.muted, fontSize: 14, fontWeight: '600' }}>+10,000 pacientes atendidos</Text>
-            </View>
+
           </View>
           
           <View style={[styles.heroImageContainer, !isDesktop && { marginTop: 40 }]}>
@@ -116,28 +108,37 @@ const LandingScreen: React.FC = () => {
                 resizeMode="cover"
               />
             </View>
-            {/* Floating Badge */}
-            <View style={{ position: 'absolute', bottom: -20, left: isDesktop ? -30 : 10, backgroundColor: '#fff', padding: 16, borderRadius: 16, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#EBF5FB', justifyContent: 'center', alignItems: 'center' }}>
-                <MaterialIcons name="security" size={24} color={colors.primary} />
-              </View>
-              <View>
-                <Text style={{ fontWeight: '800', color: colors.dark, fontSize: 15 }}>100% Seguro</Text>
-                <Text style={{ color: colors.muted, fontSize: 12 }}>Plataforma Certificada</Text>
-              </View>
-            </View>
+
           </View>
         </View>
 
         {/* HOW IT WORKS */}
         <View onLayout={(e) => setLayoutY(prev => ({...prev, plataforma: e.nativeEvent.layout.y}))} style={[styles.howItWorksSection, isDesktop && styles.howItWorksDesktop]}>
           {isDesktop && (
-            <View style={[styles.howItWorksImgContainer, { marginLeft: 40 }]}>
-              <View style={styles.greenCircle}>
+            <View style={[styles.howItWorksImgContainer, { paddingRight: 40 }]}>
+              <View style={{ position: 'relative' }}>
+                {/* Decorative background shapes */}
+                <View style={{ position: 'absolute', top: -20, left: -20, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(43, 108, 176, 0.1)' }} />
+                <View style={{ position: 'absolute', bottom: -30, right: -30, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(26, 54, 93, 0.05)' }} />
+                
+                {/* Main image */}
                 <Image 
-                  source={TelemedicinaImg}
-                  style={styles.doctorCircleImage}
+                  source={VcImg}
+                  style={{ width: 400, height: 460, borderRadius: 30, borderWidth: 6, borderColor: '#fff' }}
+                  resizeMode="cover"
                 />
+                <View style={{ position: 'absolute', top: 0, left: 0, width: 400, height: 460, borderRadius: 30, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 30, elevation: 15, pointerEvents: 'none' }} />
+                
+                {/* Floating info card */}
+                <View style={{ position: 'absolute', bottom: 40, left: -40, backgroundColor: '#fff', padding: 16, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 20, zIndex: 3, flexDirection: 'row', alignItems: 'center', gap: 16, minWidth: 200 }}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#EBF5FB', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="videocam" size={26} color="#2B6CB0" />
+                  </View>
+                  <View>
+                    <Text style={{ fontWeight: '800', color: '#0F172A', fontSize: 15 }}>Atención 24/7</Text>
+                    <Text style={{ color: '#475569', fontSize: 12 }}>Sin salir de casa</Text>
+                  </View>
+                </View>
               </View>
             </View>
           )}
@@ -149,9 +150,7 @@ const LandingScreen: React.FC = () => {
             <Text style={styles.sectionBodyLeft}>
               Reconocemos que tu bienestar es primordial, por eso nuestro enfoque se centra en prevenir y detectar posibles complicaciones a tiempo de forma virtual, evitando así que se conviertan en problemas más serios.
             </Text>
-            <TouchableOpacity style={styles.heroActionBtn} onPress={navigateToRegister}>
-              <Text style={styles.heroActionBtnText}>AGENDAR UNA CITA</Text>
-            </TouchableOpacity>
+
           </View>
         </View>
 
