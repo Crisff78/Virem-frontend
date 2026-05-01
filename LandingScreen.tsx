@@ -10,6 +10,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const EquipoVirem = require('./assets/imagenes/equipo_virem.png');
+const TelemedicinaImg = require('./assets/imagenes/telemedicina.png');
 
 const colors = {
   primary: '#2B6CB0', // Professional, muted blue
@@ -75,50 +76,66 @@ const LandingScreen: React.FC = () => {
       <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent}>
         
         {/* HERO SECTION */}
-        <View style={{ width: "100%", minHeight: select({ mobile: 400, tablet: 500, desktop: 600 }) }}>
-          <ImageBackground 
-            source={EquipoVirem} 
-            style={{ width: "100%", height: "100%", justifyContent: "center" }}
-            resizeMode="cover"
-          >
-            <View style={{ 
-              zIndex: 2, 
-              paddingHorizontal: select({ mobile: 24, tablet: 40, desktop: 80 }), 
-              paddingVertical: 40, 
-              width: select({ mobile: "100%", tablet: "70%", desktop: "55%" }) 
-            }}>
-              <Text style={{ 
-                fontSize: select({ mobile: 32, tablet: 40, desktop: 48 }), 
-                fontWeight: "900", 
-                color: colors.secondary, 
-                marginBottom: 16, 
-                lineHeight: select({ mobile: 38, tablet: 48, desktop: 56 }) 
-              }}>
-                ¡TU SALUD ES NUESTRA PRIORIDAD!
-              </Text>
-              <Text style={{ 
-                fontSize: select({ mobile: 16, tablet: 17, desktop: 18 }), 
-                color: colors.secondary, 
-                lineHeight: 28, 
-                marginBottom: 30, 
-                fontWeight: "500" 
-              }}>
-                Somos líderes en atención primaria en salud. Nos enfocamos en prestar un servicio de salud integral destinado a proteger tu salud y bienestar.
-              </Text>
+        <View style={[styles.heroSection, isDesktop && styles.heroDesktop]}>
+          <View style={[styles.heroTextContainer, isDesktop && styles.heroTextDesktop]}>
+            <View style={{ backgroundColor: 'rgba(43, 108, 176, 0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, alignSelf: 'flex-start', marginBottom: 20 }}>
+              <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>🌟 Atención Médica de Calidad</Text>
+            </View>
+            <Text style={[styles.heroTitle, { fontSize: select({ mobile: 36, tablet: 48, desktop: 56 }), lineHeight: select({ mobile: 44, tablet: 56, desktop: 64 }) }]}>
+              ¡TU SALUD ES NUESTRA <Text style={{ color: colors.primary }}>PRIORIDAD</Text>!
+            </Text>
+            <Text style={[styles.heroSubtitle, { fontSize: select({ mobile: 16, tablet: 18, desktop: 18 }) }]}>
+              Somos líderes en atención primaria en salud. Nos enfocamos en prestar un servicio de salud integral destinado a proteger tu salud y bienestar, desde la comodidad de tu hogar.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 16, flexWrap: 'wrap' }}>
               <TouchableOpacity style={styles.heroActionBtn} onPress={navigateToRegister}>
-                <Text style={styles.heroActionBtnText}>AGENDA UNA CITA</Text>
+                <Text style={styles.heroActionBtnText}>AGENDAR UNA CITA</Text>
               </TouchableOpacity>
             </View>
-          </ImageBackground>
+            
+            {/* Trust Indicators */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 40, gap: 20 }}>
+              <View style={{ flexDirection: 'row' }}>
+                {[1, 2, 3, 4, 5].map((i) => <MaterialIcons key={i} name="star" size={20} color="#F59E0B" />)}
+              </View>
+              <Text style={{ color: colors.muted, fontSize: 14, fontWeight: '600' }}>+10,000 pacientes atendidos</Text>
+            </View>
+          </View>
+          
+          <View style={[styles.heroImageContainer, !isDesktop && { marginTop: 40 }]}>
+            <View style={[styles.heroImage, { 
+                width: select({ mobile: '100%', tablet: '90%', desktop: 550 }), 
+                height: select({ mobile: 300, tablet: 400, desktop: 450 }),
+                overflow: 'hidden',
+                alignItems: 'flex-end',
+                padding: 0
+              } as any]}>
+              <Image 
+                source={EquipoVirem} 
+                style={{ width: '140%', height: '100%' }} 
+                resizeMode="cover"
+              />
+            </View>
+            {/* Floating Badge */}
+            <View style={{ position: 'absolute', bottom: -20, left: isDesktop ? -30 : 10, backgroundColor: '#fff', padding: 16, borderRadius: 16, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#EBF5FB', justifyContent: 'center', alignItems: 'center' }}>
+                <MaterialIcons name="security" size={24} color={colors.primary} />
+              </View>
+              <View>
+                <Text style={{ fontWeight: '800', color: colors.dark, fontSize: 15 }}>100% Seguro</Text>
+                <Text style={{ color: colors.muted, fontSize: 12 }}>Plataforma Certificada</Text>
+              </View>
+            </View>
+          </View>
         </View>
 
         {/* HOW IT WORKS */}
         <View onLayout={(e) => setLayoutY(prev => ({...prev, plataforma: e.nativeEvent.layout.y}))} style={[styles.howItWorksSection, isDesktop && styles.howItWorksDesktop]}>
           {isDesktop && (
-            <View style={styles.howItWorksImgContainer}>
+            <View style={[styles.howItWorksImgContainer, { marginLeft: 40 }]}>
               <View style={styles.greenCircle}>
                 <Image 
-                  source={{ uri: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=400&auto=format&fit=crop' }}
+                  source={TelemedicinaImg}
                   style={styles.doctorCircleImage}
                 />
               </View>
