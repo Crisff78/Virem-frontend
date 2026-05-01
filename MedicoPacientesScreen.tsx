@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -89,15 +89,21 @@ const MedicoPacientesScreen: React.FC = () => {
   const navigation = usePortalAwareMedicoNavigation();
   const { isInsidePortal } = useMedicoModule();
   const { signOut } = useAuth();
-  const { syncProfile } = useMedicoSessionProfile();
-  const [user, setUser] = useState<MedicoSessionUser | null>(null);
+  const { sessionUser, syncProfile } = useMedicoSessionProfile();
+  const [user, setUser] = useState<MedicoSessionUser | null>(sessionUser);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [patients, setPatients] = useState<PatientRow[]>([]);
 
+  useEffect(() => {
+    if (sessionUser) {
+      setUser(sessionUser);
+      setLoadingUser(false);
+    }
+  }, [sessionUser]);
+
   const loadUser = useCallback(async () => {
-    setLoadingUser(true);
     try {
       const nextUser = (await syncProfile()) as MedicoSessionUser | null;
       setUser(nextUser);

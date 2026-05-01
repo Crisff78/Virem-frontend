@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -120,12 +120,12 @@ const DashboardPacienteScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
   const { isInsidePortal } = usePacienteModule();
   const { signOut } = useAuth();
-  const { syncProfile } = usePatientSessionProfile();
+  const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { t } = useLanguage();
   const { isDesktop, isTablet, isMobile, select, fs, rs, wp, hp } = useResponsive();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => (ensurePatientSessionUser(sessionUser) as User | null) || null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingCitas, setLoadingCitas] = useState(false);
   const [upcomingCitas, setUpcomingCitas] = useState<CitaItem[]>([]);
@@ -139,12 +139,19 @@ const DashboardPacienteScreen: React.FC = () => {
     { id: 'n2', title: 'Receta', text: 'Nueva receta digital', time: '1h', icon: 'description', color: '#22c55e', unread: true },
   ]);
 
+  useEffect(() => {
+    if (sessionUser) {
+      setUser((ensurePatientSessionUser(sessionUser) as User | null) || null);
+    }
+  }, [sessionUser]);
+
   // -------------------------------------------------------------
   // ESTILOS DINÁMICOS
   // -------------------------------------------------------------
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     containerDesktop: { flexDirection: 'row' },
+    containerTablet: { flexDirection: 'row' },
     containerMobile: { flexDirection: 'column' },
     
     mobileMenuBar: { paddingHorizontal: rs(14), paddingTop: rs(12), paddingBottom: rs(8), backgroundColor: colors.bg },
@@ -153,6 +160,7 @@ const DashboardPacienteScreen: React.FC = () => {
 
     sidebar: { backgroundColor: colors.white, justifyContent: 'space-between' },
     sidebarDesktop: { width: rs(260), borderRightWidth: 1, borderRightColor: '#eef2f7', padding: rs(20) },
+    sidebarTablet: { width: rs(220), borderRightWidth: 1, borderRightColor: '#eef2f7', padding: rs(16) },
     sidebarMobile: { width: '100%', borderBottomWidth: 1, borderBottomColor: '#eef2f7', padding: rs(14) },
 
     logoBox: { flexDirection: 'row', alignItems: 'center', gap: rs(10) },
@@ -242,7 +250,7 @@ const DashboardPacienteScreen: React.FC = () => {
   };
 
   return (
-    <View style={[styles.container, !isInsidePortal && (isDesktop ? styles.containerDesktop : styles.containerMobile)]}>
+    <View style={[styles.container, !isInsidePortal && (isDesktop ? styles.containerDesktop : (isTablet ? styles.containerTablet : styles.containerMobile))]}>
       {/* Menú móvil */}
       {!isInsidePortal && !isDesktop && (
         <View style={styles.mobileMenuBar}>
@@ -254,8 +262,8 @@ const DashboardPacienteScreen: React.FC = () => {
       )}
 
       {/* Sidebar */}
-      {!isInsidePortal && (isDesktop || isMobileMenuOpen) && (
-        <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : styles.sidebarMobile]}>
+      {!isInsidePortal && (isDesktop || isTablet || isMobileMenuOpen) && (
+        <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : (isTablet ? styles.sidebarTablet : styles.sidebarMobile)]}>
           <View>
             <View style={styles.logoBox}>
               <Image source={ViremLogo} style={styles.logo} />
@@ -274,7 +282,6 @@ const DashboardPacienteScreen: React.FC = () => {
                 <MaterialIcons name="grid-view" size={20} color={colors.primary} />
                 <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.home')}</Text>
               </TouchableOpacity>
-              {/* Otros items simplificados */}
             </View>
           </View>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>

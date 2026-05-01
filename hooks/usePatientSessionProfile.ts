@@ -17,6 +17,8 @@ export type PatientSessionUser = {
     firstName?: string;
     lastName?: string;
     nombreCompleto?: string;
+    name?: string;
+    username?: string;
     email?: string;
     plan?: string;
     fotoUrl?: string;
@@ -88,6 +90,8 @@ const mergePatientProfile = (
         apellido: normalizeText(
             profileUser?.apellido || profileUser?.apellidos || safeBase?.apellido
         ),
+        name: normalizeText(profileUser?.name || safeBase?.name),
+        username: normalizeText(profileUser?.username || safeBase?.username),
         plan: normalizeText(profileUser?.plan || safeBase?.plan),
         fotoUrl: sanitizeFotoUrl(profileUser?.fotoUrl || safeBase?.fotoUrl),
         email: normalizeText(profileUser?.email || safeBase?.email),
@@ -151,6 +155,8 @@ const mergeAuthMeUser = (baseUser: PatientSessionUser | null, authUser: PatientS
         ),
         nombre: normalizeText(authUser?.nombre || authUser?.nombres || safeBase?.nombre),
         apellido: normalizeText(authUser?.apellido || authUser?.apellidos || safeBase?.apellido),
+        name: normalizeText(authUser?.name || safeBase?.name),
+        username: normalizeText(authUser?.username || safeBase?.username),
         plan: normalizeText(authUser?.plan || safeBase?.plan),
         fotoUrl: sanitizeFotoUrl(authUser?.fotoUrl || safeBase?.fotoUrl),
         email: normalizeText(authUser?.email || safeBase?.email),

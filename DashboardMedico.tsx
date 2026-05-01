@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -232,51 +232,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   );
 };
 
-const FileCard: React.FC<{ name: string; id: string; lastSeen: string; onPress?: () => void }> = ({ name, id, lastSeen, onPress }) => (
-  <View style={styles.docRow}>
-    <View style={styles.docLeft}>
-      <View style={styles.docIconBox}>
-        <MaterialIcons name="folder-shared" size={20} color={colors.primary} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.docTitle} numberOfLines={1}>
-          {name}
-        </Text>
-        <Text style={styles.docSub} numberOfLines={1}>
-          Expediente #{id} • {lastSeen}
-        </Text>
-      </View>
-    </View>
-    <TouchableOpacity onPress={onPress}>
-      <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
-    </TouchableOpacity>
-  </View>
-);
 
-const StatPill: React.FC<{ title: string; value: string; icon: MaterialIconName; trendText: string; trendUp?: boolean }> = ({ title, value, icon, trendText, trendUp = true }) => {
-  return (
-    <View style={styles.statCard}>
-      <View style={styles.statTopRow}>
-        <Text style={styles.statTitle}>{title}</Text>
-        <MaterialIcons name={icon} size={20} color={colors.primary} />
-      </View>
-
-      <View style={styles.statBottomRow}>
-        <Text style={styles.statValue}>{value}</Text>
-        <View style={styles.trendRow}>
-          <MaterialIcons
-            name={trendUp ? 'trending-up' : 'trending-down'}
-            size={16}
-            color={trendUp ? colors.green : colors.red}
-          />
-          <Text style={[styles.trendText, { color: trendUp ? colors.green : colors.red }]}>
-            {trendText}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-};
 
 // -------------------------------------------------------------
 // PANTALLA PRINCIPAL
@@ -285,9 +241,15 @@ const DashboardMedico: React.FC = () => {
   const navigation = usePortalAwareMedicoNavigation();
   const { isInsidePortal } = useMedicoModule();
   const { signOut } = useAuth();
+<<<<<<< HEAD
   const { syncProfile } = useMedicoSessionProfile();
   const { fs, rs, wp, hp, select, isDesktop, isTablet, isMobile, typography } = useResponsive();
   const isDesktopLayout = isDesktop;
+=======
+  const { sessionUser, syncProfile } = useMedicoSessionProfile();
+  const { width: viewportWidth } = useWindowDimensions();
+  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
+>>>>>>> 552cc1c56e079ec64a31a3a8e45a1569a5a1f42f
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [doctorName, setDoctorName] = useState('Doctor');
@@ -303,6 +265,7 @@ const DashboardMedico: React.FC = () => {
   
   const lastRefreshRef = useRef(0);
 
+<<<<<<< HEAD
   // --- Sub-componentes internos para acceder a styles ---
   const PatientRow: React.FC<{ name: string; id: string; lastSeen: string; avatar: ImageSourcePropType; onPress?: () => void }> = ({
     name,
@@ -356,12 +319,34 @@ const DashboardMedico: React.FC = () => {
     );
   };
 
+  const FileCard: React.FC<{ name: string; id: string; lastSeen: string; onPress?: () => void }> = ({ name, id, lastSeen, onPress }) => (
+    <View style={styles.docRow}>
+      <View style={styles.docLeft}>
+        <View style={styles.docIconBox}>
+          <MaterialIcons name="folder-shared" size={20} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.docTitle} numberOfLines={1}>
+            {name}
+          </Text>
+          <Text style={styles.docSub} numberOfLines={1}>
+            Expediente #{id} • {lastSeen}
+          </Text>
+        </View>
+      </View>
+      <TouchableOpacity onPress={onPress}>
+        <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+      </TouchableOpacity>
+    </View>
+  );
+
   // -------------------------------------------------------------
   // ESTILOS DINÁMICOS (Premium Responsive)
   // -------------------------------------------------------------
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     containerDesktop: { flexDirection: 'row' },
+    containerTablet: { flexDirection: 'row' },
     containerMobile: { flexDirection: 'column' },
     mainCallContainer: {
       flex: 1,
@@ -395,6 +380,12 @@ const DashboardMedico: React.FC = () => {
       borderRightWidth: 1, 
       borderRightColor: '#eef2f7', 
       padding: rs(20) 
+    },
+    sidebarTablet: { 
+      width: rs(220), 
+      borderRightWidth: 1, 
+      borderRightColor: '#eef2f7', 
+      padding: rs(16) 
     },
     sidebarMobile: { 
       width: '100%', 
@@ -707,6 +698,25 @@ const DashboardMedico: React.FC = () => {
     },
     trendText: { fontSize: fs(11), fontWeight: '800' },
   }), [fs, rs, isDesktop, colors]);
+=======
+  useEffect(() => {
+    if (sessionUser) {
+      const nombreBase = String(
+        sessionUser.nombreCompleto || sessionUser.medico?.nombreCompleto || ''
+      ).replace(/\s+/g, ' ').trim();
+      const especialidadBase = String(
+        sessionUser.especialidad || sessionUser.medico?.especialidad || ''
+      ).replace(/\s+/g, ' ').trim();
+      const fotoBase = sanitizeFotoUrl(
+        sessionUser.fotoUrl || sessionUser.medico?.fotoUrl || ''
+      );
+
+      setDoctorName(nombreBase ? addDoctorPrefix(nombreBase) : 'Doctor');
+      setDoctorSpec(especialidadBase || 'Especialidad no definida');
+      setDoctorAvatar(fotoBase ? { uri: fotoBase } : DefaultAvatar);
+    }
+  }, [sessionUser]);
+>>>>>>> 552cc1c56e079ec64a31a3a8e45a1569a5a1f42f
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
@@ -871,7 +881,7 @@ const DashboardMedico: React.FC = () => {
   const bannerPatientAvatar = resolveAvatarSource(nextCita?.paciente?.fotoUrl);
   
   return (
-    <View style={[styles.container, isInsidePortal ? null : (isDesktopLayout ? styles.containerDesktop : styles.containerMobile)]}>
+    <View style={[styles.container, isInsidePortal ? null : (isDesktopLayout ? styles.containerDesktop : (isTablet ? styles.containerTablet : styles.containerMobile))]}>
       {!isInsidePortal && !isDesktopLayout ? (
         <View style={styles.mobileMenuBar}>
           <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
@@ -884,8 +894,8 @@ const DashboardMedico: React.FC = () => {
       ) : null}
 
       {/* ===================== SIDEBAR ===================== */}
-      {!isInsidePortal && (isDesktopLayout || isMobileMenuOpen) && (
-      <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}>
+      {!isInsidePortal && (isDesktopLayout || isTablet || isMobileMenuOpen) && (
+      <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : (isTablet ? styles.sidebarTablet : styles.sidebarMobile)]}>
         <View>
           {/* Logo */}
           <View style={styles.logoBox}>
