@@ -16,6 +16,7 @@ import RegistroPacienteScreen from "./RegistroPacienteScreen";
 import SeleccionPerfil from "./SeleccionPerfil";
 import VerificarEmailScreen from "./VerificarEmailScreen";
 import VerificarIdentidadScreen from "./VerificarIdentidadScreen";
+import BlogDetailScreen from "./BlogDetailScreen";
 
 import DashboardPacienteScreen from "./DashboardPacienteScreen";
 import PacientePortalScreen from "./PacientePortalScreen";
@@ -94,6 +95,7 @@ const linking = {
       MedicoPerfil: "medico-perfil",
       MedicoConfiguracion: "medico-configuracion",
       AdminPanel: "admin-panel",
+      BlogDetail: "blog-detail",
     },
   },
 };
@@ -207,6 +209,7 @@ const App: React.FC = () => {
                   <Stack.Screen name="MedicoPerfil" component={DoctorPerfilScreen} />
                   <Stack.Screen name="MedicoConfiguracion" component={DoctorConfiguracionScreen} />
                   <Stack.Screen name="AdminPanel" component={AdminOnlyPanelScreen} />
+                  <Stack.Screen name="BlogDetail" component={BlogDetailScreen} />
                 </Stack.Navigator>
               </NavigationContainer>
             </SafeAreaView>

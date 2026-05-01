@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Image, ImageBackground, Alert } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Image, Animated, Pressable, Easing } from 'react-native';
 import { useResponsive } from './hooks/useResponsive';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -21,9 +21,510 @@ const colors = {
   white: '#FFFFFF',
 };
 
+const FadeInView = ({ children, delay = 0, style }: any) => {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.delay(delay),
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 700, useNativeDriver: true })
+      ])
+    ]).start();
+  }, [delay, opacity, translateY]);
+
+  return (
+    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
+      {children}
+    </Animated.View>
+  );
+};
+
+const ShrinkingLine = ({ delay = 0, trigger = true }) => {
+  const widthAnim = useRef(new Animated.Value(250)).current; 
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (trigger) {
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(widthAnim, { 
+            toValue: 60, 
+            duration: 1200, 
+            easing: Easing.out(Easing.exp), 
+            useNativeDriver: false 
+          }),
+          Animated.timing(opacity, { 
+            toValue: 1, 
+            duration: 800, 
+            useNativeDriver: false 
+          }),
+        ])
+      ]).start();
+    }
+  }, [delay, trigger]);
+
+  return (
+    <Animated.View style={{ 
+      width: widthAnim, 
+      height: 4, 
+      backgroundColor: colors.primary, 
+      marginBottom: 16, 
+      borderRadius: 2,
+      opacity 
+    }} />
+  );
+};
+
+const MessageBadge = ({ trigger }: { trigger: boolean }) => {
+  const scale = useRef(new Animated.Value(0)).current;
+  const [showChecks, setShowChecks] = useState(false);
+  const checkAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (trigger) {
+      // Pop in effect
+      Animated.spring(scale, { toValue: 1, friction: 6, tension: 40, useNativeDriver: true }).start();
+      
+      // After 2 seconds, show the blue checks
+      const timer = setTimeout(() => {
+        setShowChecks(true);
+        Animated.timing(checkAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [trigger]);
+
+  return (
+    <Animated.View style={{ 
+      position: 'absolute', 
+      top: 40, 
+      left: -20, 
+      backgroundColor: 'rgba(255, 255, 255, 0.7)', 
+      padding: 16, 
+      borderRadius: 20, 
+      shadowColor: '#000', 
+      shadowOpacity: 0.15, 
+      shadowRadius: 20, 
+      elevation: 20, 
+      zIndex: 3, 
+      flexDirection: 'row', 
+      alignItems: 'center', 
+      gap: 16, 
+      minWidth: 220,
+      transform: [{ scale }],
+      ...Platform.select({
+        web: { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }
+      } as any)
+    }}>
+      <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#EBF5FB', justifyContent: 'center', alignItems: 'center' }}>
+        <MaterialIcons name="person-pin" size={26} color={colors.primary} />
+      </View>
+      <View style={{ flexShrink: 1 }}>
+        <Text style={{ fontWeight: '800', color: colors.dark, fontSize: 13 }}>
+          Tu médico, donde estés
+        </Text>
+        {showChecks && (
+          <Animated.View style={{ opacity: checkAnim, flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+            <Text style={{ fontSize: 10, color: colors.muted, marginRight: 4 }}>Visto</Text>
+            <MaterialIcons name="done-all" size={16} color="#34B7F1" />
+          </Animated.View>
+        )}
+      </View>
+    </Animated.View>
+  );
+};
+
+const HoverCard = ({ children, style }: any) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const shadowOpacity = useRef(new Animated.Value(0.02)).current;
+
+  const handleMouseEnter = () => {
+    Animated.parallel([
+      Animated.timing(scale, { toValue: 1.03, duration: 300, useNativeDriver: false }),
+      Animated.timing(shadowOpacity, { toValue: 0.15, duration: 300, useNativeDriver: false })
+    ]).start();
+  };
+
+  const handleMouseLeave = () => {
+    Animated.parallel([
+      Animated.timing(scale, { toValue: 1, duration: 300, useNativeDriver: false }),
+      Animated.timing(shadowOpacity, { toValue: 0.02, duration: 300, useNativeDriver: false })
+    ]).start();
+  };
+
+  return (
+    <Animated.View 
+      style={[style, { transform: [{ scale }], shadowOpacity }]}
+      {...Platform.select({
+        web: { onMouseEnter: handleMouseEnter, onMouseLeave: handleMouseLeave }
+      })}
+    >
+      {children}
+    </Animated.View>
+  );
+};
+
+const HoverButton = ({ children, onPress, style }: any) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handleMouseEnter = () => {
+    Animated.spring(scale, { toValue: 1.05, friction: 3, tension: 40, useNativeDriver: false }).start();
+  };
+
+  const handleMouseLeave = () => {
+    Animated.spring(scale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: false }).start();
+  };
+
+  return (
+    <Animated.View 
+      style={[{ transform: [{ scale }] }]}
+    >
+      <Pressable 
+        onPress={onPress} 
+        style={({ pressed }) => [style, { opacity: pressed ? 0.7 : 1 }]}
+        {...Platform.select({
+          web: { onMouseEnter: handleMouseEnter, onMouseLeave: handleMouseLeave }
+        } as any)}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+};
+
+const AnimatedGradientBg = ({ children, style }: any) => {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 4000, useNativeDriver: false }),
+        Animated.timing(anim, { toValue: 0, duration: 4000, useNativeDriver: false }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [anim]);
+
+  const bgColor = anim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['#EBF5FB', '#E1EFF9', '#D6E8F4'],
+  });
+
+  if (Platform.OS === 'web') {
+    const overlayOpacity = anim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.3, 0.8],
+    });
+
+    return (
+      <Animated.View style={[style, { backgroundColor: bgColor, overflow: 'hidden' }]}>
+        {/* Orb decorativo 1 */}
+        <Animated.View style={{
+          position: 'absolute', top: -80, right: -80,
+          width: 350, height: 350, borderRadius: 175,
+          backgroundColor: 'rgba(43, 108, 176, 0.08)',
+          opacity: overlayOpacity,
+          transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] }) }],
+        }} />
+        {/* Orb decorativo 2 */}
+        <Animated.View style={{
+          position: 'absolute', bottom: -60, left: -60,
+          width: 280, height: 280, borderRadius: 140,
+          backgroundColor: 'rgba(26, 54, 93, 0.06)',
+          opacity: overlayOpacity,
+          transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1.2, 1] }) }],
+        }} />
+        {children}
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View style={[style, { backgroundColor: bgColor }]}>
+      {children}
+    </Animated.View>
+  );
+};
+
+const FloatingPhone = ({ children }: any) => {
+  if (Platform.OS === 'web') {
+    // Inject CSS keyframes once
+    useEffect(() => {
+      if (typeof document !== 'undefined' && !document.getElementById('floatingPhoneCSS')) {
+        const style = document.createElement('style');
+        style.id = 'floatingPhoneCSS';
+        style.textContent = `
+          @keyframes floatPhone {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-14px); }
+          }
+          .floating-phone {
+            animation: floatPhone 3s ease-in-out infinite;
+            will-change: transform;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    }, []);
+
+    const divRef = useRef<any>(null);
+    useEffect(() => {
+      if (divRef.current) {
+        // react-native-web renders Views as divs, access the underlying DOM node
+        const node = divRef.current;
+        if (node && node.classList) {
+          node.classList.add('floating-phone');
+        }
+      }
+    });
+
+    return (
+      <View ref={divRef}>
+        {children}
+      </View>
+    );
+  }
+
+  // Native fallback
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: -14, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [floatAnim]);
+
+  return (
+    <Animated.View style={{ transform: [{ translateY: floatAnim }] }}>
+      {children}
+    </Animated.View>
+  );
+};
+
+const HoverCountCard = ({ children, count, style }: { children: any; count: string; style?: any }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const shadowOp = useRef(new Animated.Value(0.02)).current;
+  const [hovered, setHovered] = useState(false);
+  const [displayNum, setDisplayNum] = useState(0);
+  const intervalRef = useRef<any>(null);
+
+  // Extract the number from count string like "6 médico(s) disponible(s)"
+  const numericMatch = count.match(/\d+/);
+  const targetNum = numericMatch ? parseInt(numericMatch[0], 10) : 0;
+  const hasNumber = !!numericMatch;
+
+  const handleMouseEnter = () => {
+    setHovered(true);
+    setDisplayNum(0);
+    Animated.parallel([
+      Animated.timing(scale, { toValue: 1.03, duration: 200, useNativeDriver: false }),
+      Animated.timing(shadowOp, { toValue: 0.15, duration: 200, useNativeDriver: false }),
+    ]).start();
+
+    if (hasNumber && targetNum > 0) {
+      let current = 0;
+      const step = Math.max(1, Math.floor(targetNum / 15));
+      const speed = Math.max(30, 400 / targetNum);
+      intervalRef.current = setInterval(() => {
+        current += step;
+        if (current >= targetNum) {
+          current = targetNum;
+          clearInterval(intervalRef.current);
+        }
+        setDisplayNum(current);
+      }, speed);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHovered(false);
+    setDisplayNum(0);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    Animated.parallel([
+      Animated.timing(scale, { toValue: 1, duration: 200, useNativeDriver: false }),
+      Animated.timing(shadowOp, { toValue: 0.02, duration: 200, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const countLabel = hasNumber
+    ? count.replace(/\d+/, String(displayNum))
+    : count;
+
+  return (
+    <Animated.View
+      style={[style, { transform: [{ scale }], shadowOpacity: shadowOp }]}
+      {...Platform.select({
+        web: { onMouseEnter: handleMouseEnter, onMouseLeave: handleMouseLeave },
+      } as any)}
+    >
+      {children}
+      {hovered && (
+        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary, textAlign: 'center', marginTop: 10 }}>
+          {countLabel}
+        </Text>
+      )}
+    </Animated.View>
+  );
+};
+
+const HoverServiceCard = ({ title, description, image, style }: any) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const shadowOpacity = useRef(new Animated.Value(0.15)).current;
+  const overlayY = useRef(new Animated.Value(120)).current; 
+  const [hovered, setHovered] = useState(false);
+
+  const handleMouseEnter = () => {
+    setHovered(true);
+    Animated.parallel([
+      Animated.timing(scale, { toValue: 1.05, duration: 300, useNativeDriver: false }),
+      Animated.timing(shadowOpacity, { toValue: 0.3, duration: 300, useNativeDriver: false }),
+      Animated.spring(overlayY, { toValue: 0, tension: 50, friction: 7, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const handleMouseLeave = () => {
+    setHovered(false);
+    Animated.parallel([
+      Animated.timing(scale, { toValue: 1, duration: 300, useNativeDriver: false }),
+      Animated.timing(shadowOpacity, { toValue: 0.15, duration: 300, useNativeDriver: false }),
+      Animated.spring(overlayY, { toValue: 120, tension: 50, friction: 7, useNativeDriver: false }),
+    ]).start();
+  };
+
+  return (
+    <Animated.View
+      style={[style, { transform: [{ scale }], shadowOpacity }]}
+      {...Platform.select({
+        web: { onMouseEnter: handleMouseEnter, onMouseLeave: handleMouseLeave },
+      } as any)}
+    >
+      <View style={{ backgroundColor: colors.primary, paddingVertical: 16, alignItems: 'center', zIndex: 2 }}>
+        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>{title}</Text>
+      </View>
+      <View style={{ position: 'relative', overflow: 'hidden' }}>
+        <Image source={image} style={{ width: '100%', height: 250, resizeMode: 'cover' }} />
+        
+        {/* Overlay Concept - Slides up on hover */}
+        <Animated.View style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: 'rgba(26, 54, 93, 0.9)', // Azul marino de la marca, más integrado
+          padding: 20,
+          transform: [{ translateY: overlayY }],
+          ...Platform.select({ web: { backdropFilter: 'blur(8px)' } } as any)
+        }}>
+          <Text style={{ color: '#fff', fontSize: 14, lineHeight: 20, textAlign: 'center', fontWeight: '500' }}>
+            {description}
+          </Text>
+        </Animated.View>
+      </View>
+    </Animated.View>
+  );
+};
+
+const HoverBlogCard = ({ category, title, description, image, onPress, style }: any) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const shadowOpacity = useRef(new Animated.Value(0.1)).current;
+  const [hovered, setHovered] = useState(false);
+
+  const handleMouseEnter = () => {
+    setHovered(true);
+    Animated.parallel([
+      Animated.timing(scale, { toValue: 1.02, duration: 300, useNativeDriver: false }),
+      Animated.timing(shadowOpacity, { toValue: 0.25, duration: 300, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const handleMouseLeave = () => {
+    setHovered(false);
+    Animated.parallel([
+      Animated.timing(scale, { toValue: 1, duration: 300, useNativeDriver: false }),
+      Animated.timing(shadowOpacity, { toValue: 0.1, duration: 300, useNativeDriver: false }),
+    ]).start();
+  };
+
+  if (Platform.OS === 'web') {
+    useEffect(() => {
+      if (typeof document !== 'undefined' && !document.getElementById('blogCardCSS')) {
+        const style = document.createElement('style');
+        style.id = 'blogCardCSS';
+        style.textContent = `
+          .blog-card-img {
+            transition: transform 0.6s cubic-bezier(0.33, 1, 0.68, 1);
+          }
+          .blog-card-hovered .blog-card-img {
+            transform: scale(1.1);
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    }, []);
+  }
+
+  return (
+    <Animated.View
+      style={[style, { transform: [{ scale }], shadowOpacity, backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden' }]}
+      {...Platform.select({
+        web: { 
+          onMouseEnter: handleMouseEnter, 
+          onMouseLeave: handleMouseLeave,
+          className: hovered ? 'blog-card-hovered' : ''
+        }
+      } as any)}
+    >
+      <Pressable onPress={onPress} style={{ flex: 1 }}>
+        <View style={{ height: 240, overflow: 'hidden' }}>
+          <Image 
+            source={{ uri: image }} 
+            style={[{ width: '100%', height: '100%' }, Platform.OS === 'web' && { className: 'blog-card-img' } as any]} 
+            resizeMode="cover"
+          />
+          <View style={{ 
+            position: 'absolute', 
+            top: 20, 
+            left: 20, 
+            backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+            paddingHorizontal: 12, 
+            paddingVertical: 6, 
+            borderRadius: 12,
+            ...Platform.select({ web: { backdropFilter: 'blur(4px)' } } as any)
+          }}>
+            <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{category}</Text>
+          </View>
+        </View>
+        
+        <View style={{ padding: 30 }}>
+          <Text style={{ color: colors.dark, fontSize: 22, fontWeight: '800', marginBottom: 12, lineHeight: 28 }}>{title}</Text>
+          <Text style={{ color: colors.muted, fontSize: 15, lineHeight: 24, marginBottom: 20 }}>{description}</Text>
+          
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>Leer más</Text>
+            <Animated.View style={{ transform: [{ translateX: hovered ? 5 : 0 }] }}>
+              <MaterialIcons name="arrow-forward" size={18} color={colors.primary} />
+            </Animated.View>
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+};
+
 const LandingScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const scrollViewRef = useRef<ScrollView>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
   const [layoutY, setLayoutY] = useState({ plataforma: 0, especialidades: 0, nosotros: 0, blog: 0, contacto: 0 });
 
   const scrollTo = (y: number) => {
@@ -34,10 +535,49 @@ const LandingScreen: React.FC = () => {
   const navigateToLogin = () => navigation.navigate('Login');
   const navigateToRegister = () => navigation.navigate('SeleccionPerfil');
 
+  // Navbar sticky state
+  const [navScrolled, setNavScrolled] = useState(false);
+  const [nosotrosVisible, setNosotrosVisible] = useState(false);
+
+  // Inject sticky navbar CSS once
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined' && !document.getElementById('stickyNavCSS')) {
+      const style = document.createElement('style');
+      style.id = 'stickyNavCSS';
+      style.textContent = `
+        .nav-sticky {
+          transition: all 0.3s ease;
+        }
+        .nav-scrolled {
+          background-color: rgba(255, 255, 255, 0.85) !important;
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08) !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
+  const navRef = useRef<any>(null);
+  useEffect(() => {
+    if (Platform.OS === 'web' && navRef.current) {
+      const node = navRef.current;
+      if (node && node.classList) {
+        node.classList.add('nav-sticky');
+        if (navScrolled) {
+          node.classList.add('nav-scrolled');
+        } else {
+          node.classList.remove('nav-scrolled');
+        }
+      }
+    }
+  }, [navScrolled]);
+
   return (
     <View style={styles.container}>
-      {/* TOP NAVBAR - UNTOUCHED AS REQUESTED */}
-      <View style={[styles.navbar, isDesktop && styles.navbarDesktop]}>
+      {/* TOP NAVBAR - STICKY WITH BLUR */}
+      <View ref={navRef} style={[styles.navbar, isDesktop && styles.navbarDesktop, navScrolled && { paddingVertical: 10 }]}>
         <View style={styles.navLeft}>
           <Image source={ViremLogo} style={styles.logoImage} resizeMode="contain" />
           <Text style={styles.logoText}>VIREM</Text>
@@ -64,53 +604,77 @@ const LandingScreen: React.FC = () => {
         )}
 
         <View style={styles.navRight}>
-          <TouchableOpacity style={[styles.navBtn, { backgroundColor: colors.primary, marginRight: 10 }]} onPress={navigateToRegister}>
+          <HoverButton style={[styles.navBtn, { backgroundColor: colors.primary, marginRight: 10 }]} onPress={navigateToRegister}>
             <Text style={styles.navBtnText}>REGISTRARSE</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.navBtn, { backgroundColor: colors.primary }]} onPress={navigateToLogin}>
+          </HoverButton>
+          <HoverButton style={[styles.navBtn, { backgroundColor: colors.primary }]} onPress={navigateToLogin}>
             <Text style={styles.navBtnText}>INICIAR SESIÓN</Text>
-          </TouchableOpacity>
+          </HoverButton>
         </View>
       </View>
 
-      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        ref={scrollViewRef} 
+        contentContainerStyle={styles.scrollContent}
+        onScroll={(event: any) => {
+          const y = event.nativeEvent.contentOffset.y;
+          scrollY.setValue(y);
+          setNavScrolled(y > 50);
+          
+          // Trigger nosotros animation when close to it (e.g., 600px before)
+          if (!nosotrosVisible && y > layoutY.nosotros - 800) {
+            setNosotrosVisible(true);
+          }
+        }}
+        scrollEventThrottle={16}
+      >
         
         {/* HERO SECTION */}
-        <View style={[styles.heroSection, isDesktop && styles.heroDesktop]}>
+        <AnimatedGradientBg style={[styles.heroSection, isDesktop && styles.heroDesktop]}>
           <View style={[styles.heroTextContainer, isDesktop && styles.heroTextDesktop]}>
 
-            <Text style={[styles.heroTitle, { fontSize: select({ mobile: 36, tablet: 48, desktop: 56 }), lineHeight: select({ mobile: 44, tablet: 56, desktop: 64 }) }]}>
-              ¡TU SALUD ES NUESTRA <Text style={{ color: colors.primary }}>PRIORIDAD</Text>!
-            </Text>
-            <Text style={[styles.heroSubtitle, { fontSize: select({ mobile: 16, tablet: 18, desktop: 18 }) }]}>
-              Somos líderes en atención primaria en salud. Nos enfocamos en prestar un servicio de salud integral destinado a proteger tu salud y bienestar, desde la comodidad de tu hogar.
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 16, flexWrap: 'wrap' }}>
-              <TouchableOpacity style={styles.heroActionBtn} onPress={navigateToRegister}>
+            <FadeInView delay={100}>
+              <Text style={[styles.heroTitle, { fontSize: select({ mobile: 36, tablet: 48, desktop: 56 }), lineHeight: select({ mobile: 44, tablet: 56, desktop: 64 }) }]}>
+                ¡TU SALUD ES NUESTRA <Text style={{ color: colors.primary }}>PRIORIDAD</Text>!
+              </Text>
+            </FadeInView>
+            <FadeInView delay={300}>
+              <Text style={[styles.heroSubtitle, { fontSize: select({ mobile: 16, tablet: 18, desktop: 18 }) }]}>
+                Somos líderes en atención primaria en salud. Nos enfocamos en prestar un servicio de salud integral destinado a proteger tu salud y bienestar, desde la comodidad de tu hogar.
+              </Text>
+            </FadeInView>
+            <FadeInView delay={500} style={{ flexDirection: 'row', gap: 16, flexWrap: 'wrap' }}>
+              <HoverButton style={styles.heroActionBtn} onPress={navigateToRegister}>
                 <Text style={styles.heroActionBtnText}>AGENDAR UNA CITA</Text>
-              </TouchableOpacity>
-            </View>
+              </HoverButton>
+            </FadeInView>
             
-
           </View>
           
-          <View style={[styles.heroImageContainer, !isDesktop && { marginTop: 40 }]}>
-            <View style={[styles.heroImage, { 
+            <FadeInView delay={400} style={[styles.heroImageContainer, !isDesktop && { marginTop: 40 }]}>
+            <Animated.View style={[styles.heroImage, { 
                 width: select({ mobile: '100%', tablet: '90%', desktop: 550 }), 
                 height: select({ mobile: 300, tablet: 400, desktop: 450 }),
                 overflow: 'hidden',
                 alignItems: 'flex-end',
-                padding: 0
+                padding: 0,
+                transform: [{
+                  translateY: scrollY.interpolate({
+                    inputRange: [0, 500],
+                    outputRange: [0, 80],
+                    extrapolate: 'clamp'
+                  })
+                }]
               } as any]}>
               <Image 
                 source={EquipoVirem} 
                 style={{ width: '140%', height: '100%' }} 
                 resizeMode="cover"
               />
-            </View>
+            </Animated.View>
 
-          </View>
-        </View>
+          </FadeInView>
+        </AnimatedGradientBg>
 
         {/* HOW IT WORKS */}
         <View onLayout={(e) => setLayoutY(prev => ({...prev, plataforma: e.nativeEvent.layout.y}))} style={[styles.howItWorksSection, isDesktop && styles.howItWorksDesktop]}>
@@ -129,8 +693,27 @@ const LandingScreen: React.FC = () => {
                 />
                 <View style={{ position: 'absolute', top: 0, left: 0, width: 400, height: 460, borderRadius: 30, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 30, elevation: 15, pointerEvents: 'none' }} />
                 
-                {/* Floating info card */}
-                <View style={{ position: 'absolute', bottom: 40, left: -40, backgroundColor: '#fff', padding: 16, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 20, zIndex: 3, flexDirection: 'row', alignItems: 'center', gap: 16, minWidth: 200 }}>
+                {/* Floating info card with Glassmorphism */}
+                <View style={{ 
+                  position: 'absolute', 
+                  bottom: 40, 
+                  left: -40, 
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)', 
+                  padding: 16, 
+                  borderRadius: 20, 
+                  shadowColor: '#000', 
+                  shadowOpacity: 0.15, 
+                  shadowRadius: 20, 
+                  elevation: 20, 
+                  zIndex: 3, 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  gap: 16, 
+                  minWidth: 200,
+                  ...Platform.select({
+                    web: { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }
+                  } as any)
+                }}>
                   <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#EBF5FB', justifyContent: 'center', alignItems: 'center' }}>
                     <MaterialIcons name="videocam" size={26} color="#2B6CB0" />
                   </View>
@@ -170,26 +753,26 @@ const LandingScreen: React.FC = () => {
             justifyContent: 'center'
           }}>
             
-            <View style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, elevation: 5 }}>
-              <View style={{ backgroundColor: colors.primary, paddingVertical: 16, alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>Consultas Virtuales</Text>
-              </View>
-              <Image source={{ uri: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?q=80&w=600&auto=format&fit=crop' }} style={{ width: '100%', height: 250, resizeMode: 'cover' }} />
-            </View>
+            <HoverServiceCard 
+              title="Consultas Virtuales" 
+              description="Atención médica especializada por videollamada segura, estés donde estés."
+              image={require('./assets/imagenes/Videoconsulta.png')}
+              style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowRadius: 15, elevation: 5 }} 
+            />
 
-            <View style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, elevation: 5 }}>
-              <View style={{ backgroundColor: colors.primary, paddingVertical: 16, alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>Recetas Digitales</Text>
-              </View>
-              <Image source={{ uri: 'https://images.unsplash.com/photo-1585435557343-3b092031a831?q=80&w=600&auto=format&fit=crop' }} style={{ width: '100%', height: 250, resizeMode: 'cover' }} />
-            </View>
+            <HoverServiceCard 
+              title="Recetas Digitales" 
+              description="Recibe tus prescripciones médicas oficiales directamente en tu perfil al instante."
+              image={require('./assets/imagenes/RecetasM.png')}
+              style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowRadius: 15, elevation: 5 }} 
+            />
 
-            <View style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, elevation: 5 }}>
-              <View style={{ backgroundColor: colors.primary, paddingVertical: 16, alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>Historial Clínico</Text>
-              </View>
-              <Image source={{ uri: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=600&auto=format&fit=crop' }} style={{ width: '100%', height: 250, resizeMode: 'cover' }} />
-            </View>
+            <HoverServiceCard 
+              title="Historial Clínico" 
+              description="Accede a tus reportes, estudios y antecedentes médicos de forma segura y organizada."
+              image={require('./assets/imagenes/HistorialC.png')}
+              style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowRadius: 15, elevation: 5 }} 
+            />
 
           </View>
         </View>
@@ -233,14 +816,14 @@ const LandingScreen: React.FC = () => {
                 alignItems: "center",
                 marginBottom: 10
               }}>
-                <View style={{ width: "100%", backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: "#E2E8F0", padding: 24, alignItems: "center", marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 1 }}>
+                <HoverCard style={{ width: "100%", backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: "#E2E8F0", padding: 24, alignItems: "center", marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 1 }}>
                   <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: "#F0F7FA", justifyContent: "center", alignItems: "center", marginBottom: 16 }}>
                     <MaterialIcons name={esp.icon} size={28} color={colors.secondary} />
                   </View>
                   <Text style={{ fontSize: 16, fontWeight: "900", color: colors.dark, marginBottom: 6, textAlign: "center" }}>{esp.title}</Text>
                   <Text style={{ fontSize: 13, color: colors.muted, textAlign: "center" }}>{esp.sub}</Text>
-                </View>
-                <Text style={{ fontSize: 13, fontWeight: "800", color: colors.primary }}>{esp.count}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: colors.primary, textAlign: "center", marginTop: 10 }}>{esp.count}</Text>
+                </HoverCard>
               </View>
             ))}
           </View>
@@ -261,29 +844,31 @@ const LandingScreen: React.FC = () => {
             alignItems: 'center', 
             marginBottom: select({ mobile: 40, tablet: 60, desktop: 0 }) 
           }}>
-            {/* Phone/App Graphic representation */}
-            <View style={{ 
-              width: 220, 
-              height: 380, 
-              backgroundColor: colors.primary, 
-              borderRadius: 30, 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              shadowColor: colors.primary, 
-              shadowOpacity: 0.4, 
-              shadowRadius: 30, 
-              elevation: 10, 
-              borderWidth: 10, 
-              borderColor: '#EBF5FB' 
-            }}>
-              <MaterialIcons name="fact-check" size={80} color="#fff" style={{ marginBottom: 20 }} />
-              <View style={{ width: 140, height: 12, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 6, marginBottom: 15 }} />
-              <View style={{ width: 160, height: 12, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 6, marginBottom: 15 }} />
-              <View style={{ width: 120, height: 12, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 6, marginBottom: 40 }} />
-              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' }}>
-                <MaterialIcons name="check" size={30} color="#fff" />
+            {/* Phone/App Graphic representation - Floating animation */}
+            <FloatingPhone>
+              <View style={{ 
+                width: 220, 
+                height: 380, 
+                backgroundColor: colors.primary, 
+                borderRadius: 30, 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                shadowColor: colors.primary, 
+                shadowOpacity: 0.4, 
+                shadowRadius: 30, 
+                elevation: 10, 
+                borderWidth: 10, 
+                borderColor: '#EBF5FB' 
+              }}>
+                <MaterialIcons name="fact-check" size={80} color="#fff" style={{ marginBottom: 20 }} />
+                <View style={{ width: 140, height: 12, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 6, marginBottom: 15 }} />
+                <View style={{ width: 160, height: 12, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 6, marginBottom: 15 }} />
+                <View style={{ width: 120, height: 12, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 6, marginBottom: 40 }} />
+                <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' }}>
+                  <MaterialIcons name="check" size={30} color="#fff" />
+                </View>
               </View>
-            </View>
+            </FloatingPhone>
           </View>
           
           <View style={{ 
@@ -309,55 +894,114 @@ const LandingScreen: React.FC = () => {
             }}>
               Accede y descarga tus recetas médicas de forma rápida y segura desde cualquier lugar con nuestra plataforma en línea. También podrás visualizar tu historial completo y el seguimiento de tus especialistas.
             </Text>
-            <TouchableOpacity style={{ backgroundColor: colors.primary, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 8 }} onPress={navigateToLogin}>
+            <HoverButton style={{ backgroundColor: colors.primary, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 8 }} onPress={navigateToLogin}>
               <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>INGRESAR A LA PLATAFORMA</Text>
-            </TouchableOpacity>
+            </HoverButton>
           </View>
           
         </View>
 
-        {/* NOSOTROS */}
-        <View onLayout={(e) => setLayoutY(prev => ({...prev, nosotros: e.nativeEvent.layout.y}))} style={[styles.howItWorksSection, { backgroundColor: '#F8FAFC' }, isDesktop && styles.howItWorksDesktop]}>
+        {/* NOSOTROS - ENHANCED */}
+        <View onLayout={(e) => setLayoutY(prev => ({...prev, nosotros: e.nativeEvent.layout.y}))} style={[styles.howItWorksSection, { backgroundColor: '#F8FAFC', paddingVertical: 100 }, isDesktop && styles.howItWorksDesktop]}>
           <View style={[styles.howItWorksTextContainer, isDesktop && { paddingRight: 60 }, (isTablet || isMobile) && { alignItems: 'center' }]}>
-            <Text style={[styles.sectionHeadingLeft, (isTablet || isMobile) && { textAlign: 'center' }]}>SOBRE NOSOTROS</Text>
-            <Text style={[styles.sectionBodyLeft, (isTablet || isMobile) && { textAlign: 'center' }]}>
-              VIREM nace con la misión de democratizar y facilitar el acceso a la salud. Somos un equipo interdisciplinario que une la medicina y la tecnología para romper las barreras geográficas.
-            </Text>
-            <Text style={[styles.sectionBodyLeft, (isTablet || isMobile) && { textAlign: 'center' }]}>
-              Creemos firmemente en el cuidado continuo del paciente, promoviendo espacios donde puedas encontrar desde médicos generales hasta terapeutas que guíen tu bienestar emocional.
-            </Text>
-          </View>
-          {isDesktop && (
-            <View style={styles.howItWorksImgContainer}>
-              <View style={[styles.greenCircle, { backgroundColor: colors.primary }]}>
-                <Image source={{ uri: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?q=80&w=400&auto=format&fit=crop' }} style={styles.doctorCircleImage} />
+            
+            <FadeInView delay={200}>
+              <ShrinkingLine delay={200} trigger={nosotrosVisible} />
+              <Text style={[styles.sectionHeadingLeft, (isTablet || isMobile) && { textAlign: 'center' }]}>SOBRE NOSOTROS</Text>
+              <Text style={[styles.sectionBodyLeft, (isTablet || isMobile) && { textAlign: 'center' }, { fontSize: 17, color: colors.dark, fontWeight: '500' }]}>
+                VIREM nace con la misión de democratizar y facilitar el acceso a la salud. Somos un equipo interdisciplinario que une la medicina y la tecnología para romper las barreras geográficas.
+              </Text>
+              <Text style={[styles.sectionBodyLeft, (isTablet || isMobile) && { textAlign: 'center' }]}>
+                Creemos firmemente en el cuidado continuo del paciente, promoviendo espacios donde puedas encontrar desde médicos generales hasta terapeutas que guíen tu bienestar emocional.
+              </Text>
+
+              {/* STATS CARDS */}
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 30, flexWrap: 'wrap', justifyContent: (isTablet || isMobile) ? 'center' : 'flex-start' }}>
+                <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 16, minWidth: 120, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 }}>
+                  <MaterialIcons name="timer-off" size={24} color={colors.primary} />
+                  <Text style={{ fontSize: 18, fontWeight: '900', color: colors.dark, marginTop: 4 }}>Sin Filas</Text>
+                  <Text style={{ fontSize: 11, color: colors.muted }}>Atención Directa</Text>
+                </View>
+                <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 16, minWidth: 120, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 }}>
+                  <MaterialIcons name="schedule" size={24} color={colors.primary} />
+                  <Text style={{ fontSize: 18, fontWeight: '900', color: colors.dark, marginTop: 4 }}>24/7</Text>
+                  <Text style={{ fontSize: 11, color: colors.muted }}>Atención</Text>
+                </View>
+                <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 16, minWidth: 120, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 }}>
+                  <MaterialIcons name="public" size={24} color={colors.primary} />
+                  <Text style={{ fontSize: 18, fontWeight: '900', color: colors.dark, marginTop: 4 }}>100%</Text>
+                  <Text style={{ fontSize: 11, color: colors.muted }}>Virtual</Text>
+                </View>
               </View>
-            </View>
+            </FadeInView>
+          </View>
+
+          {isDesktop && (
+            <FadeInView delay={400} style={styles.howItWorksImgContainer}>
+              <View style={{ position: 'relative', width: 400, height: 400, justifyContent: 'center', alignItems: 'center' }}>
+                {/* Single Image with Deep Shadow */}
+                <View style={{ 
+                  width: 360, 
+                  height: 380, 
+                  borderRadius: 30, 
+                  backgroundColor: '#fff', 
+                  shadowColor: '#000', 
+                  shadowOpacity: 0.25, 
+                  shadowRadius: 30, 
+                  elevation: 20, 
+                  overflow: 'hidden',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.2)'
+                }}>
+                  <Image 
+                    source={{ uri: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?q=80&w=600&auto=format&fit=crop' }} 
+                    style={{ width: '100%', height: '100%' }} 
+                    resizeMode="cover" 
+                  />
+                </View>
+
+                {/* Floating highlight badge - SAME STYLE AS ATENCION 24/7 */}
+                <MessageBadge trigger={nosotrosVisible} />
+              </View>
+            </FadeInView>
           )}
         </View>
 
         {/* BLOG */}
-        <View onLayout={(e) => setLayoutY(prev => ({...prev, blog: e.nativeEvent.layout.y}))} style={styles.servicesSection}>
-          <Text style={styles.sectionHeadingCenter}>NUESTRO BLOG</Text>
-          <Text style={styles.sectionBodyCenter}>Información, consejos y noticias sobre bienestar físico y mental.</Text>
+        <View onLayout={(e) => setLayoutY(prev => ({...prev, blog: e.nativeEvent.layout.y}))} style={[styles.servicesSection, { backgroundColor: '#F8FAFC', paddingVertical: 100 }]}>
+          <FadeInView delay={100} style={{ alignItems: 'center', marginBottom: 60 }}>
+            <View style={{ width: 40, height: 4, backgroundColor: colors.primary, borderRadius: 2, marginBottom: 16 }} />
+            <Text style={[styles.sectionHeadingCenter, { fontSize: 36, fontWeight: '900', color: colors.dark }]}>NUESTRO BLOG</Text>
+            <Text style={[styles.sectionBodyCenter, { fontSize: 17, maxWidth: 600 }]}>Explora artículos escritos por expertos para cuidar lo más valioso: tu salud.</Text>
+          </FadeInView>
           
-          <View style={[styles.cardsGrid, isDesktop && styles.cardsGridDesktop, isTablet && { flexDirection: 'row', justifyContent: 'center' }]}>
-            <View style={[styles.serviceCard, isTablet && { flex: 1, maxWidth: '48%' }]}>
-              <Image source={{ uri: 'https://images.unsplash.com/photo-1527689368864-3a821dbccc34?q=80&w=400&auto=format&fit=crop' }} style={styles.cardImage} />
-              <View style={{ padding: 20 }}>
-                <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 5 }}>SALUD MENTAL</Text>
-                <Text style={{ color: colors.dark, fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>Grupos de Apoyo y Psicología</Text>
-                <Text style={{ color: colors.muted, fontSize: 14 }}>Descubre cómo nuestras reuniones virtuales con especialistas están ayudando a cientos de pacientes a manejar el estrés diario.</Text>
-              </View>
-            </View>
-            <View style={[styles.serviceCard, isTablet && { flex: 1, maxWidth: '48%' }]}>
-              <Image source={{ uri: 'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?q=80&w=400&auto=format&fit=crop' }} style={styles.cardImage} />
-              <View style={{ padding: 20 }}>
-                <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 5 }}>PREVENCIÓN</Text>
-                <Text style={{ color: colors.dark, fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>La importancia del chequeo anual</Text>
-                <Text style={{ color: colors.muted, fontSize: 14 }}>Por qué no debes esperar a sentirte mal para agendar una cita con tu médico de confianza. Hábitos saludables en casa.</Text>
-              </View>
-            </View>
+          <View style={[styles.cardsGrid, isDesktop && styles.cardsGridDesktop, { maxWidth: 1200, gap: 32 }]}>
+            <HoverBlogCard 
+              category="SALUD MENTAL"
+              title="Grupos de Apoyo y Psicología"
+              description="Descubre cómo nuestras reuniones virtuales con especialistas están ayudando a cientos de pacientes a manejar el estrés diario."
+              image="https://images.unsplash.com/photo-1527689368864-3a821dbccc34?q=80&w=800&auto=format&fit=crop"
+              onPress={() => navigation.navigate('BlogDetail', {
+                category: "SALUD MENTAL",
+                title: "Grupos de Apoyo y Psicología",
+                description: "Descubre cómo nuestras reuniones virtuales con especialistas están ayudando a cientos de pacientes a manejar el estrés diario.",
+                image: "https://images.unsplash.com/photo-1527689368864-3a821dbccc34?q=80&w=800&auto=format&fit=crop"
+              })}
+              style={{ flex: 1, maxWidth: isDesktop ? 550 : '100%', shadowRadius: 20, elevation: 10 }}
+            />
+            <HoverBlogCard 
+              category="PREVENCIÓN"
+              title="La importancia del chequeo anual"
+              description="Por qué no debes esperar a sentirte mal para agendar una cita con tu médico de confianza. Hábitos saludables que puedes iniciar hoy mismo."
+              image="https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?q=80&w=800&auto=format&fit=crop"
+              onPress={() => navigation.navigate('BlogDetail', {
+                category: "PREVENCIÓN",
+                title: "La importancia del chequeo anual",
+                description: "Por qué no debes esperar a sentirte mal para agendar una cita con tu médico de confianza. Hábitos saludables que puedes iniciar hoy mismo.",
+                image: "https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?q=80&w=800&auto=format&fit=crop"
+              })}
+              style={{ flex: 1, maxWidth: isDesktop ? 550 : '100%', shadowRadius: 20, elevation: 10 }}
+            />
           </View>
         </View>
 
