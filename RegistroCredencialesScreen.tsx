@@ -131,14 +131,15 @@ const RegistroCredencialesScreen: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const telefonoDigits = String(dpAny.telefono || '').replace(/\D/g, '');
-      const cedulaClean = String(dpAny.cedula || '').trim();
+      const data = dpAny as any;
+      const telefonoDigits = String(data.telefono || '').replace(/\D/g, '');
+      const cedulaClean = String(data.cedula || '').trim();
 
       const bodyCompleto = {
-        nombres: String(dpAny.nombres || '').trim(),
-        apellidos: String(dpAny.apellidos || '').trim(),
-        fechanacimiento: String(dpAny.fechanacimiento || '').trim(),
-        genero: String(dpAny.genero || '').trim(),
+        nombres: String(data.nombres || '').trim(),
+        apellidos: String(data.apellidos || '').trim(),
+        fechanacimiento: String(data.fechanacimiento || '').trim(),
+        genero: String(data.genero || '').trim(),
         cedula: cedulaClean,
         telefono: telefonoDigits,
         email: emailTrim,
@@ -302,106 +303,133 @@ const RegistroCredencialesScreen: React.FC = () => {
               Hola {(route.params?.datosPersonales as any)?.nombres ?? ''}, crea tu cuenta para acceder.
             </Text>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Correo Electrónico</Text>
-              <View style={styles.inputContainer}>
-                <MaterialIcons name="email" size={20} color={colors.blueGray} style={{ marginRight: 10 }} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="nombre@correo.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Contraseña</Text>
-              <View style={styles.inputContainer}>
-                <MaterialIcons name="lock" size={20} color={colors.blueGray} style={{ marginRight: 10 }} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Ej: Toribio123!"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={secureText}
-                />
-                <TouchableOpacity onPress={() => setSecureText(!secureText)}>
-                  <MaterialIcons name={secureText ? 'visibility' : 'visibility-off'} size={20} color={colors.blueGray} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.passwordRulesBox}>
-              {PASSWORD_RULES.map((rule) => {
-                const ok = Boolean(passwordRuleState[rule.key]);
-                return (
-                  <View key={rule.key} style={styles.passwordRuleItem}>
-                    <MaterialIcons
-                      name={ok ? 'check-circle' : 'radio-button-unchecked'}
-                      size={16}
-                      color={ok ? colors.success : colors.muted}
+            {!showCodeField && (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Correo Electrónico</Text>
+                  <View style={styles.inputContainer}>
+                    <MaterialIcons name="email" size={20} color={colors.blueGray} style={{ marginRight: 10 }} />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="nombre@correo.com"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
                     />
-                    <Text style={[styles.passwordRuleText, ok && styles.passwordRuleTextOk]}>{rule.label}</Text>
                   </View>
-                );
-              })}
-            </View>
+                </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirmar Contraseña</Text>
-              <View style={styles.inputContainer}>
-                <MaterialIcons name="lock" size={20} color={colors.blueGray} style={{ marginRight: 10 }} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Ej: Toribio123!"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={secureText}
-                />
-              </View>
-            </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Contraseña</Text>
+                  <View style={styles.inputContainer}>
+                    <MaterialIcons name="lock-outline" size={20} color={colors.blueGray} style={{ marginRight: 10 }} />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Mínimo 8 caracteres"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={secureText}
+                    />
+                    <TouchableOpacity onPress={() => setSecureText(!secureText)}>
+                      <MaterialIcons name={secureText ? "visibility-off" : "visibility"} size={20} color={colors.blueGray} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
 
-            {/* VERIFICATION CODE SECTION */}
+                {/* PASSWORD RULES */}
+                <View style={styles.passwordRulesBox}>
+                  {PASSWORD_RULES.map((rule) => {
+                    const ok = Boolean(passwordRuleState[rule.key]);
+                    return (
+                      <View key={rule.key} style={styles.passwordRuleItem}>
+                        <MaterialIcons
+                          name={ok ? 'check-circle' : 'radio-button-unchecked'}
+                          size={16}
+                          color={ok ? colors.success : colors.muted}
+                        />
+                        <Text style={[styles.passwordRuleText, ok && styles.passwordRuleTextOk]}>{rule.label}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Confirmar Contraseña</Text>
+                  <View style={styles.inputContainer}>
+                    <MaterialIcons name="lock-outline" size={20} color={colors.blueGray} style={{ marginRight: 10 }} />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Repite tu contraseña"
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      secureTextEntry={secureText}
+                    />
+                  </View>
+                </View>
+              </>
+            )}
+
             {showCodeField && (
               <View style={styles.verificationSection}>
                 <View style={styles.verificationCard}>
-                  <MaterialIcons name="verified-user" size={32} color={colors.primary} style={{ marginBottom: 10 }} />
+                  <View style={styles.iconCircle}>
+                    <MaterialIcons name="mark-email-read" size={40} color={colors.primary} />
+                  </View>
+                  
                   <Text style={styles.verificationTitle}>Verificar tu Correo</Text>
                   <Text style={styles.verificationSubtitle}>
-                    Se ha enviado un código de verificación a {email}. Ingrésalo aquí para completar tu registro.
+                    Código enviado a:{"\n"}
+                    <Text style={styles.highlightEmail}>{email}</Text>
                   </Text>
 
                   <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Código de Verificación</Text>
-                    <View style={styles.inputContainer}>
-                      <MaterialIcons name="vpn-key" size={20} color={colors.blueGray} style={{ marginRight: 10 }} />
+                    <Text style={styles.inputLabel}>Código de Verificación</Text>
+                    <View style={styles.modernInputContainer}>
+                      <MaterialIcons name="vpn-key" size={20} color={colors.primary} style={styles.inputIcon} />
                       <TextInput
-                        style={styles.textInput}
+                        style={styles.modernTextInput}
                         placeholder="Ej: 123456"
                         value={verificationCode}
                         onChangeText={setVerificationCode}
                         keyboardType="number-pad"
                         maxLength={6}
-                        textAlign="center"
+                        placeholderTextColor="#94a3b8"
                       />
                     </View>
                   </View>
 
-                  <TouchableOpacity style={styles.btnPrimary} onPress={handleVerifyCode} disabled={isLoading || !verificationCode.trim()}>
-                    {isLoading ? <ActivityIndicator color="white" /> : <Text style={styles.btnPrimaryText}>✓ Verificar Código</Text>}
+                  <TouchableOpacity 
+                    style={[styles.btnPrimaryModern, (isLoading || !verificationCode.trim()) && styles.btnDisabled]} 
+                    onPress={handleVerifyCode} 
+                    disabled={isLoading || !verificationCode.trim()}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color="white" />
+                    ) : (
+                      <View style={styles.btnContent}>
+                        <MaterialIcons name="check-circle" size={20} color="white" style={{marginRight: 8}} />
+                        <Text style={styles.btnTextModern}>Verificar Código</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.btnSecondary, resendCooldown > 0 && styles.btnSecondaryDisabled]}
+                    style={[styles.btnSecondaryModern, resendCooldown > 0 && styles.btnSecondaryDisabled]}
                     onPress={handleResendCode}
                     disabled={resendCooldown > 0}
                   >
-                    <Text style={[styles.btnSecondaryText, resendCooldown > 0 && styles.btnSecondaryTextDisabled]}>
-                      {resendCooldown > 0 ? `Reenviar en ${resendCooldown}s` : '↻ Reenviar Código'}
-                    </Text>
+                    <View style={styles.btnContent}>
+                      <MaterialIcons 
+                        name="refresh" 
+                        size={20} 
+                        color={resendCooldown > 0 ? "#94a3b8" : colors.primary} 
+                        style={{marginRight: 8}} 
+                      />
+                      <Text style={[styles.btnSecondaryTextModern, resendCooldown > 0 && styles.btnSecondaryTextDisabled]}>
+                        {resendCooldown > 0 ? `Reenviar en ${resendCooldown}s` : 'Reenviar Código'}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -489,30 +517,138 @@ const styles = StyleSheet.create({
   passwordRuleText: { marginLeft: 8, fontSize: 12, color: colors.blueGray },
   passwordRuleTextOk: { color: colors.success, fontWeight: '600' },
 
-  verificationSection: { marginBottom: 20 },
+  verificationSection: {
+    width: '100%',
+    paddingVertical: 10,
+  },
   verificationCard: {
-    backgroundColor: '#f0f9ff',
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 24,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   verificationTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
     color: colors.navyDark,
     marginBottom: 8,
     textAlign: 'center',
   },
   verificationSubtitle: {
-    fontSize: 13,
+    fontSize: 15,
     color: colors.blueGray,
     textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 1.5,
+    marginBottom: 24,
+    lineHeight: 22,
   },
-
+  highlightEmail: {
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.navyDark,
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  modernInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 60,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  modernTextInput: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.navyDark,
+    letterSpacing: 1,
+  },
+  btnPrimaryModern: {
+    backgroundColor: colors.primary,
+    width: '100%',
+    height: 56,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  btnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnTextModern: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  btnDisabled: {
+    backgroundColor: '#cbd5e1',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  btnSecondaryModern: {
+    backgroundColor: 'white',
+    width: '100%',
+    height: 56,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  btnSecondaryTextModern: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  btnSecondaryDisabled: {
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+  },
+  btnSecondaryTextDisabled: {
+    color: '#94a3b8',
+  },
+  btnBack: {
+    marginTop: 20,
+    padding: 10,
+    alignItems: 'center',
+  },
+  btnBackText: {
+    color: colors.blueGray,
+    fontWeight: '600',
+    fontSize: 14,
+  },
   btnPrimary: {
     backgroundColor: colors.primary,
     height: 55,
@@ -523,24 +659,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   btnPrimaryText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
-
-  btnSecondary: {
-    backgroundColor: '#e8f4f8',
-    borderWidth: 1,
-    borderColor: colors.primary,
-    height: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 10,
-  },
-  btnSecondaryText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
-  btnSecondaryDisabled: { backgroundColor: '#f1f5f9', borderColor: '#cbd5e1' },
-  btnSecondaryTextDisabled: { color: '#94a3b8' },
-
-  btnBack: { marginTop: 10, alignItems: 'center', paddingVertical: 12 },
-  btnBackText: { color: colors.blueGray, fontWeight: '600', fontSize: 14 },
 });
 
 export default RegistroCredencialesScreen;
