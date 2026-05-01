@@ -2,7 +2,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as Linking from "expo-linking";
 import React from "react";
-import { Platform, StyleSheet, Text, TextInput } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import EstablecerNuevaContrasenaScreen from "./EstablecerNuevaContrasenaScreen";
@@ -58,11 +58,6 @@ if (Platform.OS === "web" && typeof window !== "undefined") {
   linkingPrefixes.push(window.location.origin);
 }
 
-// Keeps layouts stable on phones with large OS text scaling enabled.
-(Text as any).defaultProps = (Text as any).defaultProps || {};
-(Text as any).defaultProps.allowFontScaling = false;
-(TextInput as any).defaultProps = (TextInput as any).defaultProps || {};
-(TextInput as any).defaultProps.allowFontScaling = false;
 
 const linking = {
   prefixes: linkingPrefixes,
