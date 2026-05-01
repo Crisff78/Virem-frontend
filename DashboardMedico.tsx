@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// v1.0.1 - Build trigger
 import {
   ActivityIndicator,
   Alert,
