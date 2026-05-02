@@ -5,6 +5,8 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './navigation/types';
+import FadeInView from './components/FadeInView';
+import ViremImage from './components/ViremImage';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 
@@ -21,26 +23,7 @@ const colors = {
   white: '#FFFFFF',
 };
 
-const FadeInView = ({ children, delay = 0, style }: any) => {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(30)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.delay(delay),
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 700, useNativeDriver: true })
-      ])
-    ]).start();
-  }, [delay, opacity, translateY]);
-
-  return (
-    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
-      {children}
-    </Animated.View>
-  );
-};
+// Eliminado FadeInView local para usar el global
 
 const ShrinkingLine = ({ delay = 0, trigger = true }) => {
   const widthAnim = useRef(new Animated.Value(250)).current; 
@@ -412,7 +395,7 @@ const HoverServiceCard = ({ title, description, image, style }: any) => {
         <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>{title}</Text>
       </View>
       <View style={{ position: 'relative', overflow: 'hidden' }}>
-        <Image source={image} style={{ width: '100%', height: 250, resizeMode: 'cover' }} />
+        <ViremImage source={image} style={{ width: '100%', height: 250 }} />
         
         {/* Overlay Concept - Slides up on hover */}
         <Animated.View style={{
@@ -486,10 +469,9 @@ const HoverBlogCard = ({ category, title, description, image, onPress, style }: 
     >
       <Pressable onPress={onPress} style={{ flex: 1 }}>
         <View style={{ height: 240, overflow: 'hidden' }}>
-          <Image 
+          <ViremImage 
             source={{ uri: image }} 
             style={[{ width: '100%', height: '100%' }, Platform.OS === 'web' && { className: 'blog-card-img' } as any]} 
-            resizeMode="cover"
           />
           <View style={{ 
             position: 'absolute', 
@@ -579,7 +561,7 @@ const LandingScreen: React.FC = () => {
       {/* TOP NAVBAR - STICKY WITH BLUR */}
       <View ref={navRef} style={[styles.navbar, isDesktop && styles.navbarDesktop, navScrolled && { paddingVertical: 10 }]}>
         <View style={styles.navLeft}>
-          <Image source={ViremLogo} style={styles.logoImage} resizeMode="contain" />
+          <ViremImage source={ViremLogo} style={styles.logoImage} />
           <Text style={styles.logoText}>VIREM</Text>
         </View>
         
@@ -666,10 +648,9 @@ const LandingScreen: React.FC = () => {
                   })
                 }]
               } as any]}>
-              <Image 
+              <ViremImage 
                 source={EquipoVirem} 
                 style={{ width: '140%', height: '100%' }} 
-                resizeMode="cover"
               />
             </Animated.View>
 
@@ -686,10 +667,9 @@ const LandingScreen: React.FC = () => {
                 <View style={{ position: 'absolute', bottom: -30, right: -30, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(26, 54, 93, 0.05)' }} />
                 
                 {/* Main image */}
-                <Image 
+                <ViremImage 
                   source={VcImg}
                   style={{ width: 400, height: 460, borderRadius: 30, borderWidth: 6, borderColor: '#fff' }}
-                  resizeMode="cover"
                 />
                 <View style={{ position: 'absolute', top: 0, left: 0, width: 400, height: 460, borderRadius: 30, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 30, elevation: 15, pointerEvents: 'none' }} />
                 

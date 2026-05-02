@@ -25,6 +25,9 @@ import { useMedicoSessionProfile, type MedicoSessionUser } from './hooks/useMedi
 import VideoCallFrame from './components/VideoCallFrame';
 import { useVideoCall } from './hooks/useVideoCall';
 import { useResponsive } from './hooks/useResponsive';
+import Skeleton from './components/Skeleton';
+import ViremImage from './components/ViremImage';
+import FadeInView from './components/FadeInView';
 
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -69,10 +72,10 @@ const sanitizeFotoUrl = (value: unknown) => {
   return clean;
 };
 
-const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
+const resolveAvatarSource = (value: unknown): any => {
   const clean = sanitizeFotoUrl(value);
   if (clean) {
-    return { uri: clean };
+    return clean;
   }
   return DefaultAvatar;
 };
@@ -187,7 +190,7 @@ const EMPTY_DASHBOARD: DashboardPayload = {
 type AppointmentCardProps = {
   patient: string;
   detail: string;
-  avatar: ImageSourcePropType;
+  avatar: any;
   onVideoCall?: () => void;
   onDetails?: () => void;
   videoCallDisabled?: boolean;
@@ -205,7 +208,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
 }) => {
   return (
     <View style={styles.apptCard}>
-      <Image source={avatar} style={styles.apptAvatar} />
+      <ViremImage source={avatar} style={styles.apptAvatar} />
       <View style={{ flex: 1 }}>
         <Text style={styles.apptDoctor}>{patient}</Text>
         <Text style={styles.apptDetail}>{detail}</Text>
@@ -259,7 +262,7 @@ const DashboardMedico: React.FC = () => {
   const lastRefreshRef = useRef(0);
 
   // --- Sub-componentes internos para acceder a styles ---
-  const PatientRow: React.FC<{ name: string; id: string; lastSeen: string; avatar: ImageSourcePropType; onPress?: () => void }> = ({
+  const PatientRow: React.FC<{ name: string; id: string; lastSeen: string; avatar: any; onPress?: () => void }> = ({
     name,
     id,
     lastSeen,
@@ -269,7 +272,7 @@ const DashboardMedico: React.FC = () => {
     <View style={styles.docRow}>
       <View style={styles.docLeft}>
         <View style={styles.docIconBox}>
-          <Image source={avatar} style={styles.docAvatar} />
+          <ViremImage source={avatar} style={styles.docAvatar} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.docTitle} numberOfLines={1}>
@@ -345,6 +348,12 @@ const DashboardMedico: React.FC = () => {
       backgroundColor: '#000',
       overflow: 'hidden',
     },
+    overlay: {
+      position: 'absolute',
+      top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      zIndex: 90,
+    },
     
     mobileMenuBar: { 
       paddingHorizontal: rs(14), 
@@ -366,7 +375,7 @@ const DashboardMedico: React.FC = () => {
     },
     mobileMenuButtonText: { color: colors.dark, fontWeight: '700', fontSize: fs(13) },
 
-    sidebar: { backgroundColor: colors.white, justifyContent: 'space-between' },
+    sidebar: { backgroundColor: colors.white, justifyContent: 'space-between', zIndex: 100 },
     sidebarDesktop: { 
       width: rs(260), 
       borderRightWidth: 1, 
@@ -380,10 +389,15 @@ const DashboardMedico: React.FC = () => {
       padding: rs(16) 
     },
     sidebarMobile: { 
-      width: '100%', 
-      borderBottomWidth: 1, 
-      borderBottomColor: '#eef2f7', 
-      padding: rs(14) 
+      position: 'absolute',
+      left: 0, top: 0, bottom: 0,
+      width: '80%', 
+      maxWidth: 300,
+      padding: rs(18),
+      shadowColor: '#000',
+      shadowOpacity: 0.25,
+      shadowRadius: 20,
+      elevation: 20,
     },
 
     logoBox: { flexDirection: 'row', alignItems: 'center', gap: rs(10) },
@@ -488,16 +502,16 @@ const DashboardMedico: React.FC = () => {
 
     bigCard: { 
       backgroundColor: '#fff', 
-      borderRadius: rs(24), 
-      padding: rs(20), 
+      borderRadius: rs(28), 
+      padding: rs(24), 
       flexDirection: isDesktop ? 'row' : 'column', 
       gap: rs(16), 
       marginBottom: rs(20), 
-      shadowColor: colors.dark, 
-      shadowOpacity: 0.06, 
-      shadowRadius: 12, 
-      shadowOffset: { width: 0, height: 6 }, 
-      elevation: 3 
+      shadowColor: '#1F4770', 
+      shadowOpacity: 0.08, 
+      shadowRadius: 20, 
+      shadowOffset: { width: 0, height: 10 }, 
+      elevation: 5 
     },
     bigCardLeft: { flex: 1 },
     bigCardRight: { 
@@ -858,13 +872,19 @@ const DashboardMedico: React.FC = () => {
       {!isInsidePortal && !isDesktopLayout ? (
         <View style={styles.mobileMenuBar}>
           <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
-            <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.dark} />
-            <Text style={styles.mobileMenuButtonText}>
-              {isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
-            </Text>
+            <MaterialIcons name="menu" size={22} color={colors.dark} />
+            <Text style={styles.mobileMenuButtonText}>Menú</Text>
           </TouchableOpacity>
         </View>
       ) : null}
+
+      {isMobileMenuOpen && (
+        <TouchableOpacity 
+          activeOpacity={1} 
+          style={styles.overlay} 
+          onPress={closeMobileMenu} 
+        />
+      )}
 
       {/* ===================== SIDEBAR ===================== */}
       {!isInsidePortal && (isDesktopLayout || isTablet || isMobileMenuOpen) && (
@@ -944,124 +964,149 @@ const DashboardMedico: React.FC = () => {
         </View>
       ) : (
         <ScrollView style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]} contentContainerStyle={{ paddingBottom: 40 }}>
-          
-          {/* Header simple */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Panel Médico</Text>
-            <TouchableOpacity style={styles.notifBtn}>
-              <MaterialIcons name="notifications-none" size={24} color={colors.dark} />
-              {dashboardData.stats.mensajesPendientes > 0 && <View style={styles.notifDot} />}
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.subtitle}>Aquí tienes un resumen de tu jornada y próximos pacientes.</Text>
-
-          {/* Hero Card (Big Card) */}
-          <View style={styles.bigCard}>
-            <View style={styles.bigCardLeft}>
-              <View style={styles.liveRow}>
-                <View style={[styles.liveDot, { backgroundColor: nextCita ? '#22c55e' : colors.primary }]} />
-                <Text style={[styles.liveText, { color: nextCita ? '#22c55e' : colors.primary }]}>
-                  {nextCita ? 'PRÓXIMA CITA' : 'JORNADA ACTIVA'}
-                </Text>
-              </View>
-              <Text style={styles.bigCardTitle}>Bienvenido de nuevo, {doctorName}</Text>
-              <Text style={styles.bigCardSub}>
-                {nextCita 
-                  ? `Tienes una videollamada programada con ${bannerPatientName} para las ${formatDateTime(nextCita.fechaHoraInicio)}.` 
-                  : 'No tienes citas virtuales programadas para este momento.'}
-              </Text>
-
-              <View style={styles.bigCardActions}>
-                <TouchableOpacity 
-                  style={[styles.primaryBtn, (!nextCita || openingCitaId) && { opacity: 0.6 }]} 
-                  onPress={() => handleVideoCall()}
-                  disabled={!nextCita || !!openingCitaId}
-                >
-                  <MaterialIcons name="videocam" size={20} color="#fff" />
-                  <Text style={styles.primaryBtnText}>
-                    {openingCitaId ? 'Iniciando...' : 'Entrar a consulta'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryBtn} onPress={() => handleSidebarNavigation('MedicoCitas')}>
-                  <Text style={styles.secondaryBtnText}>Ver agenda completa</Text>
-                </TouchableOpacity>
-              </View>
+          <FadeInView>
+            {/* Header simple */}
+            <View style={styles.header}>
+              <Text style={styles.title}>Panel Médico</Text>
+              <TouchableOpacity style={styles.notifBtn}>
+                <MaterialIcons name="notifications-none" size={24} color={colors.dark} />
+                {dashboardData.stats.mensajesPendientes > 0 && <View style={styles.notifDot} />}
+              </TouchableOpacity>
             </View>
+            <Text style={styles.subtitle}>Aquí tienes un resumen de tu jornada y próximos pacientes.</Text>
 
-            {isDesktopLayout && (
-              <View style={styles.bigCardRight}>
-                <Image source={bannerPatientAvatar} style={styles.bigCardImage} />
+            {/* Hero Card (Big Card) */}
+            <View style={styles.bigCard}>
+              <View style={styles.bigCardLeft}>
+                <View style={styles.liveRow}>
+                  <View style={[styles.liveDot, { backgroundColor: nextCita ? '#22c55e' : colors.primary }]} />
+                  <Text style={[styles.liveText, { color: nextCita ? '#22c55e' : colors.primary }]}>
+                    {nextCita ? 'PRÓXIMA CITA' : 'JORNADA ACTIVA'}
+                  </Text>
+                </View>
+                <Text style={styles.bigCardTitle}>Bienvenido de nuevo, {doctorName}</Text>
+                <Text style={styles.bigCardSub}>
+                  {nextCita 
+                    ? `Tienes una videollamada programada con ${bannerPatientName} para las ${formatDateTime(nextCita.fechaHoraInicio)}.` 
+                    : 'No tienes citas virtuales programadas para este momento.'}
+                </Text>
+
+                <View style={styles.bigCardActions}>
+                  <TouchableOpacity 
+                    style={[styles.primaryBtn, (!nextCita || openingCitaId) && { opacity: 0.6 }]} 
+                    onPress={() => handleVideoCall()}
+                    disabled={!nextCita || !!openingCitaId}
+                  >
+                    <MaterialIcons name="videocam" size={20} color="#fff" />
+                    <Text style={styles.primaryBtnText}>
+                      {openingCitaId ? 'Iniciando...' : 'Entrar a consulta'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.secondaryBtn} onPress={() => handleSidebarNavigation('MedicoCitas')}>
+                    <Text style={styles.secondaryBtnText}>Ver agenda completa</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            )}
-          </View>
 
-          {/* Quick Stats */}
-          <View style={styles.quickRow}>
-            <StatPill 
-              title="Citas hoy" 
-              value={String(dashboardData.stats.citasHoy)} 
-              icon="today" 
-              trendText="+2" 
-            />
-            <StatPill 
-              title="Completadas" 
-              value={String(dashboardData.stats.citasCompletadas)} 
-              icon="check-circle" 
-              trendText="80%" 
-            />
-          </View>
-
-          <View style={styles.twoCols}>
-            {/* Columna Izquierda: Agenda */}
-            <View style={styles.colLeft}>
-              <View style={styles.rowBetween}>
-                <Text style={styles.sectionTitle}>Próximas consultas virtuales</Text>
-                <TouchableOpacity onPress={() => handleSidebarNavigation('MedicoCitas')}>
-                  <Text style={styles.link}>Ver todas</Text>
-                </TouchableOpacity>
-              </View>
-
-              {upcomingCitas.length > 0 ? (
-                upcomingCitas.map((cita) => (
-                  <AppointmentCard
-                    key={cita.citaid}
-                    patient={cita.paciente.nombreCompleto}
-                    detail={formatDateTime(cita.fechaHoraInicio)}
-                    avatar={resolveAvatarSource(cita.paciente.fotoUrl)}
-                    onVideoCall={() => handleVideoCall(cita.citaid)}
-                    onDetails={() => {}}
-                    videoCallDisabled={!!openingCitaId}
-                  />
-                ))
-              ) : (
-                <View style={styles.emptyCard}>
-                  <MaterialCommunityIcons name="calendar-blank" size={40} color={colors.viremMuted} />
-                  <Text style={styles.emptyText}>No hay citas virtuales hoy</Text>
+              {isDesktopLayout && (
+                <View style={styles.bigCardRight}>
+                  <ViremImage source={bannerPatientAvatar} style={styles.bigCardImage} />
                 </View>
               )}
             </View>
 
-            {/* Columna Derecha: Expedientes */}
-            <View style={styles.colRight}>
-              <Text style={styles.sectionTitle}>Expedientes recientes</Text>
-              <View style={{ backgroundColor: '#fff', borderRadius: rs(20), padding: rs(10) }}>
-                {dashboardData.expedientesRecientes.length > 0 ? (
-                  dashboardData.expedientesRecientes.map((exp) => (
-                    <FileCard
-                      key={exp.id}
-                      name={exp.name}
-                      id={exp.code}
-                      lastSeen={exp.lastSeenText}
-                    />
-                  ))
+            {/* Quick Stats */}
+            <View style={styles.quickRow}>
+              {loadingDashboard ? (
+                <>
+                  <Skeleton width={rs(160)} height={rs(100)} borderRadius={rs(20)} />
+                  <Skeleton width={rs(160)} height={rs(100)} borderRadius={rs(20)} />
+                </>
+              ) : (
+                <>
+                  <StatPill 
+                    title="Citas hoy" 
+                    value={String(dashboardData.stats.citasHoy)} 
+                    icon="today" 
+                    trendText="+2" 
+                  />
+                  <StatPill 
+                    title="Completadas" 
+                    value={String(dashboardData.stats.citasCompletadas)} 
+                    icon="check-circle" 
+                    trendText="80%" 
+                  />
+                </>
+              )}
+            </View>
+
+            <View style={styles.twoCols}>
+              {/* Columna Izquierda: Agenda */}
+              <View style={styles.colLeft}>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.sectionTitle}>Próximas consultas virtuales</Text>
+                  <TouchableOpacity onPress={() => handleSidebarNavigation('MedicoCitas')}>
+                    <Text style={styles.link}>Ver todas</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {loadingDashboard ? (
+                  <View style={{ gap: 10 }}>
+                    <Skeleton width="100%" height={rs(80)} borderRadius={rs(18)} />
+                    <Skeleton width="100%" height={rs(80)} borderRadius={rs(18)} />
+                  </View>
                 ) : (
-                  <Text style={{ padding: rs(20), color: colors.muted, textAlign: 'center' }}>
-                    Sin actividad reciente
-                  </Text>
+                  upcomingCitas.length > 0 ? (
+                    upcomingCitas.map((cita) => (
+                      <AppointmentCard
+                        key={cita.citaid}
+                        patient={cita.paciente.nombreCompleto}
+                        detail={formatDateTime(cita.fechaHoraInicio)}
+                        avatar={resolveAvatarSource(cita.paciente.fotoUrl)}
+                        onVideoCall={() => handleVideoCall(cita.citaid)}
+                        onDetails={() => {}}
+                        videoCallDisabled={!!openingCitaId}
+                      />
+                    ))
+                  ) : (
+                    <View style={styles.emptyCard}>
+                      <MaterialCommunityIcons name="calendar-blank" size={40} color={colors.viremMuted} />
+                      <Text style={styles.emptyText}>No hay citas virtuales hoy</Text>
+                    </View>
+                  )
                 )}
               </View>
+
+              {/* Columna Derecha: Expedientes */}
+              <View style={styles.colRight}>
+                <Text style={styles.sectionTitle}>Expedientes recientes</Text>
+                <View style={{ backgroundColor: '#fff', borderRadius: rs(20), padding: rs(10) }}>
+                  {loadingDashboard ? (
+                    <View style={{ gap: 12, padding: 10 }}>
+                      <Skeleton width="100%" height={rs(40)} />
+                      <Skeleton width="100%" height={rs(40)} />
+                      <Skeleton width="100%" height={rs(40)} />
+                    </View>
+                  ) : (
+                    dashboardData.expedientesRecientes.length > 0 ? (
+                      dashboardData.expedientesRecientes.map((exp) => (
+                        <FileCard
+                          key={exp.id}
+                          name={exp.name}
+                          id={exp.code}
+                          lastSeen={exp.lastSeenText}
+                        />
+                      ))
+                    ) : (
+                      <Text style={{ padding: rs(20), color: colors.muted, textAlign: 'center' }}>
+                        Sin actividad reciente
+                      </Text>
+                    )
+                  )}
+                </View>
+              </View>
             </View>
-          </View>
+          </FadeInView>
         </ScrollView>
       )}
     </View>

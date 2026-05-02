@@ -22,6 +22,9 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientSessionProfile, type PatientSessionUser } from './hooks/usePatientSessionProfile';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
+import Skeleton from './components/Skeleton';
+import ViremImage from './components/ViremImage';
+import FadeInView from './components/FadeInView';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -46,9 +49,9 @@ const sanitizeFotoUrl = (value: unknown) => {
   return clean;
 };
 
-const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
+const resolveAvatarSource = (value: unknown): any => {
   const clean = sanitizeFotoUrl(value);
-  return clean ? { uri: clean } : DefaultAvatar;
+  return clean || DefaultAvatar;
 };
 
 const formatDateTime = (value: string | null) => {
@@ -151,60 +154,85 @@ const DashboardPacienteScreen: React.FC = () => {
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     containerDesktop: { flexDirection: 'row' },
-    containerTablet: { flexDirection: 'row' },
-    containerMobile: { flexDirection: 'column' },
-    
-    mobileMenuBar: { paddingHorizontal: rs(14), paddingTop: rs(12), paddingBottom: rs(8), backgroundColor: colors.bg },
-    mobileMenuButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: rs(8), paddingHorizontal: rs(12), paddingVertical: rs(8), borderRadius: rs(10), borderWidth: 1, borderColor: '#d8e4f0', backgroundColor: colors.white },
-    mobileMenuButtonText: { color: colors.dark, fontWeight: '700', fontSize: fs(13) },
-
-    sidebar: { backgroundColor: colors.white, justifyContent: 'space-between' },
-    sidebarDesktop: { width: rs(260), borderRightWidth: 1, borderRightColor: '#eef2f7', padding: rs(20) },
-    sidebarTablet: { width: rs(220), borderRightWidth: 1, borderRightColor: '#eef2f7', padding: rs(16) },
-    sidebarMobile: { width: '100%', borderBottomWidth: 1, borderBottomColor: '#eef2f7', padding: rs(14) },
-
-    logoBox: { flexDirection: 'row', alignItems: 'center', gap: rs(10) },
-    logo: { width: rs(44), height: rs(44), resizeMode: 'contain' },
-    logoTitle: { fontSize: fs(20), fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
-    logoSubtitle: { fontSize: fs(11), fontWeight: '700', color: colors.muted },
-
-    userBox: { marginTop: rs(18), alignItems: 'center', paddingVertical: rs(12) },
-    userAvatar: { width: rs(70), height: rs(70), borderRadius: rs(70), marginBottom: rs(10), borderWidth: 4, borderColor: '#f5f7fb' },
-    userName: { fontWeight: '800', color: colors.dark, fontSize: fs(14), textAlign: 'center' },
-    userPlan: { color: colors.muted, fontSize: fs(11), fontWeight: '700', marginTop: rs(2), textAlign: 'center' },
-
-    menu: { marginTop: rs(10), gap: rs(6) },
-    menuItemRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12), paddingVertical: rs(12), paddingHorizontal: rs(12), borderRadius: rs(12) },
-    menuItemActive: { backgroundColor: 'rgba(19,127,236,0.10)', borderRightWidth: 3, borderRightColor: colors.primary },
+    mobileHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: rs(16),
+      paddingVertical: rs(12),
+      backgroundColor: '#fff',
+      borderBottomWidth: 1,
+      borderBottomColor: '#eef2f7',
+    },
+    main: { flex: 1, padding: rs(16) },
+    mainMobile: { padding: rs(12) },
+    overlay: {
+      position: 'absolute',
+      top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      zIndex: 90,
+    },
+    sidebar: {
+      backgroundColor: '#fff',
+      padding: rs(20),
+      justifyContent: 'space-between',
+      zIndex: 100,
+    },
+    sidebarDesktop: {
+      width: rs(260),
+      borderRightWidth: 1,
+      borderRightColor: '#eef2f7',
+    },
+    sidebarMobile: {
+      position: 'absolute',
+      left: 0, top: 0, bottom: 0,
+      width: '80%',
+      maxWidth: 300,
+      shadowColor: '#000',
+      shadowOpacity: 0.25,
+      shadowRadius: 20,
+      elevation: 20,
+    },
+    logoContainer: { flexDirection: 'row', alignItems: 'center', gap: rs(12), marginBottom: rs(30) },
+    logo: { width: rs(40), height: rs(40) },
+    logoText: { fontSize: fs(22), fontWeight: '900', color: colors.primary, letterSpacing: 1 },
+    logoSub: { fontSize: fs(10), fontWeight: '800', color: colors.muted, letterSpacing: 2 },
+    userBox: { alignItems: 'center', marginBottom: rs(30), padding: rs(16), backgroundColor: '#f8fafc', borderRadius: rs(20) },
+    userAvatar: { width: rs(60), height: rs(60), borderRadius: rs(30), marginBottom: rs(12), borderWidth: 3, borderColor: '#fff' },
+    userName: { fontSize: fs(15), fontWeight: '800', color: colors.dark, textAlign: 'center' },
+    menu: { gap: rs(8) },
+    menuItemRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12), padding: rs(12), borderRadius: rs(14) },
+    menuItemActive: { backgroundColor: 'rgba(19, 127, 236, 0.1)' },
     menuText: { fontSize: fs(14), fontWeight: '700', color: colors.muted },
     menuTextActive: { color: colors.primary },
-
-    logoutButton: { flexDirection: 'row', gap: rs(10), alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand, paddingVertical: rs(12), borderRadius: rs(12) },
+    logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(10), backgroundColor: colors.brand, padding: rs(14), borderRadius: rs(16) },
     logoutText: { color: '#fff', fontWeight: '800', fontSize: fs(14) },
-
-    main: { flex: 1, paddingHorizontal: rs(24), paddingTop: rs(18) },
-    mainMobile: { paddingHorizontal: rs(14), paddingTop: rs(12) },
-
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: rs(12), marginBottom: rs(10) },
     searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: rs(14), paddingHorizontal: rs(14), height: rs(44) },
     searchInput: { flex: 1, marginLeft: rs(10), fontSize: fs(13), color: colors.dark },
     notifBtn: { width: rs(44), height: rs(44), borderRadius: rs(14), backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
     notifDot: { position: 'absolute', top: rs(10), right: rs(10), width: rs(10), height: rs(10), borderRadius: rs(10), backgroundColor: '#ef4444', borderWidth: 2, borderColor: '#fff' },
-
     title: { fontSize: fs(28), fontWeight: '900', color: colors.dark, marginTop: rs(8) },
     subtitle: { fontSize: fs(14), color: colors.muted, marginTop: rs(4), marginBottom: rs(16) },
-
-    bigCard: { backgroundColor: '#fff', borderRadius: rs(24), padding: rs(20), marginBottom: rs(20), shadowColor: colors.dark, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 },
-    bigCardTitle: { fontSize: fs(18), fontWeight: '900', color: colors.dark, marginBottom: rs(6) },
-    bigCardSub: { fontSize: fs(14), color: colors.muted, fontWeight: '700', marginBottom: rs(14) },
-    primaryBtn: { flexDirection: 'row', alignItems: 'center', gap: rs(8), backgroundColor: colors.primary, paddingVertical: rs(12), paddingHorizontal: rs(16), borderRadius: rs(16) },
-    primaryBtnText: { color: '#fff', fontWeight: '900', fontSize: fs(14) },
-    
+    bigCard: {
+      backgroundColor: colors.primary,
+      borderRadius: rs(28),
+      padding: rs(24),
+      marginTop: rs(20),
+      shadowColor: colors.primary,
+      shadowOpacity: 0.2,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 8,
+    },
+    bigCardTitle: { fontSize: fs(18), fontWeight: '900', color: colors.white, marginBottom: rs(6) },
+    bigCardSub: { fontSize: fs(14), color: 'rgba(255,255,255,0.8)', fontWeight: '700', marginBottom: rs(14) },
+    primaryBtn: { flexDirection: 'row', alignItems: 'center', gap: rs(8), backgroundColor: '#fff', paddingVertical: rs(12), paddingHorizontal: rs(16), borderRadius: rs(16) },
+    primaryBtnText: { color: colors.primary, fontWeight: '900', fontSize: fs(14) },
     apptCard: { flexDirection: 'row', alignItems: 'center', gap: rs(12), backgroundColor: '#fff', padding: rs(14), borderRadius: rs(18), marginTop: rs(10) },
     apptAvatar: { width: rs(52), height: rs(52), borderRadius: rs(16) },
     apptDoctor: { fontWeight: '900', color: colors.dark, fontSize: fs(14) },
     apptDetail: { color: colors.muted, fontWeight: '700', fontSize: fs(12) },
-
     emptyStateCard: { alignItems: 'center', padding: rs(24), backgroundColor: '#fff', borderRadius: rs(22), borderWidth: 1, borderColor: '#eef2f7', borderStyle: 'dashed', marginTop: rs(10) },
   }), [fs, rs, isDesktop]);
 
@@ -241,7 +269,6 @@ const DashboardPacienteScreen: React.FC = () => {
   );
 
   const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
-  const userAvatarSource = resolveAvatarSource(user?.fotoUrl);
   const primaryCita = upcomingCitas[0] || null;
 
   const handleLogout = async () => {
@@ -250,32 +277,40 @@ const DashboardPacienteScreen: React.FC = () => {
   };
 
   return (
-    <View style={[styles.container, !isInsidePortal && (isDesktop ? styles.containerDesktop : (isTablet ? styles.containerTablet : styles.containerMobile))]}>
-      {/* Menú móvil */}
-      {!isInsidePortal && !isDesktop && (
-        <View style={styles.mobileMenuBar}>
-          <TouchableOpacity style={styles.mobileMenuButton} onPress={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-            <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.dark} />
-            <Text style={styles.mobileMenuButtonText}>{isMobileMenuOpen ? 'Cerrar' : 'Menú'}</Text>
+    <View style={[styles.container, !isInsidePortal && isDesktop && styles.containerDesktop]}>
+      
+      {/* Menú móvil barra superior */}
+      {!isDesktop && (
+        <View style={styles.mobileHeader}>
+          <TouchableOpacity onPress={() => setIsMobileMenuOpen(true)}>
+            <MaterialIcons name="menu" size={24} color={colors.dark} />
           </TouchableOpacity>
+          <ViremImage source={ViremLogo} style={{ width: 32, height: 32 }} />
         </View>
       )}
 
-      {/* Sidebar */}
-      {!isInsidePortal && (isDesktop || isTablet || isMobileMenuOpen) && (
-        <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : (isTablet ? styles.sidebarTablet : styles.sidebarMobile)]}>
+      {isMobileMenuOpen && (
+        <TouchableOpacity 
+          activeOpacity={1} 
+          style={styles.overlay} 
+          onPress={() => setIsMobileMenuOpen(false)} 
+        />
+      )}
+
+      {/* Sidebar (Drawer en móvil) */}
+      {(isDesktop || isMobileMenuOpen) && (
+        <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : styles.sidebarMobile]}>
           <View>
-            <View style={styles.logoBox}>
-              <Image source={ViremLogo} style={styles.logo} />
+            <View style={styles.logoContainer}>
+              <ViremImage source={ViremLogo} style={styles.logo} />
               <View>
-                <Text style={styles.logoTitle}>VIREM</Text>
-                <Text style={styles.logoSubtitle}>Paciente</Text>
+                <Text style={styles.logoText}>VIREM</Text>
+                <Text style={styles.logoSub}>PACIENTE</Text>
               </View>
             </View>
             <View style={styles.userBox}>
-              <Image source={userAvatarSource} style={styles.userAvatar} />
+              <ViremImage source={resolveAvatarSource(sessionUser?.fotoUrl)} style={styles.userAvatar} />
               <Text style={styles.userName}>{fullName}</Text>
-              <Text style={styles.userPlan}>{user?.plan || 'Básico'}</Text>
             </View>
             <View style={styles.menu}>
               <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]}>
@@ -293,49 +328,68 @@ const DashboardPacienteScreen: React.FC = () => {
 
       {/* Main Content */}
       <ScrollView style={[styles.main, !isDesktop && styles.mainMobile]}>
-        <View style={styles.header}>
-          <View style={styles.searchBox}>
-            <MaterialIcons name="search" size={20} color={colors.muted} />
-            <TextInput placeholder="Busca un médico..." style={styles.searchInput} />
-          </View>
-          <TouchableOpacity style={styles.notifBtn}>
-            <MaterialIcons name="notifications" size={22} color={colors.dark} />
-            <View style={styles.notifDot} />
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.title}>Hola, {fullName.split(' ')[0]}</Text>
-        <Text style={styles.subtitle}>Gestiona tus consultas de hoy.</Text>
-
-        <View style={styles.bigCard}>
-          <Text style={styles.bigCardTitle}>
-            {primaryCita ? `Cita con ${primaryCita.medico?.nombreCompleto}` : 'No hay citas próximas'}
-          </Text>
-          <Text style={styles.bigCardSub}>
-            {primaryCita ? `${formatDateTime(primaryCita.fechaHoraInicio)} (${formatRelativeIn(primaryCita.fechaHoraInicio)})` : 'Agenda una nueva consulta ahora.'}
-          </Text>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('NuevaConsultaPaciente')}>
-            <MaterialIcons name="add" size={20} color="#fff" />
-            <Text style={styles.primaryBtnText}>Nueva consulta</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={{ fontSize: fs(16), fontWeight: '800', color: colors.dark, marginTop: rs(10) }}>Citas pendientes</Text>
-        {upcomingCitas.length > 0 ? (
-          upcomingCitas.map((cita) => (
-            <View key={cita.citaid} style={styles.apptCard}>
-              <Image source={resolveAvatarSource(cita.medico?.fotoUrl)} style={styles.apptAvatar} />
-              <View>
-                <Text style={styles.apptDoctor}>{cita.medico?.nombreCompleto}</Text>
-                <Text style={styles.apptDetail}>{formatDateTime(cita.fechaHoraInicio)}</Text>
-              </View>
+        <FadeInView>
+          <View style={styles.header}>
+            <View style={styles.searchBox}>
+              <MaterialIcons name="search" size={20} color={colors.muted} />
+              <TextInput placeholder="Busca un médico..." style={styles.searchInput} />
             </View>
-          ))
-        ) : (
-          <View style={styles.emptyStateCard}>
-            <Text style={{ color: colors.muted, fontWeight: '600' }}>Sin citas programadas.</Text>
+            <TouchableOpacity style={styles.notifBtn}>
+              <MaterialIcons name="notifications" size={22} color={colors.dark} />
+              <View style={styles.notifDot} />
+            </TouchableOpacity>
           </View>
-        )}
+
+          <Text style={styles.title}>Hola, {fullName.split(' ')[0]}</Text>
+          <Text style={styles.subtitle}>Gestiona tus consultas de hoy.</Text>
+
+          <View style={styles.bigCard}>
+            {loadingUser ? (
+              <View style={{ gap: 10 }}>
+                <Skeleton width="80%" height={24} />
+                <Skeleton width="60%" height={16} />
+                <Skeleton width={120} height={40} borderRadius={16} />
+              </View>
+            ) : (
+              <>
+                <Text style={styles.bigCardTitle}>
+                  {primaryCita ? `Cita con ${primaryCita.medico?.nombreCompleto}` : 'No hay citas próximas'}
+                </Text>
+                <Text style={styles.bigCardSub}>
+                  {primaryCita ? `${formatDateTime(primaryCita.fechaHoraInicio)} (${formatRelativeIn(primaryCita.fechaHoraInicio)})` : 'Agenda una nueva consulta ahora.'}
+                </Text>
+                <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('NuevaConsultaPaciente')}>
+                  <MaterialIcons name="add" size={20} color="#fff" />
+                  <Text style={styles.primaryBtnText}>Nueva consulta</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+
+          <Text style={{ fontSize: fs(16), fontWeight: '800', color: colors.dark, marginTop: rs(10) }}>Citas pendientes</Text>
+          {loadingCitas ? (
+            <View style={{ gap: 10, marginTop: 10 }}>
+              <Skeleton width="100%" height={rs(80)} borderRadius={rs(18)} />
+              <Skeleton width="100%" height={rs(80)} borderRadius={rs(18)} />
+            </View>
+          ) : (
+            upcomingCitas.length > 0 ? (
+              upcomingCitas.map((cita) => (
+                <View key={cita.citaid} style={styles.apptCard}>
+                  <ViremImage source={resolveAvatarSource(cita.medico?.fotoUrl)} style={styles.apptAvatar} />
+                  <View>
+                    <Text style={styles.apptDoctor}>{cita.medico?.nombreCompleto}</Text>
+                    <Text style={styles.apptDetail}>{formatDateTime(cita.fechaHoraInicio)}</Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyStateCard}>
+                <Text style={{ color: colors.muted, fontWeight: '600' }}>Sin citas programadas.</Text>
+              </View>
+            )
+          )}
+        </FadeInView>
       </ScrollView>
     </View>
   );

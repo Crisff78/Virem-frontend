@@ -26,6 +26,8 @@ import { useSocketEvent } from './hooks/useSocketEvent';
 import { apiClient } from './utils/api';
 import { getApiErrorMessage, isAuthError } from './utils/apiErrors';
 import { resolveRemoteImageSource } from './utils/imageSources';
+import Skeleton from './components/Skeleton';
+import ViremImage from './components/ViremImage';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -187,7 +189,7 @@ const MedicoCitasScreen: React.FC = () => {
   useSocketEvent('cita_cancelada', handleRealtimeCitaEvent);
   useSocketEvent('cita_reprogramada', handleRealtimeCitaEvent);
 
-  const userAvatarSource: ImageSourcePropType = useMemo(() => {
+  const userAvatarSource: any = useMemo(() => {
     return resolveRemoteImageSource(fotoUrl, DefaultAvatar);
   }, [fotoUrl]);
 
@@ -405,7 +407,7 @@ const MedicoCitasScreen: React.FC = () => {
             </View>
 
             <View style={styles.userCard}>
-              <Image source={userAvatarSource} style={styles.userAvatar} />
+              <ViremImage source={userAvatarSource} style={styles.userAvatar} />
               <Text style={styles.userName}>{doctorName}</Text>
               <Text style={styles.userSpec}>{doctorSpec}</Text>
             </View>
@@ -488,7 +490,10 @@ const MedicoCitasScreen: React.FC = () => {
         </View>
         <View style={styles.sectionCard}>
           {loadingCitas ? (
-            <ActivityIndicator size="small" color={colors.primary} />
+            <View style={{ gap: 10 }}>
+              <Skeleton width="100%" height={120} borderRadius={12} />
+              <Skeleton width="100%" height={120} borderRadius={12} />
+            </View>
           ) : upcomingCitas.length ? (
             upcomingCitas.map((cita) => (
               <View key={cita.citaid} style={styles.citaCard}>
