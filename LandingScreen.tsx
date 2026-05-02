@@ -951,22 +951,28 @@ const LandingScreen: React.FC = () => {
             ))}
           </View>
 
-          <TouchableOpacity 
+          <HoverButton 
+            onPress={() => navigation.navigate('Especialidades')}
             style={{ 
               marginTop: 50, 
               backgroundColor: colors.primary, 
-              paddingHorizontal: 32, 
-              paddingVertical: 16, 
-              borderRadius: 12,
+              paddingHorizontal: 40, 
+              paddingVertical: 20, 
+              borderRadius: 18,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
               shadowColor: colors.primary,
-              shadowOpacity: 0.2,
-              shadowRadius: 10,
-              elevation: 5
+              shadowOpacity: 0.3,
+              shadowRadius: 15,
+              elevation: 8
             }} 
-            onPress={() => navigation.navigate('Especialidades')}
           >
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>VER TODAS LAS ESPECIALIDADES</Text>
-          </TouchableOpacity>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900', marginRight: 10 }}>
+              VER TODAS LAS ESPECIALIDADES
+            </Text>
+            <MaterialIcons name="chevron-right" size={24} color="#fff" />
+          </HoverButton>
         </View>
 
         {/* NUEVA SECCIÓN: ACCESO EN LÍNEA */}
