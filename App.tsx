@@ -17,6 +17,8 @@ import SeleccionPerfil from "./SeleccionPerfil";
 import VerificarEmailScreen from "./VerificarEmailScreen";
 import VerificarIdentidadScreen from "./VerificarIdentidadScreen";
 import BlogDetailScreen from "./BlogDetailScreen";
+import EspecialidadesScreen from "./EspecialidadesScreen";
+import EspecialidadDetalleScreen from "./EspecialidadDetalleScreen";
 
 import DashboardPacienteScreen from "./DashboardPacienteScreen";
 import PacientePortalScreen from "./PacientePortalScreen";
@@ -96,6 +98,8 @@ const linking = {
       MedicoConfiguracion: "medico-configuracion",
       AdminPanel: "admin-panel",
       BlogDetail: "blog-detail",
+      Especialidades: "especialidades-virem",
+      EspecialidadDetalle: "especialidad-detalle/:title",
     },
   },
 };
@@ -210,6 +214,8 @@ const App: React.FC = () => {
                   <Stack.Screen name="MedicoConfiguracion" component={DoctorConfiguracionScreen} />
                   <Stack.Screen name="AdminPanel" component={AdminOnlyPanelScreen} />
                   <Stack.Screen name="BlogDetail" component={BlogDetailScreen} />
+                  <Stack.Screen name="Especialidades" component={EspecialidadesScreen} />
+                  <Stack.Screen name="EspecialidadDetalle" component={EspecialidadDetalleScreen} />
                 </Stack.Navigator>
               </NavigationContainer>
             </SafeAreaView>

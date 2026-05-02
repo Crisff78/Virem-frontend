@@ -10,6 +10,9 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const EquipoVirem = require('./assets/imagenes/equipo_virem.png');
+const HeartImg = require('./assets/imagenes/Heart.png');
+const HeartHQImg = require('./assets/imagenes/Heart_HQ.png');
+const HTImg = require('./assets/imagenes/HT.png');
 const VcImg = require('./assets/imagenes/vc.png');
 
 const colors = {
@@ -434,6 +437,67 @@ const HoverServiceCard = ({ title, description, image, style }: any) => {
   );
 };
 
+const HoverSpecialtyCard = ({ icon, title, context, style }: any) => {
+  const navigation = useNavigation<Nav>();
+  const scale = useRef(new Animated.Value(1)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const overlayTranslateY = useRef(new Animated.Value(20)).current;
+
+  const handleMouseEnter = () => {
+    Animated.parallel([
+      Animated.timing(scale, { toValue: 1.05, duration: 300, useNativeDriver: false }),
+      Animated.timing(overlayOpacity, { toValue: 1, duration: 300, useNativeDriver: false }),
+      Animated.timing(overlayTranslateY, { toValue: 0, duration: 300, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const handleMouseLeave = () => {
+    Animated.parallel([
+      Animated.timing(scale, { toValue: 1, duration: 300, useNativeDriver: false }),
+      Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: false }),
+      Animated.timing(overlayTranslateY, { toValue: 20, duration: 300, useNativeDriver: false }),
+    ]).start();
+  };
+
+  return (
+    <Animated.View
+      style={[style, { transform: [{ scale }] }]}
+      {...Platform.select({
+        web: { onMouseEnter: handleMouseEnter, onMouseLeave: handleMouseLeave },
+      } as any)}
+    >
+      <View style={{ width: 64, height: 64, borderRadius: 16, backgroundColor: "#F0F7FA", justifyContent: "center", alignItems: "center", marginBottom: 16 }}>
+        <MaterialIcons name={icon} size={32} color={colors.secondary} />
+      </View>
+      <Text style={{ fontSize: 18, fontWeight: "900", color: colors.dark, textAlign: "center" }}>{title}</Text>
+      
+      {/* Context Overlay */}
+      <Animated.View style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(26, 54, 93, 0.95)',
+        borderRadius: 20,
+        padding: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        opacity: overlayOpacity,
+        transform: [{ translateY: overlayTranslateY }],
+        ...Platform.select({ web: { backdropFilter: 'blur(4px)' } } as any)
+      }}>
+        <Text style={{ color: '#fff', fontSize: 14, textAlign: 'center', lineHeight: 20, fontWeight: '500' }}>
+          {context}
+        </Text>
+        <TouchableOpacity 
+          style={{ marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#fff' }}
+          onPress={() => (navigation as any).navigate('EspecialidadDetalle', { title, description: context, icon, image: (style as any)._imageUrl || 'https://images.unsplash.com/photo-1505751172107-160682025287?q=80&w=800&auto=format&fit=crop' })}
+        >
+          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>SABER MÁS</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
+  );
+};
+
 const HoverBlogCard = ({ category, title, description, image, onPress, style }: any) => {
   const scale = useRef(new Animated.Value(1)).current;
   const shadowOpacity = useRef(new Animated.Value(0.1)).current;
@@ -585,17 +649,17 @@ const LandingScreen: React.FC = () => {
         
         {isDesktop && (
           <View style={styles.navLinksCenter}>
-            <TouchableOpacity onPress={() => scrollTo(layoutY.especialidades)}>
-              <Text style={styles.navLinkCenterText}>Especialidades</Text>
-            </TouchableOpacity>
             <TouchableOpacity onPress={() => scrollTo(layoutY.plataforma)}>
               <Text style={styles.navLinkCenterText}>Plataforma</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => scrollTo(layoutY.blog)}>
-              <Text style={styles.navLinkCenterText}>Blog</Text>
+            <TouchableOpacity onPress={() => scrollTo(layoutY.especialidades)}>
+              <Text style={styles.navLinkCenterText}>Especialidades</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => scrollTo(layoutY.nosotros)}>
               <Text style={styles.navLinkCenterText}>Nosotros</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => scrollTo(layoutY.blog)}>
+              <Text style={styles.navLinkCenterText}>Blog</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => scrollTo(layoutY.contacto)}>
               <Text style={styles.navLinkCenterText}>Contacto</Text>
@@ -631,8 +695,9 @@ const LandingScreen: React.FC = () => {
         
         {/* HERO SECTION */}
         <AnimatedGradientBg style={[styles.heroSection, isDesktop && styles.heroDesktop]}>
+          
+          {/* Text on the Left */}
           <View style={[styles.heroTextContainer, isDesktop && styles.heroTextDesktop]}>
-
             <FadeInView delay={100}>
               <Text style={[styles.heroTitle, { fontSize: select({ mobile: 36, tablet: 48, desktop: 56 }), lineHeight: select({ mobile: 44, tablet: 56, desktop: 64 }) }]}>
                 ¡TU SALUD ES NUESTRA <Text style={{ color: colors.primary }}>PRIORIDAD</Text>!
@@ -648,15 +713,15 @@ const LandingScreen: React.FC = () => {
                 <Text style={styles.heroActionBtnText}>AGENDAR UNA CITA</Text>
               </HoverButton>
             </FadeInView>
-            
           </View>
-          
-            <FadeInView delay={400} style={[styles.heroImageContainer, !isDesktop && { marginTop: 40 }]}>
+
+          {/* Image on the Right */}
+          <FadeInView delay={400} style={[styles.heroImageContainer, !isDesktop && { marginTop: 40 }]}>
             <Animated.View style={[styles.heroImage, { 
-                width: select({ mobile: '100%', tablet: '90%', desktop: 550 }), 
-                height: select({ mobile: 300, tablet: 400, desktop: 450 }),
-                overflow: 'hidden',
-                alignItems: 'flex-end',
+                width: select({ mobile: '100%', tablet: '90%', desktop: 750 }), 
+                height: select({ mobile: 400, tablet: 550, desktop: 650 }),
+                alignItems: 'center',
+                justifyContent: 'center',
                 padding: 0,
                 transform: [{
                   translateY: scrollY.interpolate({
@@ -664,16 +729,16 @@ const LandingScreen: React.FC = () => {
                     outputRange: [0, 80],
                     extrapolate: 'clamp'
                   })
-                }]
+                }, { translateX: 100 }] // Pushing the image to the right to touch the edge
               } as any]}>
               <Image 
-                source={EquipoVirem} 
-                style={{ width: '140%', height: '100%' }} 
-                resizeMode="cover"
+                source={HeartImg} 
+                style={{ width: '100%', height: '100%' }} 
+                resizeMode="contain"
               />
             </Animated.View>
-
           </FadeInView>
+
         </AnimatedGradientBg>
 
         {/* HOW IT WORKS */}
@@ -738,7 +803,7 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* NUEVA SECCIÓN: SERVICIOS (3 Tarjetas) */}
-        <View style={{ paddingVertical: 80, alignItems: 'center', backgroundColor: '#fff', width: '100%' }}>
+        <View style={{ paddingVertical: 80, alignItems: 'center', backgroundColor: '#F0F9FF', width: '100%' }}>
           <Text style={{ fontSize: 32, fontWeight: '300', color: colors.secondary, marginBottom: 16 }}>SERVICIOS</Text>
           <Text style={{ fontSize: 16, color: colors.muted, textAlign: 'center', maxWidth: 800, marginBottom: 50, paddingHorizontal: 20 }}>
             Desde consultas virtuales con especialistas hasta la descarga inmediata de tus recetas médicas, en VIREM contamos con todas las herramientas necesarias para brindarte una atención integral y precisa.
@@ -778,11 +843,13 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* ESPECIALIDADES GRID */}
-        <View onLayout={(e) => setLayoutY(prev => ({...prev, especialidades: e.nativeEvent.layout.y}))} style={[styles.servicesSection, { backgroundColor: "#F8FAFC", paddingVertical: 80, alignItems: "center", width: "100%" }]}>
+        <View onLayout={(e) => setLayoutY(prev => ({...prev, especialidades: e.nativeEvent.layout.y}))} style={[styles.servicesSection, { backgroundColor: "#FFFFFF", paddingVertical: 80, alignItems: "center", width: "100%", borderTopWidth: 1, borderTopColor: "#E2E8F0" }]}>
           
-          <View style={{ width: "100%", maxWidth: 1200, flexDirection: isDesktop ? "row" : "column", justifyContent: "space-between", alignItems: isDesktop ? "flex-end" : "flex-start", marginBottom: 40, paddingHorizontal: 20 }}>
-            <Text style={{ fontSize: 24, fontWeight: "900", color: colors.dark, marginBottom: isDesktop ? 0 : 10 }}>Especialidades Médicas</Text>
-            <Text style={{ fontSize: 15, fontWeight: "800", color: colors.dark }}>12 disponibles</Text>
+          <View style={{ width: "100%", maxWidth: 1200, marginBottom: 40, paddingHorizontal: 20 }}>
+            <Text style={{ fontSize: 36, fontWeight: "900", color: colors.dark, marginBottom: 16, textAlign: isDesktop ? "left" : "center" }}>Especialidades Médicas</Text>
+            <Text style={{ fontSize: 18, color: colors.muted, lineHeight: 28, maxWidth: 700, textAlign: isDesktop ? "left" : "center" }}>
+              Nuestra plataforma conecta a pacientes con especialistas de primer nivel en diversas áreas de la medicina. Selecciona una categoría para ver a los profesionales disponibles.
+            </Text>
           </View>
 
           <View style={{
@@ -794,39 +861,44 @@ const LandingScreen: React.FC = () => {
             paddingHorizontal: select({ mobile: 16, tablet: 24, desktop: 40 })
           }}>
             {[
-              { icon: "medical-services", title: "Medicina General", sub: "Atención primaria inicial", count: "6 médico(s) disponible(s)" },
-              { icon: "psychology", title: "Psicología", sub: "Salud mental y emocional", count: "3 médico(s) disponible(s)" },
-              { icon: "favorite-border", title: "Cardiología", sub: "Corazón y sistema circulatorio", count: "Disponibilidad variable" },
-              { icon: "face", title: "Dermatología", sub: "Cuidado de la piel y cabello", count: "Disponibilidad variable" },
-              { icon: "medication", title: "Endocrinología", sub: "Hormonas y metabolismo", count: "Disponibilidad variable" },
-              { icon: "pregnant-woman", title: "Ginecología", sub: "Salud femenina y reproductiva", count: "Disponibilidad variable" },
-              { icon: "monitor-heart", title: "Medicina Interna", sub: "Consulta médica especializada", count: "Disponibilidad variable" },
-              { icon: "restaurant", title: "Nutrición", sub: "Dieta y bienestar alimenticio", count: "Disponibilidad variable" },
-              { icon: "sentiment-satisfied", title: "Odontología", sub: "Salud oral y dental", count: "Disponibilidad variable" },
-              { icon: "child-care", title: "Pediatría", sub: "Atención integral para niños", count: "Disponibilidad variable" },
-              { icon: "accessible-forward", title: "Reumatología", sub: "Consulta médica especializada", count: "Disponibilidad variable" },
-              { icon: "transgender", title: "Sexología", sub: "Consulta médica especializada", count: "Disponibilidad variable" },
+              { icon: "medical-services", title: "Medicina General", context: "Atención primaria inicial para diagnósticos generales y prevención de enfermedades.", img: require('./assets/imagenes/MedicinaGeneral.png') },
+              { icon: "psychology", title: "Psicología", context: "Acompañamiento profesional para tu salud mental, manejo de estrés y bienestar emocional.", img: require('./assets/imagenes/Psicologia.png') },
+              { icon: "favorite-border", title: "Cardiología", context: "Especialistas en el cuidado del corazón y prevención de enfermedades cardiovasculares.", img: require('./assets/imagenes/Cardiologia.png') },
+              { icon: "face", title: "Dermatología", context: "Diagnóstico y tratamiento para afecciones de la piel, cabello y uñas.", img: require('./assets/imagenes/Dermatologia.png') },
+              { icon: "medication", title: "Endocrinología", context: "Control de hormonas, diabetes, tiroides y trastornos metabólicos.", img: require('./assets/imagenes/Endocrinologia.png') },
+              { icon: "pregnant-woman", title: "Ginecología", context: "Salud integral para la mujer en todas sus etapas y cuidado reproductivo.", img: require('./assets/imagenes/Ginecologia.png') },
             ].map((esp, i) => (
-              <View key={i} style={{
-                width: select({
-                  mobile: "100%",
-                  tablet: "45%",
-                  desktop: 270
-                }) as any,
-                alignItems: "center",
-                marginBottom: 10
-              }}>
-                <HoverCard style={{ width: "100%", backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: "#E2E8F0", padding: 24, alignItems: "center", marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 1 }}>
-                  <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: "#F0F7FA", justifyContent: "center", alignItems: "center", marginBottom: 16 }}>
-                    <MaterialIcons name={esp.icon} size={28} color={colors.secondary} />
-                  </View>
-                  <Text style={{ fontSize: 16, fontWeight: "900", color: colors.dark, marginBottom: 6, textAlign: "center" }}>{esp.title}</Text>
-                  <Text style={{ fontSize: 13, color: colors.muted, textAlign: "center" }}>{esp.sub}</Text>
-                  <Text style={{ fontSize: 12, fontWeight: "600", color: colors.primary, textAlign: "center", marginTop: 10 }}>{esp.count}</Text>
-                </HoverCard>
-              </View>
+              <TouchableOpacity 
+                key={i} 
+                style={{ width: select({ mobile: "100%", tablet: "45%", desktop: 350 }) }}
+                onPress={() => navigation.navigate('EspecialidadDetalle', { title: esp.title, description: esp.context, icon: esp.icon, image: esp.img })}
+              >
+                <HoverSpecialtyCard 
+                  icon={esp.icon}
+                  title={esp.title}
+                  context={esp.context}
+                  style={{ width: "100%", backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: "#E2E8F0", padding: 30, alignItems: "center", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 1, height: 200, overflow: 'hidden', _imageUrl: esp.img } as any} 
+                />
+              </TouchableOpacity>
             ))}
           </View>
+
+          <TouchableOpacity 
+            style={{ 
+              marginTop: 50, 
+              backgroundColor: colors.primary, 
+              paddingHorizontal: 32, 
+              paddingVertical: 16, 
+              borderRadius: 12,
+              shadowColor: colors.primary,
+              shadowOpacity: 0.2,
+              shadowRadius: 10,
+              elevation: 5
+            }} 
+            onPress={() => navigation.navigate('Especialidades')}
+          >
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>VER TODAS LAS ESPECIALIDADES</Text>
+          </TouchableOpacity>
         </View>
 
         {/* NUEVA SECCIÓN: ACCESO EN LÍNEA */}
@@ -835,8 +907,10 @@ const LandingScreen: React.FC = () => {
           alignItems: 'center', 
           justifyContent: 'center', 
           paddingVertical: 80, 
-          backgroundColor: '#fff', 
-          paddingHorizontal: 20 
+          backgroundColor: '#F8FAFC', 
+          paddingHorizontal: 20,
+          borderTopWidth: 1,
+          borderTopColor: '#E2E8F0'
         }}>
           
           <View style={{ 
@@ -902,7 +976,7 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* NOSOTROS - ENHANCED */}
-        <View onLayout={(e) => setLayoutY(prev => ({...prev, nosotros: e.nativeEvent.layout.y}))} style={[styles.howItWorksSection, { backgroundColor: '#F8FAFC', paddingVertical: 100 }, isDesktop && styles.howItWorksDesktop]}>
+        <View onLayout={(e) => setLayoutY(prev => ({...prev, nosotros: e.nativeEvent.layout.y}))} style={[styles.howItWorksSection, { backgroundColor: '#FFFFFF', paddingVertical: 100, borderTopWidth: 1, borderTopColor: '#E2E8F0' }, isDesktop && styles.howItWorksDesktop]}>
           <View style={[styles.howItWorksTextContainer, isDesktop && { paddingRight: 60 }, (isTablet || isMobile) && { alignItems: 'center' }]}>
             
             <FadeInView delay={200}>
@@ -968,7 +1042,7 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* BLOG */}
-        <View onLayout={(e) => setLayoutY(prev => ({...prev, blog: e.nativeEvent.layout.y}))} style={[styles.servicesSection, { backgroundColor: '#F8FAFC', paddingVertical: 100 }]}>
+        <View onLayout={(e) => setLayoutY(prev => ({...prev, blog: e.nativeEvent.layout.y}))} style={[styles.servicesSection, { backgroundColor: '#F0F9FF', paddingVertical: 100, borderTopWidth: 1, borderTopColor: '#E2E8F0' }]}>
           <FadeInView delay={100} style={{ alignItems: 'center', marginBottom: 60 }}>
             <View style={{ width: 40, height: 4, backgroundColor: colors.primary, borderRadius: 2, marginBottom: 16 }} />
             <Text style={[styles.sectionHeadingCenter, { fontSize: 36, fontWeight: '900', color: colors.dark }]}>NUESTRO BLOG</Text>
@@ -1063,17 +1137,17 @@ const styles = StyleSheet.create({
   navBtnText: { color: colors.white, fontWeight: '700', fontSize: 13 },
 
   // HERO
-  heroSection: { padding: 24, paddingVertical: 40, backgroundColor: '#EBF5FB' },
-  heroDesktop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 80, paddingVertical: 60, minHeight: 600 },
-  heroTextContainer: { flex: 1, zIndex: 2 },
+  heroSection: { backgroundColor: '#EBF5FB' },
+  heroDesktop: { flexDirection: 'row', alignItems: 'center', paddingLeft: 80, paddingRight: 0, paddingVertical: 0, width: '100%', minHeight: 550, overflow: 'hidden', position: 'relative' },
+  heroTextContainer: { flex: 1, zIndex: 2, maxWidth: '55%' },
   heroTextDesktop: { paddingRight: 40, flex: 1 },
   heroTitle: { fontSize: 48, fontWeight: '900', color: colors.dark, marginBottom: 16, lineHeight: 56 },
   heroSubtitle: { fontSize: 18, color: colors.muted, lineHeight: 28, marginBottom: 30, fontWeight: '400' },
   heroActionBtn: { backgroundColor: colors.primary, paddingHorizontal: 36, paddingVertical: 16, borderRadius: 8, alignSelf: 'flex-start', shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 },
   heroActionBtnText: { color: colors.white, fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
   
-  heroImageContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingLeft: 20 },
-  heroImage: { width: 550, height: 380, borderRadius: 24, borderWidth: 8, borderColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 30, elevation: 10 },
+  heroImageContainer: { position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%', alignItems: 'flex-end', justifyContent: 'center' },
+  heroImage: { width: 650, height: 550, backgroundColor: 'transparent' },
 
   // HOW IT WORKS
   howItWorksSection: { padding: 24, paddingVertical: 60, backgroundColor: '#fff' },
