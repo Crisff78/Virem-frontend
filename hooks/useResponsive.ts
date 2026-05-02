@@ -1,21 +1,53 @@
-import { useWindowDimensions, Platform } from 'react-native';
+import { useWindowDimensions } from 'react-native';
+
+// iPhone 14 Pro es la referencia de diseño base
+const BASE_WIDTH = 390;
 
 export const BREAKPOINTS = {
-  mobile: 768,
-  tablet: 1024,
+  tablet: 600,
+  desktop: 1024,
 };
 
 export const useResponsive = () => {
   const { width, height } = useWindowDimensions();
 
-  const isMobile = width < BREAKPOINTS.mobile;
-  const isTablet = width >= BREAKPOINTS.mobile && width < BREAKPOINTS.tablet;
-  const isDesktop = width >= BREAKPOINTS.tablet && Platform.OS === 'web';
+  const isMobile  = width < BREAKPOINTS.tablet;
+  const isTablet  = width >= BREAKPOINTS.tablet && width < BREAKPOINTS.desktop;
+  const isDesktop = width >= BREAKPOINTS.desktop;
 
-  const isSmallMobile = width < 380;
+  const isSmallMobile  = width < 360;
   const isLargeDesktop = width >= 1440;
 
-  // Helper to choose value based on breakpoint
+  // Escala tipografía relativa al ancho de pantalla.
+  // Clamp: mínimo 75% (phones pequeños), máximo 160% (tablets grandes).
+  const fs = (size: number): number => {
+    const scale = Math.min(Math.max(width / BASE_WIDTH, 0.75), 1.6);
+    return Math.round(size * scale);
+  };
+
+  // Escala espaciado y dimensiones (rango más conservador que fs).
+  const rs = (size: number): number => {
+    const scale = Math.min(Math.max(width / BASE_WIDTH, 0.8), 1.4);
+    return Math.round(size * scale);
+  };
+
+  // Porcentaje del ancho/alto de pantalla
+  const wp = (percent: number): number => (width  * percent) / 100;
+  const hp = (percent: number): number => (height * percent) / 100;
+
+  // Escala semántica de tipografía lista para usar en StyleSheet
+  const typography = {
+    xs:    fs(10),
+    sm:    fs(12),
+    base:  fs(14),
+    lg:    fs(16),
+    xl:    fs(18),
+    '2xl': fs(22),
+    '3xl': fs(28),
+    '4xl': fs(34),
+  };
+
+  // Helper para elegir valor según breakpoint
   const select = <TMobile, TTablet = TMobile, TDesktop = TMobile>(
     options: { mobile: TMobile; tablet?: TTablet; desktop?: TDesktop }
   ): TMobile | TTablet | TDesktop => {
@@ -32,6 +64,11 @@ export const useResponsive = () => {
     isDesktop,
     isSmallMobile,
     isLargeDesktop,
+    fs,
+    rs,
+    wp,
+    hp,
+    typography,
     select,
   };
 };
