@@ -36,7 +36,15 @@ export type DoctorRouteSnapshot = {
 export type RootStackParamList = {
   Landing: undefined;
   Especialidades: undefined;
-  EspecialidadDetalle: { title: string; description: string; image: any; icon: string; extendedInfo?: string };
+  EspecialidadDetalle: { 
+    title: string; 
+    description: string; 
+    image: any; 
+    icon: string; 
+    detailedInfo?: string; 
+    whenToGo?: string[]; 
+    importance?: string; 
+  };
   SeleccionPerfil: undefined;
   Login: { prefillEmail?: string } | undefined;
 

@@ -8,7 +8,7 @@ import type { RootStackParamList } from './navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 
-const ViremLogo = require('./assets/imagenes/descarga.png');
+const ViremLogo = require('./assets/imagenes/Virem.png');
 const EquipoVirem = require('./assets/imagenes/equipo_virem.png');
 const HeartImg = require('./assets/imagenes/Heart.png');
 const HeartHQImg = require('./assets/imagenes/Heart_HQ.png');
@@ -437,7 +437,7 @@ const HoverServiceCard = ({ title, description, image, style }: any) => {
   );
 };
 
-const HoverSpecialtyCard = ({ icon, title, context, style }: any) => {
+const HoverSpecialtyCard = ({ icon, title, context, image, detailedInfo, whenToGo, importance, style }: any) => {
   const navigation = useNavigation<Nav>();
   const scale = useRef(new Animated.Value(1)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
@@ -489,7 +489,15 @@ const HoverSpecialtyCard = ({ icon, title, context, style }: any) => {
         </Text>
         <TouchableOpacity 
           style={{ marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#fff' }}
-          onPress={() => (navigation as any).navigate('EspecialidadDetalle', { title, description: context, icon, image: (style as any)._imageUrl || 'https://images.unsplash.com/photo-1505751172107-160682025287?q=80&w=800&auto=format&fit=crop' })}
+          onPress={() => (navigation as any).navigate('EspecialidadDetalle', { 
+            title, 
+            description: context, 
+            icon, 
+            image,
+            detailedInfo,
+            whenToGo,
+            importance
+          })}
         >
           <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>SABER MÁS</Text>
         </TouchableOpacity>
@@ -861,23 +869,83 @@ const LandingScreen: React.FC = () => {
             paddingHorizontal: select({ mobile: 16, tablet: 24, desktop: 40 })
           }}>
             {[
-              { icon: "medical-services", title: "Medicina General", context: "Atención primaria inicial para diagnósticos generales y prevención de enfermedades.", img: require('./assets/imagenes/MedicinaGeneral.png') },
-              { icon: "psychology", title: "Psicología", context: "Acompañamiento profesional para tu salud mental, manejo de estrés y bienestar emocional.", img: require('./assets/imagenes/Psicologia.png') },
-              { icon: "favorite-border", title: "Cardiología", context: "Especialistas en el cuidado del corazón y prevención de enfermedades cardiovasculares.", img: require('./assets/imagenes/Cardiologia.png') },
-              { icon: "face", title: "Dermatología", context: "Diagnóstico y tratamiento para afecciones de la piel, cabello y uñas.", img: require('./assets/imagenes/Dermatologia.png') },
-              { icon: "medication", title: "Endocrinología", context: "Control de hormonas, diabetes, tiroides y trastornos metabólicos.", img: require('./assets/imagenes/Endocrinologia.png') },
-              { icon: "pregnant-woman", title: "Ginecología", context: "Salud integral para la mujer en todas sus etapas y cuidado reproductivo.", img: require('./assets/imagenes/Ginecologia.png') },
+              { 
+                icon: "medical-services", 
+                title: "Medicina General", 
+                context: "La medicina general es la especialidad encargada de brindar atención médica primaria, enfocándose en la prevención, diagnóstico inicial y tratamiento de enfermedades comunes en pacientes de todas las edades.", 
+                detailedInfo: "La medicina general ofrece atención integral para evaluar síntomas comunes, realizar chequeos médicos y orientar al paciente sobre su estado de salud. El médico general puede diagnosticar enfermedades frecuentes, controlar condiciones básicas y referir al paciente a otras especialidades si es necesario. Esta especialidad es fundamental para mantener un seguimiento preventivo y detectar problemas de salud a tiempo.",
+                whenToGo: ["Malestar general persistente", "Fiebre frecuente", "Dolores corporales", "Síntomas nuevos o desconocidos", "Chequeos médicos preventivos"],
+                importance: "La medicina general es esencial porque representa el primer nivel de atención médica. Permite detectar enfermedades de forma temprana, prevenir complicaciones y brindar orientación profesional para mantener una buena salud física y bienestar general.",
+                img: require('./assets/imagenes/MedicinaGeneral.png') 
+              },
+              { 
+                icon: "psychology", 
+                title: "Psicología", 
+                context: "Acompañamiento profesional para tu salud mental, manejo de estrés y bienestar emocional.", 
+                detailedInfo: "La psicología clínica en VIREM ofrece un espacio seguro para el abordaje de trastornos emocionales, del estado de ánimo y del comportamiento. Nuestros profesionales utilizan herramientas terapéuticas basadas en evidencia para ayudarte a procesar situaciones de duelo, mejorar tu inteligencia emocional y fortalecer tu resiliencia ante los desafíos cotidianos de la vida personal y laboral.",
+                whenToGo: ["Ansiedad o estrés persistente", "Dificultad para manejar emociones", "Problemas en relaciones interpersonales", "Duelos o pérdidas difíciles", "Deseo de autoconocimiento y crecimiento"],
+                importance: "Cuidar la mente es tan vital como el cuerpo; un bienestar emocional sólido mejora la calidad de vida, la productividad y la salud física general.",
+                img: require('./assets/imagenes/Psicologia.png') 
+              },
+              { 
+                icon: "favorite-border", 
+                title: "Cardiología", 
+                context: "Especialistas en el cuidado del corazón y prevención de enfermedades cardiovasculares.", 
+                detailedInfo: "Nuestra área de cardiología se centra en la prevención, diagnóstico y tratamiento de patologías del corazón y del sistema circulatorio. Brindamos seguimiento especializado para la hipertensión arterial, arritmias y prevención de infartos, utilizando la telemedicina para monitorear factores de riesgo y ajustar tratamientos de forma oportuna y precisa.",
+                whenToGo: ["Dolor o presión en el pecho", "Palpitaciones o ritmo cardíaco irregular", "Fatiga extrema al realizar esfuerzo", "Antecedentes familiares de cardiopatías", "Control de presión arterial elevada"],
+                importance: "Las enfermedades cardiovasculares son la principal causa de riesgo global; su detección temprana es la herramienta más poderosa para salvar vidas.",
+                img: require('./assets/imagenes/Cardiologia.png') 
+              },
+              { 
+                icon: "face", 
+                title: "Dermatología", 
+                context: "Diagnóstico y tratamiento para afecciones de la piel, cabello y uñas.", 
+                detailedInfo: "La dermatología en nuestra plataforma abarca desde el tratamiento del acné y dermatitis hasta el monitoreo de lesiones cutáneas sospechosas. Los especialistas evalúan la salud de la piel, el cabello y las uñas bajo un enfoque clínico integral, proporcionando regímenes de cuidado personalizados para mantener la barrera cutánea sana y detectar afecciones de forma precoz.",
+                whenToGo: ["Cambios en forma o color de lunares", "Erupciones cutáneas persistentes", "Pérdida inusual de cabello", "Acné que no responde a cuidados básicos", "Piel extremadamente seca o irritada"],
+                importance: "La piel es el órgano más extenso y nuestra primera línea de defensa; su salud refleja directamente el bienestar interno de nuestro organismo.",
+                img: require('./assets/imagenes/Dermatologia.png') 
+              },
+              { 
+                icon: "medication", 
+                title: "Endocrinología", 
+                context: "Control de hormonas, diabetes, tiroides y trastornos metabólicos.", 
+                detailedInfo: "Nuestros endocrinólogos se especializan en el complejo sistema hormonal que regula el metabolismo, el crecimiento y la reproducción. Ofrecemos un manejo experto de la diabetes, trastornos de la tiroides, desajustes hormonales y problemas metabólicos, enfocándonos en restaurar el equilibrio químico del cuerpo para optimizar tu energía y salud general.",
+                whenToGo: ["Niveles de azúcar elevados (Diabetes)", "Problemas de tiroides conocidos", "Cambios bruscos de peso sin causa clara", "Fatiga crónica o falta de energía", "Desajustes hormonales o metabólicos"],
+                importance: "El equilibrio hormonal es el regulador silencioso de casi todas las funciones vitales; su control adecuado previene enfermedades crónicas graves.",
+                img: require('./assets/imagenes/Endocrinologia.png') 
+              },
+              { 
+                icon: "pregnant-woman", 
+                title: "Ginecología", 
+                context: "Salud integral para la mujer en todas sus etapas y cuidado reproductivo.", 
+                detailedInfo: "La ginecología ofrece una atención sensible y profesional para la salud reproductiva femenina en todas las etapas de la vida. Desde la adolescencia hasta la menopausia, nuestros especialistas brindan orientación en anticoncepción, manejo de trastornos menstruales y prevención de patologías mediante chequeos periódicos, asegurando un acompañamiento integral y preventivo.",
+                whenToGo: ["Chequeo ginecológico preventivo anual", "Irregularidades en el ciclo menstrual", "Deseo de asesoría anticonceptiva", "Síntomas relacionados con la menopausia", "Molestias pélvicas o infecciones"],
+                importance: "La prevención y el control ginecológico periódico son fundamentales para la detección temprana de enfermedades y el empoderamiento de la salud femenina.",
+                img: require('./assets/imagenes/Ginecologia.png') 
+              },
             ].map((esp, i) => (
               <TouchableOpacity 
                 key={i} 
                 style={{ width: select({ mobile: "100%", tablet: "45%", desktop: 350 }) }}
-                onPress={() => navigation.navigate('EspecialidadDetalle', { title: esp.title, description: esp.context, icon: esp.icon, image: esp.img })}
+                onPress={() => navigation.navigate('EspecialidadDetalle', { 
+                  title: esp.title, 
+                  description: esp.context, 
+                  icon: esp.icon, 
+                  image: esp.img,
+                  detailedInfo: esp.detailedInfo,
+                  whenToGo: esp.whenToGo,
+                  importance: esp.importance
+                })}
               >
                 <HoverSpecialtyCard 
                   icon={esp.icon}
                   title={esp.title}
                   context={esp.context}
-                  style={{ width: "100%", backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: "#E2E8F0", padding: 30, alignItems: "center", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 1, height: 200, overflow: 'hidden', _imageUrl: esp.img } as any} 
+                  image={esp.img}
+                  detailedInfo={esp.detailedInfo}
+                  whenToGo={esp.whenToGo}
+                  importance={esp.importance}
+                  style={{ width: "100%", backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: "#E2E8F0", padding: 30, alignItems: "center", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 1, height: 200, overflow: 'hidden' }} 
                 />
               </TouchableOpacity>
             ))}
