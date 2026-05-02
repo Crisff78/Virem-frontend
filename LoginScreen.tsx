@@ -5,13 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  StatusBar,
   TextInput,
   Image,
   Alert,

@@ -103,9 +103,9 @@ const MessageBadge = ({ trigger }: { trigger: boolean }) => {
       gap: 16, 
       minWidth: 220,
       transform: [{ scale }],
-      ...Platform.select({
+      ...(Platform.select({
         web: { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }
-      } as any)
+      }) || {})
     }}>
       <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#EBF5FB', justifyContent: 'center', alignItems: 'center' }}>
         <MaterialIcons name="person-pin" size={26} color={colors.primary} />
@@ -409,7 +409,7 @@ const HoverServiceCard = ({ title, description, image, style }: any) => {
           backgroundColor: 'rgba(26, 54, 93, 0.9)', // Azul marino de la marca, más integrado
           padding: 20,
           transform: [{ translateY: overlayY }],
-          ...Platform.select({ web: { backdropFilter: 'blur(8px)' } } as any)
+          ...(Platform.select({ web: { backdropFilter: 'blur(8px)' } }) || {})
         }}>
           <Text style={{ color: '#fff', fontSize: 14, lineHeight: 20, textAlign: 'center', fontWeight: '500' }}>
             {description}
@@ -465,7 +465,7 @@ const HoverSpecialtyCard = ({ icon, title, context, image, detailedInfo, whenToG
         alignItems: 'center',
         opacity: overlayOpacity,
         transform: [{ translateY: overlayTranslateY }],
-        ...Platform.select({ web: { backdropFilter: 'blur(4px)' } } as any)
+        ...(Platform.select({ web: { backdropFilter: 'blur(4px)' } }) || {})
       }}>
         <Text style={{ color: '#fff', fontSize: 14, textAlign: 'center', lineHeight: 20, fontWeight: '500' }}>
           {context}
@@ -553,7 +553,7 @@ const HoverBlogCard = ({ category, title, description, image, onPress, style }: 
             paddingHorizontal: 12, 
             paddingVertical: 6, 
             borderRadius: 12,
-            ...Platform.select({ web: { backdropFilter: 'blur(4px)' } } as any)
+            ...(Platform.select({ web: { backdropFilter: 'blur(4px)' } }) || {})
           }}>
             <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{category}</Text>
           </View>
@@ -763,9 +763,9 @@ const LandingScreen: React.FC = () => {
                   alignItems: 'center', 
                   gap: 16, 
                   minWidth: 200,
-                  ...Platform.select({
+                  ...(Platform.select({
                     web: { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }
-                  } as any)
+                  }) || {})
                 }}>
                   <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#EBF5FB', justifyContent: 'center', alignItems: 'center' }}>
                     <MaterialIcons name="videocam" size={26} color="#2B6CB0" />
