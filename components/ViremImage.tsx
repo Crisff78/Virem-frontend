@@ -6,8 +6,7 @@ interface ViremImageProps extends ImageProps {
   containerStyle?: ViewStyle;
 }
 
-const blurhash =
-  '|rF?hV%2WCj[ayWD_4f6g[#S%2WCj[ayWD_4f6g[j[ayWD_4f6g[#S%2WCj[ayWD_4f6g[j[ayWD_4f6g[#S%2WCj[ayWD_4f6g[j[ayWD_4f6g[#S%2WCj[ayWD_4f6g[j[ayWD_4f6g[#S%2WCj[ayWD_4f6g[';
+const blurhash = 'L6PZfSaD00jE.AyE_3t7t7Rj4n9G';
 
 const ViremImage: React.FC<ViremImageProps> = ({ 
   source, 
@@ -17,12 +16,15 @@ const ViremImage: React.FC<ViremImageProps> = ({
   transition = 300,
   ...props 
 }) => {
+  // Determine if it's a local asset (number) or remote/URI (object with uri or string)
+  const isLocalAsset = typeof source === 'number';
+
   return (
-    <View style={[styles.container, containerStyle]}>
+    <View style={[styles.container, style, containerStyle]}>
       <Image
         source={source}
         style={[styles.image, style]}
-        placeholder={{ blurhash }}
+        placeholder={isLocalAsset ? undefined : { blurhash }} // Don't use blurhash for local icons/logos
         contentFit={contentFit}
         transition={transition}
         cachePolicy="memory-disk"
@@ -35,7 +37,8 @@ const ViremImage: React.FC<ViremImageProps> = ({
 const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
-    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   image: {
     width: '100%',
