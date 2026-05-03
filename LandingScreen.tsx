@@ -507,7 +507,7 @@ const LandingScreen: React.FC = () => {
                 <Image source={esp.img} style={{ width: '100%', height: 180 }} resizeMode="cover" />
                 <View style={{ padding: 20 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                    <MaterialIcons name={esp.icon} size={20} color={colors.primary} />
+                    <MaterialIcons name={esp.icon as any} size={20} color={colors.primary} />
                     <Text style={{ fontSize: 18, fontWeight: '800', color: colors.dark, marginLeft: 10 }}>{esp.title}</Text>
                   </View>
                   <Text style={{ fontSize: 14, color: colors.muted }}>{esp.context}</Text>
