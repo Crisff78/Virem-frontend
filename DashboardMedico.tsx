@@ -268,10 +268,10 @@ const DashboardMedico: React.FC = () => {
 
     sidebar: { backgroundColor: colors.white, justifyContent: 'space-between', zIndex: 100 },
     sidebarDesktop: { 
-      width: rs(260), 
+      width: 250, 
       borderRightWidth: 1, 
       borderRightColor: '#eef2f7', 
-      padding: rs(20) 
+      padding: rs(16) 
     },
     sidebarTablet: { 
       width: rs(220), 
@@ -296,17 +296,17 @@ const DashboardMedico: React.FC = () => {
     logoTitle: { fontSize: fs(20), fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
     logoSubtitle: { fontSize: fs(11), fontWeight: '700', color: colors.muted },
 
-    userBox: { marginTop: rs(18), alignItems: 'center', paddingVertical: rs(12) },
+    userBox: { marginTop: rs(10), alignItems: 'center', paddingVertical: rs(10) },
     userAvatar: { 
-      width: rs(70), 
-      height: rs(70), 
-      borderRadius: rs(70), 
-      marginBottom: rs(10), 
-      borderWidth: 4, 
+      width: rs(60), 
+      height: rs(60), 
+      borderRadius: rs(60), 
+      marginBottom: rs(8), 
+      borderWidth: 3, 
       borderColor: '#f5f7fb' 
     },
-    userName: { fontWeight: '800', color: colors.dark, fontSize: fs(14), textAlign: 'center' },
-    userPlan: { color: colors.muted, fontSize: fs(11), fontWeight: '700', marginTop: rs(2), textAlign: 'center' },
+    userName: { fontWeight: '800', color: colors.dark, fontSize: fs(13), textAlign: 'center' },
+    userPlan: { color: colors.muted, fontSize: fs(10), fontWeight: '700', marginTop: rs(1), textAlign: 'center' },
 
     menu: { marginTop: rs(10), gap: rs(6) },
     menuDesktop: { flex: 1 },
@@ -376,10 +376,10 @@ const DashboardMedico: React.FC = () => {
     },
 
     title: { 
-      fontSize: fs(28), 
+      fontSize: fs(24), 
       fontWeight: '900', 
       color: colors.dark, 
-      marginTop: rs(8), 
+      marginTop: rs(4), 
       letterSpacing: -0.3 
     },
     subtitle: { 
@@ -393,15 +393,15 @@ const DashboardMedico: React.FC = () => {
 
     bigCard: { 
       backgroundColor: '#fff', 
-      borderRadius: rs(28), 
-      padding: rs(24), 
+      borderRadius: rs(24), 
+      padding: rs(20), 
       flexDirection: isDesktop ? 'row' : 'column', 
       gap: rs(16), 
-      marginBottom: rs(20), 
+      marginBottom: rs(18), 
       shadowColor: '#1F4770', 
       shadowOpacity: 0.08, 
-      shadowRadius: 20, 
-      shadowOffset: { width: 0, height: 10 }, 
+      shadowRadius: 15, 
+      shadowOffset: { width: 0, height: 8 }, 
       elevation: 5 
     },
     bigCardLeft: { flex: 1 },
