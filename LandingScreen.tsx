@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Image, Animated, Pressable, Easing } from 'react-native';
 import { useResponsive } from './hooks/useResponsive';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './navigation/types';
@@ -630,6 +630,9 @@ const LandingScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <Text style={{ position: 'absolute', top: 100, left: 20, zIndex: 9999, color: 'red', fontSize: 30, fontWeight: 'bold' }}>
+        PRUEBA DE RENDERIZADO
+      </Text>
       {/* TOP NAVBAR - STICKY WITH BLUR */}
       <View ref={navRef} style={[styles.navbar, isDesktop && styles.navbarDesktop, navScrolled && { paddingVertical: 10 }]}>
         <View style={styles.navLeft}>

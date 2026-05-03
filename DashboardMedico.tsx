@@ -29,8 +29,7 @@ import Skeleton from './components/Skeleton';
 import ViremImage from './components/ViremImage';
 import FadeInView from './components/FadeInView';
 
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 type MaterialIconName = any;
@@ -197,44 +196,7 @@ type AppointmentCardProps = {
   videoCallLabel?: string;
 };
 
-const AppointmentCard: React.FC<AppointmentCardProps> = ({
-  patient,
-  detail,
-  avatar,
-  onVideoCall,
-  onDetails,
-  videoCallDisabled,
-  videoCallLabel = 'Videollamada',
-}) => {
-  return (
-    <View style={styles.apptCard}>
-      <ViremImage source={avatar} style={styles.apptAvatar} />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.apptDoctor}>{patient}</Text>
-        <Text style={styles.apptDetail}>{detail}</Text>
-      </View>
 
-      <View style={styles.apptBtns}>
-        {onVideoCall && (
-          <TouchableOpacity
-            style={[styles.smallBtnBlue, videoCallDisabled && styles.smallBtnGrayDisabled]}
-            onPress={onVideoCall}
-            disabled={videoCallDisabled}
-          >
-            <Text style={[styles.smallBtnBlueText, videoCallDisabled && styles.smallBtnGrayTextDisabled]}>
-              {videoCallLabel}
-            </Text>
-          </TouchableOpacity>
-        )}
-        {onDetails && (
-          <TouchableOpacity style={styles.smallBtnGray} onPress={onDetails}>
-            <Text style={styles.smallBtnGrayText}>Detalles</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-};
 
 // -------------------------------------------------------------
 // PANTALLA PRINCIPAL
@@ -262,78 +224,7 @@ const DashboardMedico: React.FC = () => {
   const lastRefreshRef = useRef(0);
 
   // --- Sub-componentes internos para acceder a styles ---
-  const PatientRow: React.FC<{ name: string; id: string; lastSeen: string; avatar: any; onPress?: () => void }> = ({
-    name,
-    id,
-    lastSeen,
-    avatar,
-    onPress,
-  }) => (
-    <View style={styles.docRow}>
-      <View style={styles.docLeft}>
-        <View style={styles.docIconBox}>
-          <ViremImage source={avatar} style={styles.docAvatar} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.docTitle} numberOfLines={1}>
-            {name}
-          </Text>
-          <Text style={styles.docSub} numberOfLines={1}>
-            Expediente #{id} • {lastSeen}
-          </Text>
-        </View>
-      </View>
-      <TouchableOpacity onPress={onPress}>
-        <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
-      </TouchableOpacity>
-    </View>
-  );
 
-  const StatPill: React.FC<{ title: string; value: string; icon: MaterialIconName; trendText: string; trendUp?: boolean }> = ({ title, value, icon, trendText, trendUp = true }) => {
-    return (
-      <View style={styles.statCard}>
-        <View style={styles.statTopRow}>
-          <Text style={styles.statTitle}>{title}</Text>
-          <MaterialIcons name={icon} size={20} color={colors.primary} />
-        </View>
-
-        <View style={styles.statBottomRow}>
-          <Text style={styles.statValue}>{value}</Text>
-          <View style={styles.trendRow}>
-            <MaterialIcons
-              name={trendUp ? 'trending-up' : 'trending-down'}
-              size={16}
-              color={trendUp ? colors.green : colors.red}
-            />
-            <Text style={[styles.trendText, { color: trendUp ? colors.green : colors.red }]}>
-              {trendText}
-            </Text>
-          </View>
-        </View>
-      </View>
-    );
-  };
-
-  const FileCard: React.FC<{ name: string; id: string; lastSeen: string; onPress?: () => void }> = ({ name, id, lastSeen, onPress }) => (
-    <View style={styles.docRow}>
-      <View style={styles.docLeft}>
-        <View style={styles.docIconBox}>
-          <MaterialIcons name="folder-shared" size={20} color={colors.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.docTitle} numberOfLines={1}>
-            {name}
-          </Text>
-          <Text style={styles.docSub} numberOfLines={1}>
-            Expediente #{id} • {lastSeen}
-          </Text>
-        </View>
-      </View>
-      <TouchableOpacity onPress={onPress}>
-        <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
-      </TouchableOpacity>
-    </View>
-  );
 
   // -------------------------------------------------------------
   // ESTILOS DINÁMICOS (Premium Responsive)
@@ -653,6 +544,7 @@ const DashboardMedico: React.FC = () => {
       justifyContent: 'center' 
     },
     docTitle: { color: colors.dark, fontWeight: '700', fontSize: fs(13) },
+    docAvatar: { width: rs(32), height: rs(32), borderRadius: rs(8) },
     docSub: { color: colors.muted, fontSize: fs(11), marginTop: rs(2) },
 
     emptyCard: { 
@@ -704,6 +596,113 @@ const DashboardMedico: React.FC = () => {
     },
     trendText: { fontSize: fs(11), fontWeight: '800' },
   }), [fs, rs, isDesktop, colors]);
+
+  // --- Sub-componentes internos que usan styles ---
+  const AppointmentCard: React.FC<AppointmentCardProps> = ({
+    patient,
+    detail,
+    avatar,
+    onVideoCall,
+    onDetails,
+    videoCallDisabled,
+    videoCallLabel = 'Videollamada',
+  }) => (
+    <View style={styles.apptCard}>
+      <ViremImage source={avatar} style={styles.apptAvatar} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.apptDoctor}>{patient}</Text>
+        <Text style={styles.apptDetail}>{detail}</Text>
+      </View>
+      <View style={styles.apptBtns}>
+        {onVideoCall && (
+          <TouchableOpacity
+            style={[styles.smallBtnBlue, videoCallDisabled && styles.smallBtnGrayDisabled]}
+            onPress={onVideoCall}
+            disabled={videoCallDisabled}
+          >
+            <Text style={[styles.smallBtnBlueText, videoCallDisabled && styles.smallBtnGrayTextDisabled]}>
+              {videoCallLabel}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {onDetails && (
+          <TouchableOpacity style={styles.smallBtnGray} onPress={onDetails}>
+            <Text style={styles.smallBtnGrayText}>Detalles</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
+  const PatientRow: React.FC<{ name: string; id: string; lastSeen: string; avatar: any; onPress?: () => void }> = ({
+    name,
+    id,
+    lastSeen,
+    avatar,
+    onPress,
+  }) => (
+    <View style={styles.docRow}>
+      <View style={styles.docLeft}>
+        <View style={styles.docIconBox}>
+          <ViremImage source={avatar} style={styles.docAvatar} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.docTitle} numberOfLines={1}>
+            {name}
+          </Text>
+          <Text style={styles.docSub} numberOfLines={1}>
+            Expediente #{id} • {lastSeen}
+          </Text>
+        </View>
+      </View>
+      <TouchableOpacity onPress={onPress}>
+        <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const StatPill: React.FC<{ title: string; value: string; icon: MaterialIconName; trendText: string; trendUp?: boolean }> = ({ title, value, icon, trendText, trendUp = true }) => (
+    <View style={styles.statCard}>
+      <View style={styles.statTopRow}>
+        <Text style={styles.statTitle}>{title}</Text>
+        <MaterialIcons name={icon} size={20} color={colors.primary} />
+      </View>
+      <View style={styles.statBottomRow}>
+        <Text style={styles.statValue}>{value}</Text>
+        <View style={styles.trendRow}>
+          <MaterialIcons
+            name={trendUp ? 'trending-up' : 'trending-down'}
+            size={16}
+            color={trendUp ? colors.green : colors.red}
+          />
+          <Text style={[styles.trendText, { color: trendUp ? colors.green : colors.red }]}>
+            {trendText}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  const FileCard: React.FC<{ name: string; id: string; lastSeen: string; onPress?: () => void }> = ({ name, id, lastSeen, onPress }) => (
+    <View style={styles.docRow}>
+      <View style={styles.docLeft}>
+        <View style={styles.docIconBox}>
+          <MaterialIcons name="folder-shared" size={20} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.docTitle} numberOfLines={1}>
+            {name}
+          </Text>
+          <Text style={styles.docSub} numberOfLines={1}>
+            Expediente #{id} • {lastSeen}
+          </Text>
+        </View>
+      </View>
+      <TouchableOpacity onPress={onPress}>
+        <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+      </TouchableOpacity>
+    </View>
+  );
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
