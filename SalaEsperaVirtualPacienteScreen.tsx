@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { sanitizeRemoteImageUrl, resolveRemoteImageSource } from './utils/imageSources';
 import {
   Animated,
   Linking,
@@ -82,20 +83,7 @@ const parseUser = (raw: string | null): User | null => {
   }
 };
 
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = String(value || '').trim();
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
 
-const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
-  const clean = sanitizeFotoUrl(value);
-  if (clean) {
-    return { uri: clean };
-  }
-  return DefaultAvatar;
-};
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return 'Sin horario';
@@ -208,7 +196,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
               apellidos: String((profileUser as any)?.apellidos || '').trim(),
               nombre: String((profileUser as any)?.nombres || (profileUser as any)?.nombre || '').trim(),
               apellido: String((profileUser as any)?.apellidos || (profileUser as any)?.apellido || '').trim(),
-              fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
+              fotoUrl: sanitizeRemoteImageUrl((profileUser as any)?.fotoUrl),
             };
           } else {
             const response = await fetch(apiUrl('/api/auth/me'), {
@@ -230,7 +218,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 sessionUser = {
                   ...(sessionUser || {}),
                   ...apiUser,
-                  fotoUrl: sanitizeFotoUrl((apiUser as any)?.fotoUrl),
+                  fotoUrl: sanitizeRemoteImageUrl((apiUser as any)?.fotoUrl),
                 };
               }
             }
@@ -582,11 +570,11 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     return plan ? `Paciente ${plan}` : 'Paciente';
   }, [user]);
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    return resolveAvatarSource(user?.fotoUrl);
+    return resolveRemoteImageSource(user?.fotoUrl, DefaultAvatar);
   }, [user]);
-  const hasProfilePhoto = useMemo(() => Boolean(sanitizeFotoUrl(user?.fotoUrl)), [user?.fotoUrl]);
+  const hasProfilePhoto = useMemo(() => Boolean(sanitizeRemoteImageUrl(user?.fotoUrl)), [user?.fotoUrl]);
   const doctorAvatarSource: ImageSourcePropType = useMemo(() => {
-    const foto = sanitizeFotoUrl(nextCita?.medico?.fotoUrl);
+    const foto = sanitizeRemoteImageUrl(nextCita?.medico?.fotoUrl);
     if (foto) return { uri: foto };
     return DoctorAvatar;
   }, [nextCita?.medico?.fotoUrl]);
@@ -744,7 +732,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                     style={[styles.selectorItem, active && styles.selectorItemActive]}
                     onPress={() => setSelectedCitaId(citaId)}
                   >
-                    <Image source={resolveAvatarSource(cita?.medico?.fotoUrl)} style={styles.selectorAvatar} />
+                    <Image source={resolveRemoteImageSource(cita?.medico?.fotoUrl, DefaultAvatar)} style={styles.selectorAvatar} />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.selectorDoctor, active && styles.selectorDoctorActive]} numberOfLines={1}>
                         {String(cita?.medico?.nombreCompleto || 'Especialista').trim() || 'Especialista'}

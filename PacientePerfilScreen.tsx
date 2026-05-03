@@ -25,7 +25,7 @@ import { usePatientPortalSession } from './hooks/usePatientPortalSession';
 import type { RootStackParamList } from './navigation/types';
 import { apiClient } from './utils/api';
 import { getApiErrorMessage, isAuthError } from './utils/apiErrors';
-import { resolveRemoteImageSource } from './utils/imageSources';
+import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -137,12 +137,7 @@ const toComparableSqlDate = (rawValue: unknown) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = normalizeValue(value);
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
+
 
 const buildPersistentPhotoUri = (asset: ImagePicker.ImagePickerAsset | undefined): string => {
   if (!asset) return '';
@@ -372,7 +367,7 @@ const PacientePerfilScreen: React.FC = () => {
         return;
       }
 
-      const finalUri = sanitizeFotoUrl(payload?.profile?.fotoUrl || uri);
+      const finalUri = sanitizeRemoteImageUrl(payload?.profile?.fotoUrl || uri);
       const nextUser: User = { ...(user || {}), fotoUrl: uri };
       nextUser.fotoUrl = finalUri;
       await persistSessionUser(nextUser);
@@ -455,7 +450,7 @@ const PacientePerfilScreen: React.FC = () => {
         contactoEmergenciaNombre: normalizeValue(profile.contactoEmergenciaNombre),
         contactoEmergenciaTelefono: normalizeValue(profile.contactoEmergenciaTelefono),
         contactoEmergenciaParentesco: normalizeValue(profile.contactoEmergenciaParentesco),
-        fotoUrl: sanitizeFotoUrl(profile.fotoUrl || user?.fotoUrl),
+        fotoUrl: sanitizeRemoteImageUrl(profile.fotoUrl || user?.fotoUrl),
         recibirEmail: Boolean(profile.recibirEmail),
         recibirSMS: Boolean(profile.recibirSMS),
         compartirHistorial: Boolean(profile.compartirHistorial),

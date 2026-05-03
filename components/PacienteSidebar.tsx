@@ -1,35 +1,18 @@
-import React, { useMemo, useState } from 'react';
-import {
-  Image,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from 'react-native';
-import type { ImageSourcePropType } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import type { ImageSourcePropType } from 'react-native';
 
 import { useLanguage } from '../localization/LanguageContext';
 import type { RootStackParamList } from '../navigation/types';
 import { usePacienteModule, type PortalModule } from '../navigation/PacienteModuleContext';
 import { usePatientPortalSession } from '../hooks/usePatientPortalSession';
 import { resolveRemoteImageSource } from '../utils/imageSources';
+import { PortalSidebar, type PortalSidebarMenuItem } from './PortalSidebar';
 
-const ViremLogo = require('../assets/imagenes/descarga.png');
 const DefaultAvatar = require('../assets/imagenes/avatar-default.jpg');
 
-type MenuItem = {
-  module: PortalModule;
-  icon: string;
-  labelKey: string;
-};
-
-const MENU_ITEMS: MenuItem[] = [
+const MENU_ITEMS_BASE: { module: PortalModule; icon: string; labelKey: string }[] = [
   { module: 'DashboardPaciente', icon: 'grid-view', labelKey: 'menu.home' },
   { module: 'NuevaConsultaPaciente', icon: 'person-search', labelKey: 'menu.searchDoctor' },
   { module: 'PacienteCitas', icon: 'calendar-today', labelKey: 'menu.appointments' },
@@ -40,17 +23,7 @@ const MENU_ITEMS: MenuItem[] = [
   { module: 'PacienteConfiguracion', icon: 'settings', labelKey: 'menu.settings' },
 ];
 
-const colors = {
-  primary: '#137fec',
-  bg: '#F6FAFD',
-  dark: '#0A1931',
-  blue: '#1A3D63',
-  muted: '#4A7FA7',
-  white: '#FFFFFF',
-};
-
 type PacienteSidebarProps = {
-  /** Controls whether the mobile menu is open (managed by parent). */
   isMobileMenuOpen: boolean;
   onToggleMobileMenu: () => void;
   onCloseMobileMenu: () => void;
@@ -62,202 +35,57 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
   onCloseMobileMenu,
 }) => {
   const { t } = useLanguage();
-  const { width: viewportWidth } = useWindowDimensions();
-  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { activeModule, setActiveModule } = usePacienteModule();
   const { fullName, planLabel, fotoUrl, hasProfilePhoto, signOut } = usePatientPortalSession({
     syncOnMount: true,
   });
 
-  const userAvatarSource: ImageSourcePropType = useMemo(
+  const avatarSource: ImageSourcePropType = useMemo(
     () => resolveRemoteImageSource(fotoUrl, DefaultAvatar),
     [fotoUrl]
   );
 
-  const handleModulePress = (module: PortalModule) => {
-    onCloseMobileMenu();
-    setActiveModule(module);
-  };
+  const menuItems = useMemo<PortalSidebarMenuItem<PortalModule>[]>(
+    () =>
+      MENU_ITEMS_BASE.map((item) => ({
+        module: item.module,
+        icon: item.icon,
+        label: t(item.labelKey as any),
+      })),
+    [t]
+  );
 
-  const handleLogout = async () => {
+  const handleModulePress = useCallback(
+    (module: PortalModule) => {
+      onCloseMobileMenu();
+      setActiveModule(module);
+    },
+    [onCloseMobileMenu, setActiveModule]
+  );
+
+  const handleLogout = useCallback(async () => {
     onCloseMobileMenu();
     await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  };
+  }, [navigation, onCloseMobileMenu, signOut]);
 
   return (
-    <>
-      {/* Mobile hamburger bar */}
-      {!isDesktopLayout ? (
-        <View style={styles.mobileMenuBar}>
-          <TouchableOpacity style={styles.mobileMenuButton} onPress={onToggleMobileMenu}>
-            <MaterialIcons
-              name={isMobileMenuOpen ? 'close' : 'menu'}
-              size={22}
-              color={colors.dark}
-            />
-            <Text style={styles.mobileMenuButtonText}>
-              {isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
-
-      {/* Sidebar panel */}
-      {(isDesktopLayout || isMobileMenuOpen) && (
-        <View
-          style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}
-        >
-          <View>
-            {/* Logo */}
-            <View style={styles.logoBox}>
-              <Image source={ViremLogo} style={styles.logo} />
-              <View>
-                <Text style={styles.logoTitle}>VIREM</Text>
-                <Text style={styles.logoSubtitle}>Portal Paciente</Text>
-              </View>
-            </View>
-
-            {/* User mini */}
-            <View style={styles.userBox}>
-              <Image source={userAvatarSource} style={styles.userAvatar} />
-              <Text style={styles.userName}>{fullName}</Text>
-              <Text style={styles.userPlan}>{planLabel}</Text>
-              {!hasProfilePhoto ? (
-                <Text style={styles.hintText}>No tienes foto. Ve a Perfil para agregarla.</Text>
-              ) : null}
-            </View>
-
-            {/* Menu */}
-            {MENU_ITEMS.map((item) => {
-              const isActive = activeModule === item.module;
-              return (
-                <Pressable
-                  key={item.module}
-                  onPress={() => handleModulePress(item.module)}
-                  style={({ pressed, hovered }: any) => [
-                    styles.menuItem,
-                    isActive && styles.menuItemActive,
-                    hovered && !isActive && styles.menuItemHover,
-                    pressed && styles.menuItemPressed,
-                  ]}
-                >
-                  <MaterialIcons
-                    name={item.icon}
-                    size={20}
-                    color={isActive ? colors.primary : colors.muted}
-                  />
-                  <Text style={[styles.menuText, isActive && styles.menuTextActive]}>
-                    {t(item.labelKey as any)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Logout */}
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <MaterialIcons name="logout" size={18} color="#fff" />
-            <Text style={styles.logoutText}>{t('menu.logout')}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </>
+    <PortalSidebar
+      portalSubtitle="Portal Paciente"
+      primaryName={fullName}
+      secondaryLine={planLabel}
+      hint={!hasProfilePhoto ? 'No tienes foto. Ve a Perfil para agregarla.' : undefined}
+      avatarSource={avatarSource}
+      menuItems={menuItems}
+      activeModule={activeModule}
+      onModulePress={handleModulePress}
+      onLogout={handleLogout}
+      logoutLabel={t('menu.logout')}
+      isMobileMenuOpen={isMobileMenuOpen}
+      onToggleMobileMenu={onToggleMobileMenu}
+    />
   );
 };
 
 export default PacienteSidebar;
-
-const styles = StyleSheet.create({
-  mobileMenuBar: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 8,
-    backgroundColor: colors.bg,
-  },
-  mobileMenuButton: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d8e4f0',
-    backgroundColor: colors.white,
-  },
-  mobileMenuButtonText: { color: colors.dark, fontWeight: '700', fontSize: 13 },
-
-  sidebar: {
-    backgroundColor: colors.white,
-    justifyContent: 'space-between',
-  },
-  sidebarDesktop: {
-    width: 280,
-    borderRightWidth: 1,
-    borderRightColor: '#eef2f7',
-    padding: 20,
-  },
-  sidebarMobile: {
-    width: '100%',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eef2f7',
-    padding: 14,
-  },
-
-  logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, resizeMode: 'contain' },
-  logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
-  logoSubtitle: { fontSize: 11, fontWeight: '700', color: colors.muted },
-
-  userBox: { marginTop: 18, alignItems: 'center', paddingVertical: 12 },
-  userAvatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 76,
-    marginBottom: 10,
-    borderWidth: 4,
-    borderColor: '#f5f7fb',
-  },
-  userName: { fontWeight: '800', color: colors.dark, fontSize: 14, textAlign: 'center' },
-  userPlan: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 2 },
-  hintText: {
-    marginTop: 6,
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  menuItemActive: {
-    backgroundColor: 'rgba(19,127,236,0.10)',
-    borderRightWidth: 3,
-    borderRightColor: colors.primary,
-  },
-  menuItemHover: { backgroundColor: '#f4f8fc' },
-  menuItemPressed: { opacity: 0.7, transform: [{ scale: 0.985 }] },
-  menuText: { fontSize: 14, color: colors.muted, fontWeight: '700' },
-  menuTextActive: { color: colors.primary },
-
-  logoutButton: {
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.blue,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  logoutText: { color: '#fff', fontWeight: '800' },
-});

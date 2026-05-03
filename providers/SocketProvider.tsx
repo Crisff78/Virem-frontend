@@ -46,7 +46,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [lastError, setLastError] = useState('');
-    tokenRef.current = normalizeText(token);
 
     const bindSocketState = useCallback((nextSocket: Socket) => {
         const handleConnect = () => {
@@ -188,9 +187,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     useEffect(() => {
         const cleanToken = normalizeText(token);
+        tokenRef.current = cleanToken;
 
         if (!cleanToken) {
-            tokenRef.current = '';
             disposeSocket();
             setLastError('');
             return;
@@ -200,8 +199,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (socketRef.current && currentAuthToken !== cleanToken) {
             disposeSocket();
         }
-
-        tokenRef.current = cleanToken;
     }, [disposeSocket, token]);
 
     useEffect(() => {

@@ -43,11 +43,28 @@ const parseResponseBody = async (response: Response): Promise<any> => {
     const raw = await response.text();
     if (!raw) return null;
 
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+        try {
+            return JSON.parse(raw);
+        } catch {
+            return raw;
+        }
+    }
+
     try {
         return JSON.parse(raw);
     } catch {
         return raw;
     }
+};
+
+const extractErrorMessage = (data: unknown, fallback: string): string => {
+    if (!data || typeof data !== 'object') return fallback;
+    const source = data as Record<string, unknown>;
+    const candidate = source.message ?? source.error ?? source.detail;
+    const text = String(candidate ?? '').trim();
+    return text || fallback;
 };
 
 export class ApiClient {
@@ -72,20 +89,27 @@ export class ApiClient {
             headers.Authorization = `Bearer ${token}`;
         }
 
-        const response = await fetch(apiUrl(`${path}${toQueryString(options.query)}`), {
-            method: options.method || 'GET',
-            headers,
-            body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-            signal: options.signal,
-        });
+        let response: Response;
+        try {
+            response = await fetch(apiUrl(`${path}${toQueryString(options.query)}`), {
+                method: options.method || 'GET',
+                headers,
+                body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+                signal: options.signal,
+            });
+        } catch (error) {
+            if ((error as any)?.name === 'AbortError') throw error;
+            throw new ApiError('NETWORK_ERROR', 0, error);
+        }
 
         const data = await parseResponseBody(response);
 
         if (!response.ok) {
-            const message =
-                (typeof data === 'object' && data && 'message' in data ? String((data as any).message) : '') ||
-                `HTTP ${response.status}`;
-            throw new ApiError(message, response.status, data);
+            throw new ApiError(
+                extractErrorMessage(data, `HTTP ${response.status}`),
+                response.status,
+                data
+            );
         }
 
         return data as T;

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { sanitizeRemoteImageUrl, resolveRemoteImageSource } from './utils/imageSources';
 import {
   Image,
   Platform,
@@ -52,20 +53,9 @@ const normalizeText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = String(value || '').trim();
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
 
-const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
-  const clean = sanitizeFotoUrl(value);
-  if (clean) {
-    return { uri: clean };
-  }
-  return DefaultAvatar;
-};
+
+
 
 const FALLBACK_SPECIALTIES: SpecialtyItem[] = [
   { icon: 'heart-outline', label: 'Cardiologia', description: 'Corazon y sistema circulatorio', totalMedicos: 0 },
@@ -262,7 +252,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
   }, [user]);
 
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    return resolveAvatarSource(user?.fotoUrl);
+    return resolveRemoteImageSource(user?.fotoUrl, DefaultAvatar);
   }, [user]);
 
   const filteredSpecialties = useMemo(() => {
@@ -319,7 +309,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
       <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}>
         <View>
           <View style={styles.logoBox}>
-            <ViremImage source={ViremLogo} style={styles.logo} />
+            <Image source={ViremLogo} style={styles.logo} />
             <View>
               <Text style={styles.logoTitle}>VIREM</Text>
               <Text style={styles.logoSubtitle}>Portal Paciente</Text>
@@ -327,7 +317,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
           </View>
 
           <View style={styles.userBox}>
-            <ViremImage source={userAvatarSource} style={styles.userAvatar} />
+            <Image source={userAvatarSource} style={styles.userAvatar} />
             <Text style={styles.userName}>{fullName}</Text>
             <Text style={styles.userPlan}>{planLabel}</Text>
           </View>
@@ -518,6 +508,9 @@ const styles = StyleSheet.create({
   },
   containerMobile: {
     flexDirection: 'column',
+  },
+  containerDesktop: {
+    flexDirection: 'row',
   },
 
   sidebar: { backgroundColor: colors.white, justifyContent: 'space-between', zIndex: 100 },

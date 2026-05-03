@@ -23,7 +23,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
-import { resolveRemoteImageSource } from './utils/imageSources';
+import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -52,12 +52,7 @@ const parseUser = (raw: string | null): User | null => {
   }
 };
 
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = String(value || '').trim();
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
+
 
 const PacienteConfiguracionScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();

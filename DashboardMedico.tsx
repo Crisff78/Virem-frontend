@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { sanitizeRemoteImageUrl, resolveRemoteImageSource } from './utils/imageSources';
 // v1.0.1 - Build trigger
 import {
   ActivityIndicator,
@@ -64,20 +65,7 @@ const normalizeString = (value: unknown) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = normalizeString(value);
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
 
-const resolveAvatarSource = (value: unknown): any => {
-  const clean = sanitizeFotoUrl(value);
-  if (clean) {
-    return clean;
-  }
-  return DefaultAvatar;
-};
 
 const formatDateTime = (value: string | null) => {
   if (!value) return '';
@@ -758,7 +746,7 @@ const DashboardMedico: React.FC = () => {
 
       const backendName = String(profile?.nombreCompleto || '').replace(/\s+/g, ' ').trim();
       const backendSpec = String(profile?.especialidad || '').replace(/\s+/g, ' ').trim();
-      const backendFoto = sanitizeFotoUrl(profile?.fotoUrl);
+      const backendFoto = sanitizeRemoteImageUrl(profile?.fotoUrl);
 
       if (backendName) setDoctorName(addDoctorPrefix(backendName));
       if (backendSpec) setDoctorSpec(backendSpec);
@@ -815,7 +803,7 @@ const DashboardMedico: React.FC = () => {
       )
         .replace(/\s+/g, ' ')
         .trim();
-      const fotoBase = sanitizeFotoUrl(
+      const fotoBase = sanitizeRemoteImageUrl(
         nextUser?.fotoUrl || nextUser?.medico?.fotoUrl || ''
       );
 
@@ -864,7 +852,7 @@ const DashboardMedico: React.FC = () => {
 
   const nextCita = upcomingCitas[0] || null;
   const bannerPatientName = nextCita ? nextCita.paciente.nombreCompleto : '';
-  const bannerPatientAvatar = resolveAvatarSource(nextCita?.paciente?.fotoUrl);
+  const bannerPatientAvatar = resolveRemoteImageSource(nextCita?.paciente?.fotoUrl, DefaultAvatar);
   
   return (
     <View style={[styles.container, isInsidePortal ? null : (isDesktopLayout ? styles.containerDesktop : (isTablet ? styles.containerTablet : styles.containerMobile))]}>
@@ -1061,7 +1049,7 @@ const DashboardMedico: React.FC = () => {
                         key={cita.citaid}
                         patient={cita.paciente.nombreCompleto}
                         detail={formatDateTime(cita.fechaHoraInicio)}
-                        avatar={resolveAvatarSource(cita.paciente.fotoUrl)}
+                        avatar={resolveRemoteImageSource(cita.paciente.fotoUrl, DefaultAvatar)}
                         onVideoCall={() => handleVideoCall(cita.citaid)}
                         onDetails={() => {}}
                         videoCallDisabled={!!openingCitaId}

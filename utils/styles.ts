@@ -1,8 +1,27 @@
-import { Platform, ViewStyle } from 'react-native';
+import { Platform } from 'react-native';
 
 /**
- * Utility to handle shadows cross-platform and avoid deprecation warnings on react-native-web.
- * On web, it uses boxShadow. On mobile, it uses standard shadow props.
+ * Convierte un color hex (#rgb / #rrggbb) + opacidad a rgba.
+ * Si ya es rgba/hsla/rgb/named se devuelve tal cual.
+ */
+const toRgba = (color: string, opacity: number): string => {
+  const trimmed = color.trim();
+  if (!trimmed.startsWith('#')) return trimmed;
+
+  const hex = trimmed.slice(1);
+  const expanded =
+    hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex.padEnd(6, '0').slice(0, 6);
+
+  const r = parseInt(expanded.slice(0, 2), 16);
+  const g = parseInt(expanded.slice(2, 4), 16);
+  const b = parseInt(expanded.slice(4, 6), 16);
+  const safeOpacity = Math.max(0, Math.min(1, opacity));
+  return `rgba(${r}, ${g}, ${b}, ${safeOpacity})`;
+};
+
+/**
+ * Sombra cross-platform. En web genera boxShadow con opacidad real
+ * (antes la opacidad se perdía). En nativo usa los props clásicos.
  */
 export const shadow = (
   color: string = '#000',
@@ -13,11 +32,7 @@ export const shadow = (
 ): any => {
   return Platform.select({
     web: {
-      boxShadow: `${offset.width}px ${offset.height}px ${radius}px ${color}`,
-      // We rely on the browser to handle the opacity if color is rgba, 
-      // or we can wrap the color if it's hex but we want to apply opacity.
-      // For simplicity, we'll just pass the color as is and let the user handle rgba if needed.
-      shadowOpacity: opacity, // Still useful for mobile
+      boxShadow: `${offset.width}px ${offset.height}px ${radius}px ${toRgba(color, opacity)}`,
     },
     default: {
       shadowColor: color,
@@ -45,4 +60,3 @@ export const textShadow = (
     },
   });
 };
-

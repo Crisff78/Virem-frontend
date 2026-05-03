@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { sanitizeRemoteImageUrl, resolveRemoteImageSource } from './utils/imageSources';
 import {
   Alert,
   Modal,
@@ -42,17 +43,6 @@ const colors = {
 };
 
 const normalizeString = (value: unknown) => String(value || '').trim();
-
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = normalizeString(value);
-  if (!clean || clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
-
-const resolveAvatarSource = (value: unknown): any => {
-  const clean = sanitizeFotoUrl(value);
-  return clean || DefaultAvatar;
-};
 
 const formatDateTime = (value: string | null) => {
   if (!value) return '';
@@ -309,7 +299,7 @@ const DashboardPacienteScreen: React.FC = () => {
               </View>
             </View>
             <View style={styles.userBox}>
-              <ViremImage source={resolveAvatarSource(sessionUser?.fotoUrl)} style={styles.userAvatar} />
+              <ViremImage source={resolveRemoteImageSource(sessionUser?.fotoUrl, DefaultAvatar)} style={styles.userAvatar} />
               <Text style={styles.userName}>{fullName}</Text>
             </View>
             <View style={styles.menu}>
@@ -376,7 +366,7 @@ const DashboardPacienteScreen: React.FC = () => {
             upcomingCitas.length > 0 ? (
               upcomingCitas.map((cita) => (
                 <View key={cita.citaid} style={styles.apptCard}>
-                  <ViremImage source={resolveAvatarSource(cita.medico?.fotoUrl)} style={styles.apptAvatar} />
+                  <ViremImage source={resolveRemoteImageSource(cita.medico?.fotoUrl, DefaultAvatar)} style={styles.apptAvatar} />
                   <View>
                     <Text style={styles.apptDoctor}>{cita.medico?.nombreCompleto}</Text>
                     <Text style={styles.apptDetail}>{formatDateTime(cita.fechaHoraInicio)}</Text>

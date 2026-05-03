@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { sanitizeRemoteImageUrl, resolveRemoteImageSource } from './utils/imageSources';
 import {
   ActivityIndicator,
   Alert,
@@ -60,12 +61,7 @@ const normalizeText = (value: unknown) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = normalizeText(value);
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
+
 
 const parseDateMs = (value: string | null | undefined) => {
   if (!value) return Number.POSITIVE_INFINITY;
@@ -199,7 +195,7 @@ const MedicoPacientesScreen: React.FC = () => {
   );
 
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    const foto = sanitizeFotoUrl(user?.fotoUrl || user?.medico?.fotoUrl);
+    const foto = sanitizeRemoteImageUrl(user?.fotoUrl || user?.medico?.fotoUrl);
     if (foto) return { uri: foto };
     return DefaultAvatar;
   }, [user?.fotoUrl, user?.medico?.fotoUrl]);

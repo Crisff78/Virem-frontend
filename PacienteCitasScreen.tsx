@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { sanitizeRemoteImageUrl, resolveRemoteImageSource } from './utils/imageSources';
 import {
   Alert,
   Image,
@@ -82,20 +83,7 @@ const normalizeText = (value: unknown) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = normalizeText(value);
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
 
-const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
-  const clean = sanitizeFotoUrl(value);
-  if (clean) {
-    return { uri: clean };
-  }
-  return DefaultAvatar;
-};
 
 const parseDateMs = (value: string | null | undefined) => {
   if (!value) return Number.POSITIVE_INFINITY;
@@ -180,7 +168,7 @@ const PacienteCitasScreen: React.FC = () => {
             apellidos: normalizeText((profileUser as any)?.apellidos),
             nombre: normalizeText((profileUser as any)?.nombres || (profileUser as any)?.nombre),
             apellido: normalizeText((profileUser as any)?.apellidos || (profileUser as any)?.apellido),
-            fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
+            fotoUrl: sanitizeRemoteImageUrl((profileUser as any)?.fotoUrl),
           };
         }
       }
@@ -281,8 +269,8 @@ const PacienteCitasScreen: React.FC = () => {
     return plan ? `Paciente ${plan}` : 'Paciente';
   }, [user]);
 
-  const userAvatarSource: ImageSourcePropType = useMemo(() => resolveAvatarSource(user?.fotoUrl), [user?.fotoUrl]);
-  const hasProfilePhoto = useMemo(() => Boolean(sanitizeFotoUrl(user?.fotoUrl)), [user?.fotoUrl]);
+  const userAvatarSource: ImageSourcePropType = useMemo(() => resolveRemoteImageSource(user?.fotoUrl, DefaultAvatar), [user?.fotoUrl]);
+  const hasProfilePhoto = useMemo(() => Boolean(sanitizeRemoteImageUrl(user?.fotoUrl)), [user?.fotoUrl]);
 
   const filteredCitas = useMemo(() => {
     const query = normalizeText(searchText).toLowerCase();
@@ -656,7 +644,7 @@ const PacienteCitasScreen: React.FC = () => {
                   return (
                     <View key={cita.citaid} style={styles.citaCard}>
                       <View style={styles.citaTop}>
-                        <Image source={resolveAvatarSource(cita?.medico?.fotoUrl)} style={styles.citaAvatar} />
+                        <Image source={resolveRemoteImageSource(cita?.medico?.fotoUrl, DefaultAvatar)} style={styles.citaAvatar} />
                         <View style={{ flex: 1 }}>
                           <Text style={styles.citaDoctor}>{normalizeText(cita?.medico?.nombreCompleto || 'Especialista')}</Text>
                           <Text style={styles.citaSpec}>{normalizeText(cita?.medico?.especialidad || 'Medicina General')}</Text>
@@ -725,7 +713,7 @@ const PacienteCitasScreen: React.FC = () => {
                             onPress={() => navigation.navigate('PacienteChat', {
                               doctorId: String(cita?.medico?.medicoid || ''),
                               doctorName: normalizeText(cita?.medico?.nombreCompleto || 'Especialista'),
-                              doctorAvatarUrl: sanitizeFotoUrl(cita?.medico?.fotoUrl) || null,
+                              doctorAvatarUrl: sanitizeRemoteImageUrl(cita?.medico?.fotoUrl) || null,
                             })}
                           >
                             <MaterialIcons name="chat-bubble-outline" size={14} color={colors.blue} />
@@ -757,7 +745,7 @@ const PacienteCitasScreen: React.FC = () => {
                   return (
                     <View key={cita.citaid} style={styles.citaCard}>
                       <View style={styles.citaTop}>
-                        <Image source={resolveAvatarSource(cita?.medico?.fotoUrl)} style={styles.citaAvatar} />
+                        <Image source={resolveRemoteImageSource(cita?.medico?.fotoUrl, DefaultAvatar)} style={styles.citaAvatar} />
                         <View style={{ flex: 1 }}>
                           <Text style={styles.citaDoctor}>{normalizeText(cita?.medico?.nombreCompleto || 'Especialista')}</Text>
                           <Text style={styles.citaSpec}>{normalizeText(cita?.medico?.especialidad || 'Medicina General')}</Text>
@@ -801,7 +789,7 @@ const PacienteCitasScreen: React.FC = () => {
                 cancelledCitas.map((cita) => (
                   <View key={cita.citaid} style={[styles.citaCard, styles.citaCardCancelled]}>
                     <View style={styles.citaTop}>
-                      <Image source={resolveAvatarSource(cita?.medico?.fotoUrl)} style={[styles.citaAvatar, { opacity: 0.6 }]} />
+                      <Image source={resolveRemoteImageSource(cita?.medico?.fotoUrl, DefaultAvatar)} style={[styles.citaAvatar, { opacity: 0.6 }]} />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.citaDoctor, { color: colors.muted }]}>{normalizeText(cita?.medico?.nombreCompleto || 'Especialista')}</Text>
                         <Text style={styles.citaSpec}>{normalizeText(cita?.medico?.especialidad || 'Medicina General')}</Text>

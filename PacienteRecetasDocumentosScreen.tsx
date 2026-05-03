@@ -21,7 +21,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
 import type { RootStackParamList } from './navigation/types';
-import { resolveRemoteImageSource } from './utils/imageSources';
+import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -67,12 +67,7 @@ const parseUser = (raw: string | null): User | null => {
   }
 };
 
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = String(value || '').trim();
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
+
 
 const recetas: DocumentItem[] = [
   {
@@ -208,7 +203,7 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
       try {
         const payload = await apiClient.get<any>("/api/paciente/me/recetas", { authenticated: true });
         if (payload?.success && Array.isArray(payload.recetas)) {
-          const mapped = payload.recetas.map(r => ({
+          const mapped = payload.recetas.map((r: any) => ({
             title: r.diagnostico || "Receta M�dica",
             doctor: r.medico_nombre || "M�dico",
             date: new Date(r.created_at).toLocaleDateString(),

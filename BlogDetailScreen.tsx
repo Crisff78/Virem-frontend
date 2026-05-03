@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from './navigation/types';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 type BlogDetailRouteProp = RouteProp<RootStackParamList, 'BlogDetail'>;
+type BlogDetailNavProp = NativeStackNavigationProp<RootStackParamList, 'BlogDetail'>;
 
 const colors = {
   primary: '#2B6CB0',
@@ -17,7 +19,7 @@ const colors = {
 
 const BlogDetailScreen: React.FC = () => {
   const route = useRoute<BlogDetailRouteProp>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<BlogDetailNavProp>();
   const { category, title, description, image } = route.params;
 
   return (
@@ -76,7 +78,7 @@ const BlogDetailScreen: React.FC = () => {
         <Text style={styles.ctaTitle}>¿Necesitas hablar con un profesional?</Text>
         <TouchableOpacity 
           style={styles.ctaButton}
-          onPress={() => navigation.navigate('Landing' as any)}
+          onPress={() => navigation.navigate('Landing')}
         >
           <Text style={styles.ctaButtonText}>Agendar una consulta</Text>
         </TouchableOpacity>

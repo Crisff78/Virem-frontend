@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { sanitizeRemoteImageUrl, resolveRemoteImageSource } from './utils/imageSources';
 import {
   Alert,
   Image,
@@ -70,12 +71,6 @@ const normalizeText = (value: unknown) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = normalizeText(value);
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
 
 const parseDateMs = (value: string | null | undefined) => {
   if (!value) return Number.POSITIVE_INFINITY;
@@ -129,7 +124,7 @@ const MedicoChatScreen: React.FC = () => {
           ...(nextUser || {}),
           nombreCompleto: normalizeText(profile?.nombreCompleto || nextUser?.nombreCompleto),
           especialidad: normalizeText(profile?.especialidad || nextUser?.especialidad),
-          fotoUrl: sanitizeFotoUrl(profile?.fotoUrl || nextUser?.fotoUrl),
+          fotoUrl: sanitizeRemoteImageUrl(profile?.fotoUrl || nextUser?.fotoUrl),
         };
         if (nextUser) {
           await updateUser(nextUser);
@@ -378,7 +373,7 @@ const MedicoChatScreen: React.FC = () => {
   );
 
   const doctorAvatarSource: ImageSourcePropType = useMemo(() => {
-    const foto = sanitizeFotoUrl(user?.fotoUrl);
+    const foto = sanitizeRemoteImageUrl(user?.fotoUrl);
     if (foto) return { uri: foto };
     return DefaultAvatar;
   }, [user?.fotoUrl]);

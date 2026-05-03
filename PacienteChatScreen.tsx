@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { sanitizeRemoteImageUrl, resolveRemoteImageSource } from './utils/imageSources';
 import {
   Image,
   Platform,
@@ -72,18 +73,7 @@ const normalizeText = (value: unknown) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = normalizeText(value);
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
 
-const resolveAvatarSource = (value: unknown): ImageSourcePropType => {
-  const clean = sanitizeFotoUrl(value);
-  if (clean) return { uri: clean };
-  return DefaultAvatar;
-};
 
 const parseDateMs = (value: string | null | undefined) => {
   if (!value) return Number.POSITIVE_INFINITY;
@@ -152,7 +142,7 @@ const PacienteChatScreen: React.FC = () => {
           apellidos: normalizeText((profileUser as any)?.apellidos),
           nombre: normalizeText((profileUser as any)?.nombres || (profileUser as any)?.nombre),
           apellido: normalizeText((profileUser as any)?.apellidos || (profileUser as any)?.apellido),
-          fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
+          fotoUrl: sanitizeRemoteImageUrl((profileUser as any)?.fotoUrl),
         };
         if (nextUser) {
           await updateUser(nextUser);
@@ -180,7 +170,7 @@ const PacienteChatScreen: React.FC = () => {
       }
 
       const routeDoctorId = normalizeText(route.params?.doctorId);
-      const routeAvatarUrl = sanitizeFotoUrl(route.params?.doctorAvatarUrl);
+      const routeAvatarUrl = sanitizeRemoteImageUrl(route.params?.doctorAvatarUrl);
       const contactList = (payload.conversaciones as any[])
         .map((conversation) => {
           const conversationId = normalizeText(conversation?.conversacionId);
@@ -415,8 +405,8 @@ const PacienteChatScreen: React.FC = () => {
     return plan ? `Paciente ${plan}` : 'Paciente';
   }, [user?.plan]);
 
-  const userAvatarSource: ImageSourcePropType = useMemo(() => resolveAvatarSource(user?.fotoUrl), [user?.fotoUrl]);
-  const hasProfilePhoto = useMemo(() => Boolean(sanitizeFotoUrl(user?.fotoUrl)), [user?.fotoUrl]);
+  const userAvatarSource: ImageSourcePropType = useMemo(() => resolveRemoteImageSource(user?.fotoUrl, DefaultAvatar), [user?.fotoUrl]);
+  const hasProfilePhoto = useMemo(() => Boolean(sanitizeRemoteImageUrl(user?.fotoUrl)), [user?.fotoUrl]);
 
   const filteredContacts = useMemo(() => {
     const query = normalizeText(searchText).toLowerCase();
@@ -613,7 +603,7 @@ const PacienteChatScreen: React.FC = () => {
                 return (
                   <TouchableOpacity key={chat.id} style={[styles.chatRow, isActive && styles.chatRowActive]} onPress={() => setSelectedChatId(chat.id)} activeOpacity={0.75}>
                     <View style={styles.chatAvatarWrap}>
-                      <Image source={resolveAvatarSource(chat.avatarUrl)} style={styles.chatAvatar} />
+                      <Image source={resolveRemoteImageSource(chat.avatarUrl, DefaultAvatar)} style={styles.chatAvatar} />
                       <View style={styles.onlineDot} />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -636,7 +626,7 @@ const PacienteChatScreen: React.FC = () => {
           <View style={styles.chatHeader}>
             {selectedChat ? (
               <View style={styles.chatHeaderInner}>
-                <Image source={resolveAvatarSource(selectedChat.avatarUrl)} style={styles.chatHeaderAvatar} />
+                <Image source={resolveRemoteImageSource(selectedChat.avatarUrl, DefaultAvatar)} style={styles.chatHeaderAvatar} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.chatHeaderName}>{selectedChat.name}</Text>
                   <Text style={styles.chatHeaderSpec}>{selectedChat.specialty}</Text>

@@ -38,6 +38,12 @@ export const useResponsive = () => {
   const wp = (percent: number): number => (width  * percent) / 100;
   const hp = (percent: number): number => (height * percent) / 100;
 
+  // Clamp escalado: respeta min/max y escala con el ancho de pantalla.
+  const clamp = (value: number, min: number, max: number): number => {
+    const scaled = rs(value);
+    return Math.min(Math.max(scaled, min), max);
+  };
+
   // Escala semántica de tipografía lista para usar en StyleSheet
   const typography = {
     xs:    fs(10),
@@ -71,6 +77,7 @@ export const useResponsive = () => {
     rs,
     wp,
     hp,
+    clamp,
     typography,
     select,
   };

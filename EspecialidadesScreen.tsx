@@ -64,7 +64,7 @@ const HoverSpecialtyCard = ({ icon, title, context, sub, count, image, detailedI
         alignItems: 'center',
         opacity: overlayOpacity,
         transform: [{ translateY: overlayTranslateY }],
-        ...Platform.select({ web: { backdropFilter: 'blur(8px)' } } as any)
+        ...((Platform.select({ web: { backdropFilter: 'blur(8px)' } }) as object) || {})
       }}>
         <MaterialIcons name="info-outline" size={24} color="#fff" style={{ marginBottom: 12 }} />
         <Text style={{ color: '#fff', fontSize: 14, textAlign: 'center', lineHeight: 22, fontWeight: '500' }}>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { sanitizeRemoteImageUrl, resolveRemoteImageSource } from './utils/imageSources';
 import {
   ActivityIndicator,
   Alert,
@@ -86,15 +87,10 @@ const normalizeText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = String(value || '').trim();
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
+
 
 const resolveDoctorImage = (value: { fotoUrl?: string | null }): ImageSourcePropType => {
-  const clean = sanitizeFotoUrl(value.fotoUrl);
+  const clean = sanitizeRemoteImageUrl(value.fotoUrl);
   if (clean) {
     return { uri: clean };
   }
@@ -178,7 +174,7 @@ const mapBackendMedicoToProfile = (
   const name = String(medico?.nombreCompleto || '').trim() || 'Doctor';
   const cedula = String(medico?.cedula || '').trim();
   const telefono = String(medico?.telefono || '').trim();
-  const fotoUrl = sanitizeFotoUrl(medico?.fotoUrl);
+  const fotoUrl = sanitizeRemoteImageUrl(medico?.fotoUrl);
 
   return toDoctorProfile({
     id: String(medico?.medicoid || ''),
@@ -226,8 +222,8 @@ const mapRouteSnapshotToProfile = (
     languages: 'Español',
     license: 'No disponible',
     price: snapshot.price,
-    fotoUrl: sanitizeFotoUrl(snapshot?.fotoUrl),
-    image: resolveDoctorImage({ fotoUrl: sanitizeFotoUrl(snapshot?.fotoUrl) }),
+    fotoUrl: sanitizeRemoteImageUrl(snapshot?.fotoUrl),
+    image: resolveDoctorImage({ fotoUrl: sanitizeRemoteImageUrl(snapshot?.fotoUrl) }),
     about: `Especialista en ${specialty}. Consulta virtual disponible para evaluación y seguimiento.`,
     services:
       Array.isArray(snapshot.tags) && snapshot.tags.length
