@@ -38,7 +38,6 @@ type RegistroMedicoFormValues = {
   especialidad: string;
   espQuery: string;
   fotoUri: string;
-  fotoUri: string;
 };
 
 type RegistroMedicoFormErrors = {
@@ -98,7 +97,6 @@ const INITIAL_VALUES: RegistroMedicoFormValues = {
   selectedCountryCode: countryCodes[0],
   especialidad: "",
   espQuery: "",
-  fotoUri: "",
   fotoUri: "",
 };
 
@@ -451,7 +449,6 @@ export function useRegistroMedicoForm(
     closeEspecialidadModal,
     selectEspecialidad,
     pickImage,
-    pickSupportingDocument,
     handleContinue,
     handleCancel,
   };

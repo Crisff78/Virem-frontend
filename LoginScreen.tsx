@@ -10,9 +10,9 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  SafeAreaView,
 } from 'react-native';
 import { useResponsive } from './hooks/useResponsive';
-import { LinearGradient } from 'expo-linear-gradient';
 import FadeInView from './components/FadeInView';
 import ViremImage from './components/ViremImage';
 
@@ -145,27 +145,24 @@ const LoginScreen: React.FC = () => {
   const { isDesktop, isTablet, isMobile, select } = useResponsive();
 
   return (
-    <View style={styles.safeArea}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
       
-      <LinearGradient
-        colors={['#1F4770', '#0A1931']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-
       <View style={styles.container}>
         <FadeInView style={styles.content}>
-          <View style={[styles.card, { padding: select({ mobile: 24, tablet: 32, desktop: 40 }) }]}>
+          <View style={styles.card}>
+            {/* Sección de Logo y Nombre (Horizontal con Imagen Local) */}
             <View style={styles.logoSectionHorizontal}>
-              <ViremImage source={ViremLogo} style={styles.logoSmallOriginal} />
+              <Image 
+                source={ViremLogo} 
+                style={styles.logoSmallOriginal} 
+              />
               <Text style={styles.appNameHorizontal}>VIREM</Text>
             </View>
 
-            <Text style={styles.title}>¡Hola de nuevo!</Text>
+            <Text style={styles.title}>Accede a tu cuenta</Text>
             <Text style={styles.subtitle}>
-              Introduce tus credenciales para acceder a tu portal de salud.
+              Bienvenido de nuevo. Por favor, introduce tus credenciales.
             </Text>
 
             <View style={styles.form}>
@@ -174,13 +171,13 @@ const LoginScreen: React.FC = () => {
                 <View style={styles.inputContainer}>
                   <MaterialCommunityIcons
                     name="email-outline"
-                    size={20}
+                    size={22}
                     color={COLORS.iconColor}
                     style={styles.inputIcon}
                   />
                   <TextInput
                     style={styles.input}
-                    placeholder="ejemplo@virem.com"
+                    placeholder="tu@email.com"
                     placeholderTextColor="#A0AEC0"
                     keyboardType="email-address"
                     autoCapitalize="none"
@@ -195,13 +192,13 @@ const LoginScreen: React.FC = () => {
                 <View style={styles.inputContainer}>
                   <MaterialCommunityIcons
                     name="lock-outline"
-                    size={20}
+                    size={22}
                     color={COLORS.iconColor}
                     style={styles.inputIcon}
                   />
                   <TextInput
                     style={styles.input}
-                    placeholder="••••••••"
+                    placeholder="Introduce tu contraseña"
                     placeholderTextColor="#A0AEC0"
                     secureTextEntry={!showPassword}
                     value={password}
@@ -235,81 +232,151 @@ const LoginScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.footer}>
+            <TouchableOpacity onPress={handleGoToRegister} style={styles.registerLink}>
               <Text style={styles.registerText}>
-                ¿Nuevo en VIREM?{' '}
-                <Text style={styles.linkTextBold} onPress={handleGoToRegister}>
-                  Crea una cuenta
-                </Text>
+                ¿No tienes cuenta? <Text style={styles.linkTextBold}>Regístrate</Text>
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </FadeInView>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 export default LoginScreen;
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { width: '100%', alignItems: 'center', paddingHorizontal: 20 },
-  card: {
-    width: '100%',
-    maxWidth: 450,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.2,
-    shadowRadius: 30,
-    elevation: 10,
+  safeArea: { 
+    flex: 1, 
+    backgroundColor: COLORS.backgroundLight 
+  },
+  container: { 
+    flex: 1, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    paddingHorizontal: 20,
+  },
+  content: { 
+    width: '100%', 
+    alignItems: 'center' 
+  },
+  card: { 
+    width: '100%', 
+    maxWidth: 400, 
+    backgroundColor: COLORS.cardLight, 
+    borderRadius: 16, 
+    padding: 30, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.1, 
+    shadowRadius: 10, 
+    elevation: 8, 
+    alignItems: 'center'
+  },
+  logoSectionHorizontal: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 20, 
   },
-  logoSectionHorizontal: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
-  logoSmallOriginal: { width: 40, height: 40, marginRight: 12 },
+  logoSmallOriginal: { 
+    width: 30, 
+    height: 30, 
+    resizeMode: 'contain', 
+    marginRight: 8,
+  },
   appNameHorizontal: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#1F4770',
-    letterSpacing: 2,
+    fontSize: 22,
+    fontWeight: 'bold', 
+    color: COLORS.textPrimary, 
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
-  title: { fontSize: 28, fontWeight: '900', color: '#1A202C', textAlign: 'center', marginBottom: 8 },
-  subtitle: { fontSize: 15, color: '#718096', textAlign: 'center', marginBottom: 32, lineHeight: 22 },
-  form: { width: '100%', gap: 18 },
-  inputLabel: { fontSize: 13, fontWeight: '700', color: '#4A5568', marginBottom: 8, marginLeft: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  title: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: COLORS.textPrimary, 
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: { 
+    fontSize: 14, 
+    color: COLORS.textSecondary, 
+    textAlign: 'center', 
+    marginBottom: 30,
+    paddingHorizontal: 10,
+  },
+  form: { 
+    width: '100%', 
+    gap: 20, 
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: 5,
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 56,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 16,
-    backgroundColor: '#F7FAFC',
-    paddingHorizontal: 12,
+    height: 48, 
+    borderWidth: 1, 
+    borderColor: COLORS.borderLight, 
+    borderRadius: 8, 
+    backgroundColor: COLORS.cardLight, 
+    paddingHorizontal: 0,
   },
-  inputIcon: { marginRight: 10 },
-  input: { flex: 1, fontSize: 16, color: '#2D3748', fontWeight: '500' },
-  forgotPasswordLink: { alignSelf: 'flex-end', paddingVertical: 5 },
-  linkText: { color: '#3182CE', fontSize: 14, fontWeight: '700' },
+  inputIcon: {
+    paddingLeft: 12,
+    paddingRight: 8,
+  },
+  input: { 
+    flex: 1,
+    paddingHorizontal: 0, 
+    fontSize: 16, 
+    color: COLORS.textPrimary, 
+  },
+  forgotPasswordLink: { 
+    alignSelf: 'flex-end', 
+    paddingVertical: 5,
+    marginTop: -5, 
+  },
+  linkText: { 
+    color: COLORS.link, 
+    fontSize: 14, 
+    fontWeight: '600',
+    textDecorationLine: 'none', 
+  },
   button: { 
     width: '100%', 
-    height: 56, 
-    backgroundColor: '#1F4770', 
-    borderRadius: 16, 
+    height: 48, 
+    backgroundColor: COLORS.primary, 
+    borderRadius: 8, 
     justifyContent: 'center', 
     alignItems: 'center', 
-    marginTop: 10,
-    shadowColor: '#1F4770',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
+    marginTop: 15,
   },
-  buttonText: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
-  footer: { marginTop: 32, borderTopWidth: 1, borderTopColor: '#EDF2F7', width: '100%', paddingTop: 24, alignItems: 'center' },
-  registerText: { fontSize: 15, color: '#718096', fontWeight: '500' },
-  linkTextBold: { color: '#3182CE', fontWeight: '800' },
-  passwordToggle: { paddingLeft: 10, justifyContent: 'center' as const },
+  buttonText: { 
+    color: COLORS.cardLight, 
+    fontSize: 18, 
+    fontWeight: 'bold' 
+  },
+  registerLink: { 
+    marginTop: 20 
+  },
+  registerText: { 
+    fontSize: 14, 
+    color: COLORS.textSecondary
+  },
+  linkTextBold: { 
+    color: COLORS.link, 
+    fontSize: 14, 
+    fontWeight: 'bold' 
+  },
+  passwordToggle: { 
+    paddingHorizontal: 12, 
+    justifyContent: 'center' 
+  },
 });
