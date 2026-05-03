@@ -25,22 +25,14 @@ import { isValidEmail } from './utils/validation';
 import { apiClient } from './utils/api';
 import { useAuth } from './providers/AuthProvider';
 import { spacing, radii } from './theme/spacing';
+import { colors } from './theme/colors';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const MEDICO_CACHE_BY_EMAIL_KEY = 'medicoProfileByEmail';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
-const COLORS = {
-  primary: '#1F4770',
-  backgroundLight: '#F3F6F9',
-  textPrimary: '#1A1A1A',
-  textSecondary: '#666666',
-  borderLight: '#E0E0E0',
-  cardLight: '#FFFFFF',
-  link: '#1F4770',
-  iconColor: '#888888',
-};
+
 
 async function getCachedMedicoProfileByEmail(email: string) {
   const key = String(email || '').trim().toLowerCase();
@@ -141,7 +133,7 @@ const LoginScreen: React.FC = () => {
 
   return (
     <ScreenScaffold
-      background={COLORS.backgroundLight}
+      background={colors.bg}
       center
       contentStyle={{ paddingVertical: spacing.lg }}
     >
@@ -167,7 +159,7 @@ const LoginScreen: React.FC = () => {
                   <MaterialCommunityIcons
                     name="email-outline"
                     size={22}
-                    color={COLORS.iconColor}
+                    color={colors.muted}
                     style={styles.inputIcon}
                   />
                   <TextInput
@@ -191,7 +183,7 @@ const LoginScreen: React.FC = () => {
                   <MaterialCommunityIcons
                     name="lock-outline"
                     size={22}
-                    color={COLORS.iconColor}
+                    color={colors.muted}
                     style={styles.inputIcon}
                   />
                   <TextInput
@@ -215,7 +207,7 @@ const LoginScreen: React.FC = () => {
                     <MaterialCommunityIcons
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                       size={20}
-                      color={COLORS.iconColor}
+                      color={colors.muted}
                     />
                   </TouchableOpacity>
                 </View>
@@ -262,7 +254,7 @@ const styles = StyleSheet.create({
   content: { width: '100%', alignItems: 'center' },
   card: {
     width: '100%',
-    backgroundColor: COLORS.cardLight,
+    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -287,18 +279,18 @@ const styles = StyleSheet.create({
   },
   appNameHorizontal: {
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.dark,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   title: {
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.dark,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
   subtitle: {
-    color: COLORS.textSecondary,
+    color: colors.muted,
     textAlign: 'center',
     marginBottom: spacing.xxl,
     paddingHorizontal: spacing.sm,
@@ -307,7 +299,7 @@ const styles = StyleSheet.create({
   form: { width: '100%', gap: spacing.lg },
   inputLabel: {
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.dark,
     marginBottom: spacing.xs,
   },
   inputContainer: {
@@ -315,9 +307,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 48,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: colors.border,
     borderRadius: radii.sm,
-    backgroundColor: COLORS.cardLight,
+    backgroundColor: colors.surface,
   },
   inputIcon: {
     paddingLeft: spacing.md,
@@ -326,18 +318,18 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     paddingVertical: Platform.OS === 'web' ? spacing.md : spacing.sm,
-    color: COLORS.textPrimary,
+    color: colors.dark,
   },
   forgotPasswordLink: {
     alignSelf: 'flex-end',
     paddingVertical: spacing.xs,
     marginTop: -spacing.xs,
   },
-  linkText: { color: COLORS.link, fontWeight: '600' },
+  linkText: { color: colors.primary, fontWeight: '600' },
   button: {
     width: '100%',
     minHeight: 48,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: radii.sm,
     justifyContent: 'center',
     alignItems: 'center',
@@ -345,9 +337,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: COLORS.cardLight, fontWeight: 'bold' },
+  buttonText: { color: colors.surface, fontWeight: 'bold' },
   registerLink: { marginTop: spacing.lg },
-  registerText: { color: COLORS.textSecondary, textAlign: 'center' },
-  linkTextBold: { color: COLORS.link, fontWeight: 'bold' },
+  registerText: { color: colors.muted, textAlign: 'center' },
+  linkTextBold: { color: colors.primary, fontWeight: 'bold' },
   passwordToggle: { paddingHorizontal: spacing.md, justifyContent: 'center', minHeight: 48 },
 });

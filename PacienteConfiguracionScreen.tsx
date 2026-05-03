@@ -24,6 +24,9 @@ import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
 import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
+import { useResponsive } from './hooks/useResponsive';
+import { colors } from './theme/colors';
+import { spacing, radii } from './theme/spacing';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');

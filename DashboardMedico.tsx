@@ -29,6 +29,7 @@ import { useResponsive } from './hooks/useResponsive';
 import Skeleton from './components/Skeleton';
 import ViremImage from './components/ViremImage';
 import FadeInView from './components/FadeInView';
+import { colors } from './theme/colors';
 
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -41,19 +42,7 @@ const PatientAvatar: ImageSourcePropType = DefaultAvatar;
 // -------------------------------------------------------------
 // COLORES Y CONSTANTES (Renovados)
 // -------------------------------------------------------------
-const colors = {
-  primary: '#137fec',
-  bg: '#F6FAFD',
-  dark: '#0A1931',
-  blue: '#1A3D63',
-  green: '#22c55e',
-  red: '#ef4444',
-  muted: '#4A7FA7',
-  white: '#FFFFFF',
-  brand: '#137fec',
-  viremLight: '#E8EFF5',
-  viremMuted: '#7D95A9',
-};
+
 
 const MIN_REFRESH_INTERVAL_MS = 15000;
 
@@ -390,6 +379,7 @@ const DashboardMedico: React.FC = () => {
       shadowOpacity: 0.08, 
       shadowRadius: 15, 
       shadowOffset: { width: 0, height: 8 }, 
+      web: { boxShadow: '0 8px 24px rgba(43,108,176,0.15)' as any },
       elevation: 5 
     },
     bigCardLeft: { flex: 1 },

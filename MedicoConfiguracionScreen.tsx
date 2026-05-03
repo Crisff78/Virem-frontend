@@ -23,6 +23,9 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage } from './localization/LanguageContext';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 import { resolveRemoteImageSource } from './utils/imageSources';
+import { useResponsive } from './hooks/useResponsive';
+import { colors } from './theme/colors';
+import { spacing, radii } from './theme/spacing';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -119,6 +122,8 @@ const MedicoConfiguracionScreen: React.FC = () => {
 
   const prettyValue = (val: any) => String(val || '').trim() || '---';
 
+  const { fs, rs, isDesktop, isMobile, width, select } = useResponsive();
+
   const sideItems = [
     { icon: 'dashboard', label: 'Dashboard', route: 'DashboardMedico' },
     { icon: 'calendar-today', label: 'Agenda', route: 'MedicoCitas' },
@@ -126,7 +131,7 @@ const MedicoConfiguracionScreen: React.FC = () => {
     { icon: 'notification-important', label: 'Solicitudes' },
     { icon: 'chat-bubble', label: 'Mensajes', route: 'MedicoChat' },
     { icon: 'person', label: 'Perfil', route: 'MedicoPerfil' },
-    { icon: 'settings', label: 'Configuracion', route: 'MedicoConfiguracion', active: true },
+    { icon: 'settings', label: 'Configuración', route: 'MedicoConfiguracion', active: true },
   ];
 
   return (
@@ -179,38 +184,38 @@ const MedicoConfiguracionScreen: React.FC = () => {
               <View style={styles.iconBox}>
                 <MaterialIcons name="manage-accounts" size={22} color={colors.primary} />
               </View>
-              <View>
+              <View style={styles.cardHeaderText}>
                 <Text style={styles.cardTitle}>Preferencias de Cuenta</Text>
                 <Text style={styles.cardHint}>Idioma y formato de tiempo</Text>
               </View>
             </View>
 
             <View style={styles.itemRow}>
-              <View>
+              <View style={styles.itemInfo}>
                 <Text style={styles.itemTitle}>Idioma</Text>
                 <Text style={styles.itemSub}>{languageLabel}</Text>
               </View>
-              <TouchableOpacity onPress={() => openSelector('language')}>
+              <TouchableOpacity onPress={() => openSelector('language')} style={styles.itemActionContainer}>
                 <Text style={styles.itemAction}>Cambiar</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.itemRow}>
-              <View>
+              <View style={styles.itemInfo}>
                 <Text style={styles.itemTitle}>Formato de Hora</Text>
                 <Text style={styles.itemSub}>{timeFormat}</Text>
               </View>
-              <TouchableOpacity onPress={() => openSelector('timeFormat')}>
+              <TouchableOpacity onPress={() => openSelector('timeFormat')} style={styles.itemActionContainer}>
                 <Text style={styles.itemAction}>Editar</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.itemRowLast}>
-              <View>
+              <View style={styles.itemInfo}>
                 <Text style={styles.itemTitle}>Zona Horaria</Text>
                 <Text style={styles.itemSub}>{timeZone}</Text>
               </View>
-              <TouchableOpacity onPress={() => openSelector('timeZone')}>
+              <TouchableOpacity onPress={() => openSelector('timeZone')} style={styles.itemActionContainer}>
                 <Text style={styles.itemAction}>Actualizar</Text>
               </TouchableOpacity>
             </View>
@@ -222,14 +227,14 @@ const MedicoConfiguracionScreen: React.FC = () => {
               <View style={styles.iconBox}>
                 <MaterialIcons name="notifications-active" size={22} color={colors.primary} />
               </View>
-              <View>
+              <View style={styles.cardHeaderText}>
                 <Text style={styles.cardTitle}>Notificaciones</Text>
                 <Text style={styles.cardHint}>Configura cómo recibes alertas</Text>
               </View>
             </View>
 
             <View style={styles.toggleRow}>
-              <View>
+              <View style={styles.itemInfo}>
                 <Text style={styles.itemTitle}>Correo Electrónico</Text>
                 <Text style={styles.itemSub}>Avisos de nuevas citas y mensajes</Text>
               </View>
@@ -237,7 +242,7 @@ const MedicoConfiguracionScreen: React.FC = () => {
             </View>
 
             <View style={styles.toggleRow}>
-              <View>
+              <View style={styles.itemInfo}>
                 <Text style={styles.itemTitle}>Mensajes SMS</Text>
                 <Text style={styles.itemSub}>Alertas críticas al celular</Text>
               </View>
@@ -245,7 +250,7 @@ const MedicoConfiguracionScreen: React.FC = () => {
             </View>
 
             <View style={styles.toggleRowLast}>
-              <View>
+              <View style={styles.itemInfo}>
                 <Text style={styles.itemTitle}>Push Notifications</Text>
                 <Text style={styles.itemSub}>Notificaciones en tiempo real</Text>
               </View>
@@ -259,7 +264,7 @@ const MedicoConfiguracionScreen: React.FC = () => {
               <View style={styles.iconBox}>
                 <MaterialIcons name="lock" size={22} color={colors.primary} />
               </View>
-              <View>
+              <View style={styles.cardHeaderText}>
                 <Text style={styles.cardTitle}>Seguridad</Text>
                 <Text style={styles.cardHint}>Protege tu acceso médico</Text>
               </View>
@@ -288,7 +293,7 @@ const MedicoConfiguracionScreen: React.FC = () => {
               <View style={styles.iconBox}>
                 <MaterialIcons name="help-outline" size={22} color={colors.primary} />
               </View>
-              <View>
+              <View style={styles.cardHeaderText}>
                 <Text style={styles.cardTitle}>Ayuda y Soporte</Text>
                 <Text style={styles.cardHint}>Centro de atención médica</Text>
               </View>
@@ -334,22 +339,19 @@ const MedicoConfiguracionScreen: React.FC = () => {
   );
 };
 
-const colors = {
-  primary: '#137fec',
-  bg: '#F6FAFD',
-  dark: '#0A1931',
-  blue: '#1A3D63',
-  muted: '#4A7FA7',
-  white: '#FFFFFF',
-};
+
 
 const styles = StyleSheet.create({
-  container: { flex: 1, flexDirection: Platform.OS === 'web' ? 'row' : 'column', backgroundColor: colors.bg },
+  container: { 
+    flex: 1, 
+    flexDirection: Platform.OS === 'web' && BREAKPOINTS.desktop <= 1024 ? 'row' : 'column', 
+    backgroundColor: colors.bg 
+  },
   sidebar: {
     width: Platform.OS === 'web' ? 280 : '100%',
     backgroundColor: colors.white,
     borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-    borderRightColor: '#eef2f7',
+    borderRightColor: colors.border,
     padding: 20,
     justifyContent: 'space-between',
   },
@@ -358,45 +360,48 @@ const styles = StyleSheet.create({
   logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark },
   logoSubtitle: { fontSize: 11, fontWeight: '700', color: colors.muted },
   userBox: { marginTop: 18, alignItems: 'center', paddingVertical: 12 },
-  userAvatar: { width: 76, height: 76, borderRadius: 76, marginBottom: 10, borderWidth: 4, borderColor: '#f5f7fb' },
+  userAvatar: { width: 76, height: 76, borderRadius: 76, marginBottom: 10, borderWidth: 4, borderColor: colors.bg },
   userName: { fontWeight: '800', color: colors.dark, fontSize: 14 },
   userPlan: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 2 },
   menu: { marginTop: 10, gap: 6 },
   menuItemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12 },
-  menuItemActive: { backgroundColor: 'rgba(19,127,236,0.10)', borderRightWidth: 3, borderRightColor: colors.primary },
+  menuItemActive: { backgroundColor: colors.primarySoft, borderRightWidth: 3, borderRightColor: colors.primary },
   menuText: { fontSize: 14, fontWeight: '700', color: colors.muted },
   menuTextActive: { color: colors.primary },
   logoutButton: { flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blue, paddingVertical: 12, borderRadius: 12 },
   logoutText: { color: '#fff', fontWeight: '800' },
-  main: { flex: 1, paddingHorizontal: 26, paddingTop: 18 },
-  title: { fontSize: 42, fontWeight: '900', color: colors.dark },
-  subtitle: { fontSize: 20, color: colors.muted, marginTop: 6, marginBottom: 18, fontWeight: '600' },
-  grid: { flexDirection: Platform.OS === 'web' ? 'row' : 'column', flexWrap: 'wrap', gap: 14 },
-  cardHalf: { width: Platform.OS === 'web' ? '49%' : '100%', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e4edf7', padding: 16, minHeight: 230 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  iconBox: { width: 42, height: 42, borderRadius: 12, backgroundColor: 'rgba(19,127,236,0.12)', alignItems: 'center', justifyContent: 'center' },
+  main: { flex: 1, paddingHorizontal: 20, paddingTop: 18 },
+  title: { fontSize: 32, fontWeight: '900', color: colors.dark },
+  subtitle: { fontSize: 16, color: colors.muted, marginTop: 6, marginBottom: 18, fontWeight: '600' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+  cardHalf: { flexGrow: 1, minWidth: 300, backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 16, marginBottom: 14 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  cardHeaderText: { flex: 1 },
+  iconBox: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { color: colors.dark, fontSize: 16, fontWeight: '900' },
-  cardHint: { color: '#9bb1c7', fontSize: 11, fontWeight: '600' },
-  itemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#edf3fa' },
-  itemRowLast: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9 },
+  cardHint: { color: colors.muted, fontSize: 11, fontWeight: '600' },
+  itemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  itemRowLast: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
+  itemInfo: { flex: 1, paddingRight: 10 },
   itemTitle: { color: colors.dark, fontSize: 14, fontWeight: '800' },
-  itemSub: { color: '#7f93a8', fontSize: 12, fontWeight: '600' },
+  itemSub: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 2 },
+  itemActionContainer: { paddingLeft: 10 },
   itemAction: { color: colors.primary, fontSize: 14, fontWeight: '800' },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#edf3fa' },
-  toggleRowLast: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9 },
-  securityButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f8fbff', borderWidth: 1, borderColor: '#dce8f5', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, marginBottom: 10 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  toggleRowLast: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
+  securityButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, marginBottom: 10 },
   securityLeft: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   securityText: { color: colors.blue, fontSize: 14, fontWeight: '800' },
-  supportBox: { backgroundColor: '#f8fbff', borderWidth: 1, borderColor: '#dce8f5', borderRadius: 12, padding: 12 },
-  supportTitle: { color: colors.dark, fontSize: 14, fontWeight: '900' },
-  supportText: { color: '#7f93a8', fontSize: 12, lineHeight: 17, fontWeight: '600' },
+  supportBox: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12 },
+  supportTitle: { color: colors.dark, fontSize: 14, fontWeight: '900', marginBottom: 4 },
+  supportText: { color: colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '600' },
   supportButtons: { flexDirection: 'row', gap: 10, marginTop: 12 },
   contactBtn: { flex: 1, backgroundColor: colors.primary, borderRadius: 10, alignItems: 'center', paddingVertical: 10 },
   contactBtnText: { color: '#fff', fontSize: 13, fontWeight: '900' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalCard: { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '90%', maxWidth: 400 },
+  modalCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 24, width: '90%', maxWidth: 400 },
   modalTitle: { fontSize: 20, fontWeight: '900', color: colors.dark, marginBottom: 18, textAlign: 'center' },
-  optionButton: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  optionButton: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   optionText: { fontSize: 16, fontWeight: '700', color: colors.blue, textAlign: 'center' },
   cancelButton: { marginTop: 18, paddingVertical: 14 },
   cancelText: { color: colors.muted, fontSize: 16, fontWeight: '800', textAlign: 'center' },

@@ -31,24 +31,13 @@ import { ResponsiveContainer } from './components/ResponsiveContainer';
 import Skeleton from './components/Skeleton';
 import FadeInView from './components/FadeInView';
 import { spacing, radii } from './theme/spacing';
+import { colors } from './theme/colors';
 
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
 const MIN_REFRESH_INTERVAL_MS = 15000;
 
-const colors = {
-  primary: '#137fec',
-  primarySoft: 'rgba(19,127,236,0.10)',
-  dark: '#0f172a',
-  muted: '#64748b',
-  bg: '#f5f7fb',
-  surface: '#ffffff',
-  border: '#e8eef5',
-  borderDashed: '#d8e2ee',
-  success: '#16a34a',
-  warning: '#f59e0b',
-  danger: '#ef4444',
-};
+
 
 type CitaItem = {
   citaid: string;
@@ -72,10 +61,10 @@ type QuickAction = {
 };
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { key: 'find', icon: 'person-search', label: 'Buscar médico', color: '#137fec', bg: '#e0f2fe', route: 'NuevaConsultaPaciente' },
-  { key: 'cit', icon: 'calendar-today', label: 'Mis citas', color: '#16a34a', bg: '#dcfce7', route: 'PacienteCitas' },
-  { key: 'video', icon: 'videocam', label: 'Sala virtual', color: '#a855f7', bg: '#f3e8ff', route: 'SalaEsperaVirtualPaciente' },
-  { key: 'rx', icon: 'description', label: 'Recetas', color: '#f59e0b', bg: '#fef3c7', route: 'PacienteRecetasDocumentos' },
+  { key: 'find', icon: 'person-search', label: 'Buscar médico', color: colors.primary, bg: '#EBF8FF', route: 'NuevaConsultaPaciente' },
+  { key: 'cit', icon: 'calendar-today', label: 'Mis citas', color: colors.success, bg: '#ECFDF5', route: 'PacienteCitas' },
+  { key: 'video', icon: 'videocam', label: 'Sala virtual', color: '#8B5CF6', bg: '#F5F3FF', route: 'SalaEsperaVirtualPaciente' },
+  { key: 'rx', icon: 'description', label: 'Recetas', color: colors.warning, bg: '#FFFBEB', route: 'PacienteRecetasDocumentos' },
 ];
 
 const greetingFor = (date: Date): string => {
@@ -604,7 +593,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 8 },
       },
       android: { elevation: 6 },
-      web: { boxShadow: '0 8px 24px rgba(19,127,236,0.25)' as any },
+      web: { boxShadow: '0 8px 24px rgba(43,108,176,0.25)' as any },
     }),
   },
   bigCardHeader: {

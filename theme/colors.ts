@@ -17,6 +17,10 @@ export const colors = {
   warning: '#F59E0B',
   danger: '#EF4444',
   white: '#FFFFFF',
+  // Aliases for compatibility
+  green: '#10B981',
+  red: '#EF4444',
+  brand: '#2B6CB0',
 } as const;
 
 export type ColorToken = keyof typeof colors;
