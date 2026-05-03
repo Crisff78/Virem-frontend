@@ -38,8 +38,7 @@ type RegistroMedicoFormValues = {
   especialidad: string;
   espQuery: string;
   fotoUri: string;
-  cedulaProfesionalUri: string;
-  certificadoEspecialidadUri: string;
+  fotoUri: string;
 };
 
 type RegistroMedicoFormErrors = {
@@ -59,9 +58,7 @@ type RegistroMedicoModalState = {
   showEspModal: boolean;
 };
 
-export type RegistroMedicoDocumentField =
-  | "cedulaProfesionalUri"
-  | "certificadoEspecialidadUri";
+export type RegistroMedicoDocumentField = never;
 
 export type RegistroMedicoFormController = {
   values: RegistroMedicoFormValues;
@@ -88,7 +85,6 @@ export type RegistroMedicoFormController = {
   closeEspecialidadModal: () => void;
   selectEspecialidad: (value: string) => void;
   pickImage: () => Promise<void>;
-  pickSupportingDocument: (field: RegistroMedicoDocumentField) => Promise<void>;
   handleContinue: () => Promise<void>;
   handleCancel: () => void;
 };
@@ -103,8 +99,7 @@ const INITIAL_VALUES: RegistroMedicoFormValues = {
   especialidad: "",
   espQuery: "",
   fotoUri: "",
-  cedulaProfesionalUri: "",
-  certificadoEspecialidadUri: "",
+  fotoUri: "",
 };
 
 const INITIAL_ERRORS: RegistroMedicoFormErrors = {
@@ -124,10 +119,7 @@ const INITIAL_MODALS: RegistroMedicoModalState = {
   showEspModal: false,
 };
 
-const DOCUMENT_FIELDS: RegistroMedicoDocumentField[] = [
-  "cedulaProfesionalUri",
-  "certificadoEspecialidadUri",
-];
+const DOCUMENT_FIELDS: any[] = [];
 
 export function useRegistroMedicoForm(
   navigation: NavigationProps
@@ -145,9 +137,7 @@ export function useRegistroMedicoForm(
       values.cedula.trim() !== "" &&
       values.phone.trim() !== "" &&
       values.especialidad.trim() !== "" &&
-      !!values.fotoUri &&
-      !!values.cedulaProfesionalUri &&
-      !!values.certificadoEspecialidadUri,
+      !!values.fotoUri,
     [values]
   );
 
@@ -160,11 +150,9 @@ export function useRegistroMedicoForm(
       values.phone,
       values.especialidad,
       values.fotoUri,
-      values.cedulaProfesionalUri,
-      values.certificadoEspecialidadUri,
     ].filter((value) => value.trim() !== "").length;
 
-    return Math.round((completedFields / 9) * 100);
+    return Math.round((completedFields / 7) * 100);
   }, [values]);
 
   const especialidadesFiltradas = useMemo(() => {
@@ -315,39 +303,7 @@ export function useRegistroMedicoForm(
     }
   }, [updateErrors, updateValues]);
 
-  const pickSupportingDocument = useCallback(
-    async (field: RegistroMedicoDocumentField) => {
-      if (!DOCUMENT_FIELDS.includes(field)) return;
-
-      try {
-        if (Platform.OS !== "web") {
-          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (status !== "granted") {
-            Alert.alert("Permiso requerido", "Necesitamos permiso para acceder a tus archivos.");
-            return;
-          }
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: false,
-          quality: 0.65,
-          base64: true,
-        });
-
-        if (result.canceled) return;
-        const pickedAsset = result.assets[0];
-        const baseUri = buildPersistentPhotoUri(pickedAsset);
-        const persistentUri = await toWebDataUrl(baseUri);
-        if (!persistentUri) return;
-
-        updateValues({ [field]: persistentUri } as Partial<RegistroMedicoFormValues>);
-      } catch {
-        Alert.alert("Error", "No se pudo seleccionar el documento.");
-      }
-    },
-    [updateValues]
-  );
+  const pickSupportingDocument = useCallback(async () => {}, []);
 
   const handleContinue = useCallback(async () => {
     setErrors((current) => ({
@@ -446,9 +402,6 @@ export function useRegistroMedicoForm(
       cedula: values.cedula,
       telefono: `${values.selectedCountryCode.code} ${values.phone}`,
       fotoUrl: String(values.fotoUri || "").trim() || undefined,
-      cedulaProfesionalUrl: String(values.cedulaProfesionalUri || "").trim() || undefined,
-      certificadoEspecialidadUrl:
-        String(values.certificadoEspecialidadUri || "").trim() || undefined,
       exequaturValidationToken,
     };
 
@@ -464,10 +417,6 @@ export function useRegistroMedicoForm(
       datosPersonales: {
         ...draftPayload,
         fotoUrl: draftKey ? undefined : draftPayload.fotoUrl,
-        cedulaProfesionalUrl: draftKey ? undefined : draftPayload.cedulaProfesionalUrl,
-        certificadoEspecialidadUrl: draftKey
-          ? undefined
-          : draftPayload.certificadoEspecialidadUrl,
         draftKey,
       },
     });

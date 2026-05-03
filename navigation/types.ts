@@ -15,8 +15,6 @@ export type DatosPersonalesMedico = {
   cedula: string;
   telefono: string;
   fotoUrl?: string;
-  cedulaProfesionalUrl?: string;
-  certificadoEspecialidadUrl?: string;
   exequaturValidationToken?: string;
   draftKey?: string;
 };
