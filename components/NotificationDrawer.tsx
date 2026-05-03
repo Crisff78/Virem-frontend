@@ -34,17 +34,16 @@ type NotificationItem = {
   unread: boolean;
   icon: string;
   color: string;
-  section: 'HOY' | 'AYER' | 'ESTA SEMANA' | 'ANTERIOR';
+  section: 'HOY' | 'AYER' | 'ESTA SEMANA';
   type: 'citas' | 'mensajes' | 'documentos';
   action?: string;
   createdAt?: string | null;
 };
 
-const sectionOrder: Array<'HOY' | 'AYER' | 'ESTA SEMANA' | 'ANTERIOR'> = [
+const sectionOrder: Array<'HOY' | 'AYER' | 'ESTA SEMANA'> = [
   'HOY',
   'AYER',
   'ESTA SEMANA',
-  'ANTERIOR',
 ];
 
 const toRelativeTime = (value: string | null | undefined) => {
@@ -73,8 +72,7 @@ const resolveSection = (value: string | null | undefined): NotificationItem['sec
   const diffDays = Math.floor((today - target) / (24 * 60 * 60 * 1000));
   if (diffDays <= 0) return 'HOY';
   if (diffDays === 1) return 'AYER';
-  if (diffDays <= 7) return 'ESTA SEMANA';
-  return 'ANTERIOR';
+  return 'ESTA SEMANA';
 };
 
 const mapNotification = (item: any): NotificationItem => {
@@ -139,7 +137,7 @@ export const NotificationDrawer: React.FC = () => {
     try {
       const token = await getAuthToken();
       if (!token) return;
-      const response = await fetch(apiUrl('/api/agenda/me/notificaciones?limit=20'), {
+      const response = await fetch(apiUrl('/api/agenda/me/notificaciones?limit=80'), {
         headers: { Authorization: `Bearer ${token}` },
       });
       const payload = await response.json();
@@ -182,7 +180,7 @@ export const NotificationDrawer: React.FC = () => {
     outputRange: [0, 0.4],
   });
 
-  if (!isNotificationsOpen && slideAnim._value === 0) return null;
+  if (!isNotificationsOpen && (slideAnim as any)._value === 0) return null;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={isNotificationsOpen ? 'auto' : 'none'}>
@@ -213,7 +211,7 @@ export const NotificationDrawer: React.FC = () => {
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
           ) : notifications.length === 0 ? (
             <View style={styles.empty}>
-              <MaterialIcons name="notifications-off" size={48} color={colors.light} />
+              <MaterialIcons name="notifications-off" size={48} color={colors.borderSoft} />
               <Text style={styles.emptyText}>No tienes notificaciones</Text>
             </View>
           ) : (
@@ -246,16 +244,6 @@ export const NotificationDrawer: React.FC = () => {
           )}
         </ScrollView>
 
-        <TouchableOpacity 
-          style={styles.viewAllBtn} 
-          onPress={() => {
-            setNotificationsOpen(false);
-            portalNavigate('PacienteNotificaciones');
-          }}
-        >
-          <Text style={styles.viewAllText}>Ver todas las notificaciones</Text>
-          <MaterialIcons name="chevron-right" size={20} color={colors.primary} />
-        </TouchableOpacity>
       </Animated.View>
     </View>
   );
@@ -315,18 +303,8 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 14, fontWeight: '800', color: colors.dark },
   cardTitleRead: { fontWeight: '600' },
   cardMsg: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  cardTime: { fontSize: 10, color: colors.light, marginTop: 4, fontWeight: '600' },
+  cardTime: { fontSize: 10, color: colors.borderSoft, marginTop: 4, fontWeight: '600' },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 100, gap: 10 },
   emptyText: { color: colors.muted, fontWeight: '700' },
-  viewAllBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f4f8',
-    gap: 4,
-  },
-  viewAllText: { fontSize: 14, fontWeight: '800', color: colors.primary },
 });
