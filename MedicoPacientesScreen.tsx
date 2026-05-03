@@ -16,12 +16,13 @@ import type { ImageSourcePropType } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import type { RootStackParamList } from './navigation/types';
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 import { useMedicoSessionProfile, type MedicoSessionUser } from './hooks/useMedicoSessionProfile';
+import { useResponsive } from './hooks/useResponsive';
+import { colors } from './theme/colors';
+import { spacing, radii } from './theme/spacing';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -48,20 +49,10 @@ type PatientRow = {
   lastDateLabel: string;
 };
 
-type SideItem = {
-  icon: string;
-  label: string;
-  route?: 'DashboardMedico' | 'MedicoCitas' | 'MedicoPacientes' | 'MedicoChat' | 'MedicoPerfil' | 'MedicoConfiguracion';
-  active?: boolean;
-  badge?: { text: string; color: string };
-};
-
 const normalizeText = (value: unknown) =>
   String(value || '')
     .replace(/\s+/g, ' ')
     .trim();
-
-
 
 const parseDateMs = (value: string | null | undefined) => {
   if (!value) return Number.POSITIVE_INFINITY;
@@ -86,6 +77,8 @@ const MedicoPacientesScreen: React.FC = () => {
   const { isInsidePortal } = useMedicoModule();
   const { signOut } = useAuth();
   const { sessionUser, syncProfile } = useMedicoSessionProfile();
+  const { fs, rs, isDesktop, isTablet, isMobile } = useResponsive();
+  
   const [user, setUser] = useState<MedicoSessionUser | null>(sessionUser);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingPatients, setLoadingPatients] = useState(false);
@@ -181,25 +174,6 @@ const MedicoPacientesScreen: React.FC = () => {
     }, [loadPatients, loadUser])
   );
 
-  const doctorName = useMemo(() => {
-    const base = normalizeText(user?.nombreCompleto || user?.medico?.nombreCompleto);
-    if (!base) return 'Doctor';
-    const lowered = base.toLowerCase();
-    if (lowered.startsWith('dr ') || lowered.startsWith('dr.')) return base;
-    return `Dr. ${base}`;
-  }, [user?.medico?.nombreCompleto, user?.nombreCompleto]);
-
-  const doctorSpec = useMemo(
-    () => normalizeText(user?.especialidad || user?.medico?.especialidad) || 'Especialidad no definida',
-    [user?.especialidad, user?.medico?.especialidad]
-  );
-
-  const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    const foto = sanitizeRemoteImageUrl(user?.fotoUrl || user?.medico?.fotoUrl);
-    if (foto) return { uri: foto };
-    return DefaultAvatar;
-  }, [user?.fotoUrl, user?.medico?.fotoUrl]);
-
   const filteredPatients = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
     if (!q) return patients;
@@ -236,98 +210,27 @@ const MedicoPacientesScreen: React.FC = () => {
     []
   );
 
-  const handleLogout = async () => {
-    await signOut();
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  };
-
-  const sideItems: SideItem[] = [
-    { icon: 'dashboard', label: 'Dashboard', route: 'DashboardMedico' },
-    { icon: 'calendar-today', label: 'Agenda', route: 'MedicoCitas' },
-    { icon: 'group', label: 'Pacientes', route: 'MedicoPacientes', active: true },
-    { icon: 'notification-important', label: 'Solicitudes', badge: { text: '5', color: '#ef4444' } },
-    { icon: 'chat-bubble', label: 'Mensajes', route: 'MedicoChat', badge: { text: '3', color: colors.primary } },
-    { icon: 'person', label: 'Perfil', route: 'MedicoPerfil' },
-    { icon: 'settings', label: 'Configuracion', route: 'MedicoConfiguracion' },
-  ];
-
-  const handleSideItemPress = (item: SideItem) => {
-    if (!item.route) {
-      Alert.alert('Solicitudes', 'Las solicitudes pendientes se integraran en un modulo dedicado.');
-      return;
-    }
-    if (item.route === 'MedicoPacientes') return;
-    navigation.navigate(item.route);
-  };
-
   if (loadingUser) {
     return (
       <View style={styles.loaderWrap}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loaderText}>Cargando pacientes del medico...</Text>
+        <Text style={styles.loaderText}>Cargando pacientes...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {!isInsidePortal && (
-      <View style={styles.sidebar}>
-        <View>
-          <View style={styles.logoWrap}>
-            <Image source={ViremLogo} style={styles.logo} />
-            <View>
-              <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSub}>Portal Medico</Text>
-            </View>
-          </View>
-
-          <View style={styles.userCard}>
-            <Image source={userAvatarSource} style={styles.userAvatar} />
-            <Text style={styles.userName}>{doctorName}</Text>
-            <Text style={styles.userSpec}>{doctorSpec}</Text>
-          </View>
-
-          <View style={styles.menu}>
-            {sideItems.map((item) => (
-              <TouchableOpacity
-                key={item.label}
-                style={[styles.menuItem, item.active ? styles.menuItemActive : null]}
-                onPress={() => handleSideItemPress(item)}
-              >
-                <MaterialIcons
-                  name={item.icon}
-                  size={20}
-                  color={item.active ? colors.primary : colors.muted}
-                />
-                <Text style={[styles.menuText, item.active ? styles.menuTextActive : null]}>
-                  {item.label}
-                </Text>
-                {item.badge ? (
-                  <View style={[styles.badge, { backgroundColor: item.badge.color }]}>
-                    <Text style={styles.badgeText}>{item.badge.text}</Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Cerrar sesion</Text>
-        </TouchableOpacity>
-      </View>
-      )}
-
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: spacing.xl }}>
         <View style={styles.headerWrap}>
-          <View style={styles.headerRow}>
+          <View style={[styles.headerRow, !isDesktop && styles.headerRowMobile]}>
             <View style={styles.headerLeft}>
-              <Text style={styles.pageTitle}>Pacientes</Text>
-              <Text style={styles.pageSubtitle}>Visualiza y da seguimiento a tus pacientes activos.</Text>
+              <Text style={[styles.pageTitle, { fontSize: fs(30) }]}>Pacientes</Text>
+              <Text style={[styles.pageSubtitle, { fontSize: fs(15) }]}>
+                Visualiza y da seguimiento a tus pacientes activos.
+              </Text>
             </View>
-            <View style={styles.headerRight}>
+            <View style={[styles.headerRight, !isDesktop && styles.headerRightMobile]}>
               <Text style={styles.headerDate}>{dateText}</Text>
               <Text style={styles.headerTime}>{timeText}</Text>
             </View>
@@ -337,20 +240,20 @@ const MedicoPacientesScreen: React.FC = () => {
         <View style={styles.kpiGrid}>
           <View style={styles.kpiCard}>
             <Text style={styles.kpiLabel}>Pacientes totales</Text>
-            <Text style={styles.kpiValue}>{kpis.total}</Text>
+            <Text style={[styles.kpiValue, { fontSize: fs(28) }]}>{kpis.total}</Text>
           </View>
           <View style={styles.kpiCard}>
             <Text style={styles.kpiLabel}>Con cita proxima</Text>
-            <Text style={styles.kpiValue}>{kpis.withUpcoming}</Text>
+            <Text style={[styles.kpiValue, { fontSize: fs(28) }]}>{kpis.withUpcoming}</Text>
           </View>
           <View style={styles.kpiCard}>
             <Text style={styles.kpiLabel}>Sin cita proxima</Text>
-            <Text style={styles.kpiValue}>{kpis.withoutUpcoming}</Text>
+            <Text style={[styles.kpiValue, { fontSize: fs(28) }]}>{kpis.withoutUpcoming}</Text>
           </View>
         </View>
 
         <View style={styles.searchWrap}>
-          <MaterialIcons name="search" size={19} color={colors.muted} />
+          <MaterialIcons name="search" size={20} color={colors.muted} />
           <TextInput
             value={searchText}
             onChangeText={setSearchText}
@@ -361,7 +264,7 @@ const MedicoPacientesScreen: React.FC = () => {
         </View>
 
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Listado de pacientes</Text>
+          <Text style={[styles.sectionTitle, { fontSize: fs(18) }]}>Listado de pacientes</Text>
           <Text style={styles.sectionCount}>{filteredPatients.length}</Text>
         </View>
 
@@ -372,7 +275,7 @@ const MedicoPacientesScreen: React.FC = () => {
             filteredPatients.map((patient) => (
               <View key={patient.id} style={styles.patientCard}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.patientName}>{patient.name}</Text>
+                  <Text style={[styles.patientName, { fontSize: fs(16) }]}>{patient.name}</Text>
                   <Text style={styles.patientSub}>
                     Estado reciente: {patient.lastEstado || 'Pendiente'} · Total citas: {patient.totalCitas}
                   </Text>
@@ -415,22 +318,12 @@ const MedicoPacientesScreen: React.FC = () => {
               </View>
             ))
           ) : (
-            <Text style={styles.emptyText}>No se encontraron pacientes para mostrar.</Text>
+            <Text style={styles.emptyText}>No se encontraron pacientes.</Text>
           )}
         </View>
       </ScrollView>
     </View>
   );
-};
-
-const colors = {
-  primary: '#137fec',
-  bg: '#F6FAFD',
-  dark: '#0A1931',
-  blue: '#1A3D63',
-  muted: '#4A7FA7',
-  light: '#B3CFE5',
-  white: '#FFFFFF',
 };
 
 const styles = StyleSheet.create({
@@ -444,153 +337,117 @@ const styles = StyleSheet.create({
   loaderText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
   container: {
     flex: 1,
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
   },
-  sidebar: {
-    width: Platform.OS === 'web' ? 280 : '100%',
-    backgroundColor: colors.white,
-    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-    borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
-    borderRightColor: '#eef2f7',
-    borderBottomColor: '#eef2f7',
-    padding: Platform.OS === 'web' ? 20 : 14,
-    justifyContent: 'space-between',
-  },
-  logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, resizeMode: 'contain' },
-  logoTitle: { color: colors.dark, fontSize: 20, fontWeight: '800' },
-  logoSub: { color: colors.muted, fontSize: 11, fontWeight: '700' },
-  userCard: { alignItems: 'center', marginTop: 18, marginBottom: 10 },
-  userAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 80,
-    borderWidth: 4,
-    borderColor: '#f0f4f9',
-    marginBottom: 10,
-  },
-  userName: { color: colors.dark, fontSize: 16, fontWeight: '800', textAlign: 'center' },
-  userSpec: { color: colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 2 },
-  menu: { marginTop: 12, gap: 6 },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  menuItemActive: { backgroundColor: 'rgba(19,127,236,0.12)' },
-  menuText: { color: colors.muted, fontSize: 14, fontWeight: '700' },
-  menuTextActive: { color: colors.primary, fontWeight: '800' },
-  badge: {
-    marginLeft: 'auto',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  logoutBtn: {
-    marginTop: 16,
-    backgroundColor: colors.blue,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  logoutText: { color: '#fff', fontWeight: '800' },
   main: { flex: 1 },
   headerWrap: {
-    paddingHorizontal: Platform.OS === 'web' ? 32 : 14,
-    paddingTop: Platform.OS === 'web' ? 32 : 14,
-    paddingBottom: 12,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   headerRow: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-start',
-    gap: 12,
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  headerRowMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   headerLeft: { flex: 1 },
-  headerRight: { alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-start' },
-  headerDate: { color: colors.dark, fontSize: 14, fontWeight: '800' },
-  headerTime: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  pageTitle: { color: colors.dark, fontSize: 30, fontWeight: '900' },
-  pageSubtitle: { color: colors.muted, fontSize: 16, marginTop: 4, fontWeight: '500' },
+  headerRight: { alignItems: 'flex-end' },
+  headerRightMobile: { alignItems: 'flex-start', marginTop: spacing.xs },
+  headerDate: { color: colors.dark, fontSize: 13, fontWeight: '800' },
+  headerTime: { color: colors.muted, fontSize: 11, marginTop: 2, fontWeight: '600' },
+  pageTitle: { color: colors.dark, fontWeight: '900' },
+  pageSubtitle: { color: colors.muted, marginTop: 4, fontWeight: '600' },
+  
   kpiGrid: {
-    paddingHorizontal: Platform.OS === 'web' ? 32 : 14,
+    paddingHorizontal: spacing.md,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 10,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   kpiCard: {
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#dce8f5',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    minWidth: 180,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    flexGrow: 1,
+    minWidth: 140,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
-  kpiLabel: { color: colors.muted, fontSize: 12, fontWeight: '800' },
-  kpiValue: { color: colors.dark, fontSize: 28, fontWeight: '900', marginTop: 2 },
+  kpiLabel: { color: colors.muted, fontSize: 11, fontWeight: '800' },
+  kpiValue: { color: colors.dark, fontWeight: '900', marginTop: 2 },
+  
   searchWrap: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
+    marginHorizontal: spacing.md,
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: '#d6e4f3',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 12,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.md,
   },
-  searchInput: { flex: 1, color: colors.dark, fontSize: 14, fontWeight: '600', paddingVertical: 4 },
+  searchInput: { flex: 1, color: colors.dark, fontSize: 14, fontWeight: '600', paddingVertical: 8 },
+  
   sectionHead: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
-    marginTop: 12,
-    marginBottom: 8,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  sectionTitle: { color: colors.dark, fontSize: 20, fontWeight: '900' },
-  sectionCount: { color: colors.muted, fontSize: 13, fontWeight: '800' },
+  sectionTitle: { color: colors.dark, fontWeight: '900' },
+  sectionCount: { color: colors.muted, fontSize: 12, fontWeight: '800' },
+  
   sectionCard: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
+    marginHorizontal: spacing.md,
     backgroundColor: '#fff',
-    borderRadius: 14,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: '#e4edf7',
-    padding: 12,
-    gap: 10,
+    padding: spacing.sm,
+    gap: spacing.sm,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
   patientCard: {
     borderWidth: 1,
     borderColor: '#e8eff8',
-    borderRadius: 12,
-    padding: 10,
-    gap: 9,
+    borderRadius: radii.lg,
+    padding: spacing.sm,
+    gap: spacing.xs,
   },
-  patientName: { color: colors.dark, fontSize: 16, fontWeight: '900' },
-  patientSub: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 2 },
-  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  patientName: { color: colors.dark, fontWeight: '900' },
+  patientSub: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 2 },
+  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
   secondaryAction: {
     borderWidth: 1,
     borderColor: '#d6e2f0',
     backgroundColor: '#f6f9fd',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  secondaryActionText: { color: colors.blue, fontSize: 12, fontWeight: '800' },
-  emptyText: { color: colors.muted, fontSize: 13, fontWeight: '700', paddingVertical: 12 },
+  secondaryActionText: { color: colors.blue, fontSize: 11, fontWeight: '800' },
+  emptyText: { color: colors.muted, fontSize: 13, fontWeight: '700', paddingVertical: spacing.md, textAlign: 'center' },
 });
 
 export default MedicoPacientesScreen;

@@ -272,9 +272,14 @@ const MedicoChatScreen: React.FC = () => {
     }
 
     if (!contacts.some((c) => c.id === selectedChatId)) {
-      setSelectedChatId(contacts[0].id);
+      // On mobile, we don't auto-select the first one to allow seeing the list
+      if (isDesktopLayout) {
+        setSelectedChatId(contacts[0].id);
+      } else {
+        setSelectedChatId('');
+      }
     }
-  }, [contacts, route.params?.patientId, route.params?.patientName, selectedChatId]);
+  }, [contacts, route.params?.patientId, route.params?.patientName, selectedChatId, isDesktopLayout]);
 
   useEffect(() => {
     if (!selectedChatId) return;
@@ -530,107 +535,120 @@ const MedicoChatScreen: React.FC = () => {
         </View>
 
         <View style={[styles.chatShell, !isDesktopLayout && styles.chatShellMobile]}>
-          <View style={[styles.contactsPane, !isDesktopLayout && styles.contactsPaneMobile]}>
-            <View style={styles.searchRow}>
-              <MaterialIcons name="search" size={18} color={colors.muted} />
-              <TextInput
-                value={searchText}
-                onChangeText={setSearchText}
-                placeholder="Buscar paciente"
-                placeholderTextColor="#8ca7bd"
-                style={styles.searchInput}
-              />
-            </View>
+          {(isDesktopLayout || !selectedChatId) && (
+            <View style={[styles.contactsPane, !isDesktopLayout && styles.contactsPaneMobile]}>
+              <View style={styles.searchRow}>
+                <MaterialIcons name="search" size={18} color={colors.muted} />
+                <TextInput
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  placeholder="Buscar paciente"
+                  placeholderTextColor="#8ca7bd"
+                  style={styles.searchInput}
+                />
+              </View>
 
-            <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
-              {loadingContacts ? <Text style={styles.loadingText}>Cargando pacientes...</Text> : null}
-              {!loadingContacts && !filteredContacts.length ? (
-                <Text style={styles.loadingText}>No tienes pacientes para chat aun.</Text>
-              ) : null}
-              {filteredContacts.map((chat) => {
-                const active = chat.id === selectedChatId;
-                return (
-                  <TouchableOpacity
-                    key={chat.id}
-                    style={[styles.contactRow, active && styles.contactRowActive]}
-                    onPress={() => setSelectedChatId(chat.id)}
-                    activeOpacity={0.85}
-                  >
-                    <Image source={DefaultAvatar} style={styles.contactAvatar} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.contactName, active && styles.contactNameActive]}>{chat.name}</Text>
-                      <Text style={styles.contactMeta}>
-                        {chat.status} · {chat.timeLabel}
-                        {chat.unreadCount > 0 ? ` · ${chat.unreadCount} sin leer` : ''}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          <View style={styles.messagesPane}>
-            {selectedContact ? (
-              <>
-                <View style={styles.chatHeader}>
-                  <Image source={DefaultAvatar} style={styles.chatHeaderAvatar} />
-                  <View>
-                    <Text style={styles.chatHeaderName}>{selectedContact.name}</Text>
-                    <Text style={styles.chatHeaderSub}>
-                      Ultima referencia: {selectedContact.status} · {selectedContact.timeLabel}
-                    </Text>
-                  </View>
-                </View>
-
-                <ScrollView style={styles.messagesList} contentContainerStyle={{ paddingBottom: 12 }}>
-                  {loadingMessages ? (
-                    <Text style={styles.emptyConversation}>Cargando mensajes...</Text>
-                  ) : !currentMessages.length ? (
-                    <Text style={styles.emptyConversation}>
-                      Inicia la conversacion con {selectedContact.name}.
-                    </Text>
-                  ) : (
-                    currentMessages.map((message) => (
-                      <View
-                        key={message.id}
-                        style={[styles.messageBubble, message.from === 'me' ? styles.messageMe : styles.messageOther]}
-                      >
-                        <Text style={[styles.messageText, message.from === 'me' ? styles.messageTextMe : null]}>
-                          {message.text}
-                        </Text>
-                        <Text style={[styles.messageTime, message.from === 'me' ? styles.messageTimeMe : null]}>
-                          {message.time}
+              <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
+                {loadingContacts ? <Text style={styles.loadingText}>Cargando pacientes...</Text> : null}
+                {!loadingContacts && !filteredContacts.length ? (
+                  <Text style={styles.loadingText}>No tienes pacientes para chat aun.</Text>
+                ) : null}
+                {filteredContacts.map((chat) => {
+                  const active = chat.id === selectedChatId;
+                  return (
+                    <TouchableOpacity
+                      key={chat.id}
+                      style={[styles.contactRow, active && styles.contactRowActive]}
+                      onPress={() => setSelectedChatId(chat.id)}
+                      activeOpacity={0.85}
+                    >
+                      <Image source={DefaultAvatar} style={styles.contactAvatar} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.contactName, active && styles.contactNameActive]}>{chat.name}</Text>
+                        <Text style={styles.contactMeta}>
+                          {chat.status} · {chat.timeLabel}
+                          {chat.unreadCount > 0 ? ` · ${chat.unreadCount} sin leer` : ''}
                         </Text>
                       </View>
-                    ))
-                  )}
-                </ScrollView>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
-                <View style={styles.replyRow}>
-                  <TextInput
-                    value={reply}
-                    onChangeText={setReply}
-                    placeholder={selectedContact ? `Escribe a ${selectedContact.name}` : 'Selecciona un paciente'}
-                    placeholderTextColor="#8ca7bd"
-                    style={styles.replyInput}
-                    editable={Boolean(selectedContact)}
-                  />
-                  <TouchableOpacity
-                    style={[styles.sendBtn, !reply.trim().length && styles.sendBtnDisabled]}
-                    onPress={sendMessage}
-                    disabled={!reply.trim().length || !selectedContact}
-                  >
-                    <MaterialIcons name="send" size={18} color="#fff" />
-                  </TouchableOpacity>
+          {(isDesktopLayout || selectedChatId) && (
+            <View style={styles.messagesPane}>
+              {selectedContact ? (
+                <>
+                  <View style={styles.chatHeader}>
+                    {!isDesktopLayout && (
+                      <TouchableOpacity 
+                        onPress={() => setSelectedChatId('')}
+                        style={styles.backButton}
+                      >
+                        <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
+                      </TouchableOpacity>
+                    )}
+                    <Image source={DefaultAvatar} style={styles.chatHeaderAvatar} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.chatHeaderName}>{selectedContact.name}</Text>
+                      <Text style={styles.chatHeaderSub} numberOfLines={1}>
+                        Ultima referencia: {selectedContact.status} · {selectedContact.timeLabel}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <ScrollView style={styles.messagesList} contentContainerStyle={{ paddingBottom: 12 }}>
+                    {loadingMessages ? (
+                      <Text style={styles.emptyConversation}>Cargando mensajes...</Text>
+                    ) : !currentMessages.length ? (
+                      <Text style={styles.emptyConversation}>
+                        Inicia la conversacion con {selectedContact.name}.
+                      </Text>
+                    ) : (
+                      currentMessages.map((message) => (
+                        <View
+                          key={message.id}
+                          style={[styles.messageBubble, message.from === 'me' ? styles.messageMe : styles.messageOther]}
+                        >
+                          <Text style={[styles.messageText, message.from === 'me' ? styles.messageTextMe : null]}>
+                            {message.text}
+                          </Text>
+                          <Text style={[styles.messageTime, message.from === 'me' ? styles.messageTimeMe : null]}>
+                            {message.time}
+                          </Text>
+                        </View>
+                      ))
+                    )}
+                  </ScrollView>
+
+                  <View style={styles.replyRow}>
+                    <TextInput
+                      value={reply}
+                      onChangeText={setReply}
+                      placeholder={selectedContact ? `Escribe a ${selectedContact.name}` : 'Selecciona un paciente'}
+                      placeholderTextColor="#8ca7bd"
+                      style={styles.replyInput}
+                      editable={Boolean(selectedContact)}
+                    />
+                    <TouchableOpacity
+                      style={[styles.sendBtn, !reply.trim().length && styles.sendBtnDisabled]}
+                      onPress={sendMessage}
+                      disabled={!reply.trim().length || !selectedContact}
+                    >
+                      <MaterialIcons name="send" size={18} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.emptyChatState}>
+                  <MaterialIcons name="chat-bubble-outline" size={64} color="#dbe8f5" />
+                  <Text style={styles.loadingText}>Selecciona un paciente para iniciar chat.</Text>
                 </View>
-              </>
-            ) : (
-              <View style={styles.emptyChatState}>
-                <Text style={styles.loadingText}>Selecciona un paciente para iniciar chat.</Text>
-              </View>
-            )}
-          </View>
+              )}
+            </View>
+          )}
         </View>
       </View>
     </View>
@@ -774,8 +792,8 @@ const styles = StyleSheet.create({
   contactsPaneMobile: {
     width: '100%',
     borderRightWidth: 0,
-    borderBottomWidth: 1,
-    maxHeight: 320,
+    borderBottomWidth: 0,
+    flex: 1,
   },
   searchRow: {
     flexDirection: 'row',
@@ -806,21 +824,21 @@ const styles = StyleSheet.create({
   contactName: { color: colors.dark, fontSize: 14, fontWeight: '800' },
   contactNameActive: { color: colors.primary },
   contactMeta: { color: colors.muted, fontSize: 11, marginTop: 2, fontWeight: '600' },
-  messagesPane: { flex: 1, padding: 12, backgroundColor: '#fbfdff' },
+  messagesPane: { flex: 1, backgroundColor: '#fff' },
   chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderColor: '#dfeaf7',
-    borderRadius: 10,
-    padding: 10,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#dfeaf7',
+    padding: 12,
     backgroundColor: '#fff',
   },
   chatHeaderAvatar: { width: 42, height: 42, borderRadius: 42 },
-  chatHeaderName: { color: colors.dark, fontSize: 15, fontWeight: '900' },
-  chatHeaderSub: { color: colors.muted, fontSize: 12, marginTop: 2, fontWeight: '600' },
-  messagesList: { flex: 1, marginTop: 10 },
+  chatHeaderName: { color: colors.dark, fontSize: 16, fontWeight: '900' },
+  chatHeaderSub: { color: colors.muted, fontSize: 12, fontWeight: '700', marginTop: 1 },
+  backButton: { marginRight: 10, padding: 4 },
+  messagesList: { flex: 1, paddingHorizontal: 16, paddingTop: 10 },
   emptyConversation: { color: colors.muted, fontSize: 13, fontWeight: '700', marginTop: 8 },
   messageBubble: {
     maxWidth: '84%',
@@ -857,7 +875,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendBtnDisabled: { opacity: 0.55 },
-  emptyChatState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyChatState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    gap: 16,
+  },
 });
 
 export default MedicoChatScreen;

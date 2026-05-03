@@ -23,7 +23,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage } from './localization/LanguageContext';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 import { resolveRemoteImageSource } from './utils/imageSources';
-import { useResponsive } from './hooks/useResponsive';
+import { useResponsive, BREAKPOINTS } from './hooks/useResponsive';
 import { colors } from './theme/colors';
 import { spacing, radii } from './theme/spacing';
 

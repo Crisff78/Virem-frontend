@@ -869,11 +869,19 @@ const DashboardMedico: React.FC = () => {
         <View>
           {/* Logo */}
           <View style={styles.logoBox}>
-            <Image source={ViremLogo} style={styles.logo} />
-            <View>
-              <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSubtitle}>Portal Médico</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+              <Image source={ViremLogo} style={styles.logo} />
+              <View>
+                <Text style={styles.logoTitle}>VIREM</Text>
+                <Text style={styles.logoSubtitle}>Portal Médico</Text>
+              </View>
             </View>
+            
+            {!isDesktopLayout && (
+              <TouchableOpacity onPress={closeMobileMenu} style={{ padding: 4 }}>
+                <MaterialIcons name="close" size={24} color={colors.dark} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* User mini */}

@@ -302,9 +302,13 @@ const PacienteChatScreen: React.FC = () => {
 
     const exists = contacts.some((c) => c.id === selectedChatId);
     if (!exists) {
-      setSelectedChatId(contacts[0].id);
+      if (isDesktopLayout) {
+        setSelectedChatId(contacts[0].id);
+      } else {
+        setSelectedChatId('');
+      }
     }
-  }, [contacts, route.params?.doctorId, route.params?.doctorName, selectedChatId]);
+  }, [contacts, route.params?.doctorId, route.params?.doctorName, selectedChatId, isDesktopLayout]);
 
   useEffect(() => {
     if (!selectedChatId) return;
@@ -573,114 +577,133 @@ const PacienteChatScreen: React.FC = () => {
       )}
 
       <View style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]}>
-        <View style={[styles.leftPanel, !isDesktopLayout ? styles.leftPanelMobile : null]}>
-          <View style={styles.leftPanelHeader}>
-            <Text style={styles.sectionTitle}>Chats</Text>
-            <View style={styles.contactCountBadge}>
-              <Text style={styles.contactCountText}>{filteredContacts.length}</Text>
-            </View>
-          </View>
-          <View style={styles.searchBox}>
-            <MaterialIcons name="search" size={18} color={colors.muted} />
-            <TextInput style={styles.searchInput} placeholder="Buscar médico..." placeholderTextColor="#8aa7bf" value={searchText} onChangeText={setSearchText} />
-          </View>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {loadingUser || loadingContacts ? (
-              <View style={styles.emptyState}><MaterialIcons name="hourglass-top" size={32} color={colors.muted} /><Text style={styles.emptyTitle}>Cargando chats...</Text></View>
-            ) : !filteredContacts.length ? (
-              <View style={styles.emptyState}>
-                <View style={styles.emptyIconBox}><MaterialIcons name="chat-bubble-outline" size={32} color={colors.primary} /></View>
-                <Text style={styles.emptyTitle}>Sin conversaciones</Text>
-                <Text style={styles.emptySubtitle}>Agenda una cita para chatear con un especialista.</Text>
-                <TouchableOpacity style={styles.emptyCta} activeOpacity={0.8} onPress={() => navigation.navigate('NuevaConsultaPaciente')}>
-                  <MaterialIcons name="add" size={16} color="#fff" /><Text style={styles.emptyCtaText}>Agendar consulta</Text>
-                </TouchableOpacity>
+        {(isDesktopLayout || !selectedChatId) && (
+          <View style={[styles.leftPanel, !isDesktopLayout ? styles.leftPanelMobile : null]}>
+            <View style={styles.leftPanelHeader}>
+              <Text style={styles.sectionTitle}>Chats</Text>
+              <View style={styles.contactCountBadge}>
+                <Text style={styles.contactCountText}>{filteredContacts.length}</Text>
               </View>
-            ) : (
-              filteredContacts.map((chat) => {
-                const latest = (messagesByChat[chat.id] || []).slice(-1)[0];
-                const isActive = selectedChat?.id === chat.id;
-                return (
-                  <TouchableOpacity key={chat.id} style={[styles.chatRow, isActive && styles.chatRowActive]} onPress={() => setSelectedChatId(chat.id)} activeOpacity={0.75}>
-                    <View style={styles.chatAvatarWrap}>
-                      <Image source={resolveRemoteImageSource(chat.avatarUrl, DefaultAvatar)} style={styles.chatAvatar} />
-                      <View style={styles.onlineDot} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.rowBetween}>
-                        <Text style={[styles.chatName, isActive && styles.chatNameActive]} numberOfLines={1}>{chat.name}</Text>
-                        <Text style={styles.chatTime}>{latest?.time || chat.timeLabel}</Text>
-                      </View>
-                      <Text style={styles.chatSpec} numberOfLines={1}>{chat.specialty}</Text>
-                      <Text style={styles.chatMsg} numberOfLines={1}>{latest?.text || 'Inicia la conversación...'}</Text>
-                    </View>
-                    {chat.unreadCount > 0 && (<View style={styles.unreadBadge}><Text style={styles.unreadBadgeText}>{chat.unreadCount}</Text></View>)}
+            </View>
+            <View style={styles.searchBox}>
+              <MaterialIcons name="search" size={18} color={colors.muted} />
+              <TextInput style={styles.searchInput} placeholder="Buscar médico..." placeholderTextColor="#8aa7bf" value={searchText} onChangeText={setSearchText} />
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {loadingUser || loadingContacts ? (
+                <View style={styles.emptyState}><MaterialIcons name="hourglass-top" size={32} color={colors.muted} /><Text style={styles.emptyTitle}>Cargando chats...</Text></View>
+              ) : !filteredContacts.length ? (
+                <View style={styles.emptyState}>
+                  <View style={styles.emptyIconBox}><MaterialIcons name="chat-bubble-outline" size={32} color={colors.primary} /></View>
+                  <Text style={styles.emptyTitle}>Sin conversaciones</Text>
+                  <Text style={styles.emptySubtitle}>Agenda una cita para chatear con un especialista.</Text>
+                  <TouchableOpacity style={styles.emptyCta} activeOpacity={0.8} onPress={() => navigation.navigate('NuevaConsultaPaciente')}>
+                    <MaterialIcons name="add" size={16} color="#fff" /><Text style={styles.emptyCtaText}>Agendar consulta</Text>
                   </TouchableOpacity>
-                );
-              })
-            )}
-          </ScrollView>
-        </View>
-
-        <View style={styles.chatPanel}>
-          <View style={styles.chatHeader}>
-            {selectedChat ? (
-              <View style={styles.chatHeaderInner}>
-                <Image source={resolveRemoteImageSource(selectedChat.avatarUrl, DefaultAvatar)} style={styles.chatHeaderAvatar} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.chatHeaderName}>{selectedChat.name}</Text>
-                  <Text style={styles.chatHeaderSpec}>{selectedChat.specialty}</Text>
                 </View>
-                {selectedChat.citaId ? (
-                  <TouchableOpacity style={styles.joinBtn} activeOpacity={0.8} onPress={() => navigation.navigate('SalaEsperaVirtualPaciente', { citaId: selectedChat.citaId })}>
-                    <MaterialIcons name="videocam" size={16} color="#fff" /><Text style={styles.joinBtnText}>Unirse</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            ) : (<Text style={styles.chatHeaderName}>Selecciona un chat</Text>)}
+              ) : (
+                filteredContacts.map((chat) => {
+                  const latest = (messagesByChat[chat.id] || []).slice(-1)[0];
+                  const isActive = selectedChat?.id === chat.id;
+                  return (
+                    <TouchableOpacity key={chat.id} style={[styles.chatRow, isActive && styles.chatRowActive]} onPress={() => setSelectedChatId(chat.id)} activeOpacity={0.75}>
+                      <View style={styles.chatAvatarWrap}>
+                        <Image source={resolveRemoteImageSource(chat.avatarUrl, DefaultAvatar)} style={styles.chatAvatar} />
+                        <View style={styles.onlineDot} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.rowBetween}>
+                          <Text style={[styles.chatName, isActive && styles.chatNameActive]} numberOfLines={1}>{chat.name}</Text>
+                          <Text style={styles.chatTime}>{latest?.time || chat.timeLabel}</Text>
+                        </View>
+                        <Text style={styles.chatSpec} numberOfLines={1}>{chat.specialty}</Text>
+                        <Text style={styles.chatMsg} numberOfLines={1}>{latest?.text || 'Inicia la conversación...'}</Text>
+                      </View>
+                      {chat.unreadCount > 0 && (<View style={styles.unreadBadge}><Text style={styles.unreadBadgeText}>{chat.unreadCount}</Text></View>)}
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
           </View>
-          {isTyping && selectedChat && (
-            <View style={styles.typingBar}>
-              <View style={styles.typingDots}>
-                <View style={styles.typingDot} /><View style={[styles.typingDot, styles.typingDot2]} /><View style={[styles.typingDot, styles.typingDot3]} />
-              </View>
-              <Text style={styles.typingText}>{selectedChat.name.split(' ')[0]} está escribiendo…</Text>
-            </View>
-          )}
-          <ScrollView ref={scrollRef} onScroll={handleScroll} scrollEventThrottle={100} contentContainerStyle={styles.messagesWrap} showsVerticalScrollIndicator={false}>
-            {loadingMessages ? (
-              <View style={styles.emptyState}><MaterialIcons name="hourglass-top" size={28} color={colors.muted} /><Text style={styles.emptyTitle}>Cargando mensajes...</Text></View>
-            ) : (
-              messages.map((msg, index) => (
-                <React.Fragment key={msg.id}>
-                  {(msg.dateLabel || index === 0) && (
-                    <View style={styles.dateSeparator}><View style={styles.dateLine} /><Text style={styles.dateLabel}>{msg.dateLabel || 'Hoy'}</Text><View style={styles.dateLine} /></View>
+        )}
+
+        {(isDesktopLayout || selectedChatId) && (
+          <View style={styles.chatPanel}>
+            <View style={styles.chatHeader}>
+              {selectedChat ? (
+                <View style={styles.chatHeaderInner}>
+                  {!isDesktopLayout && (
+                    <TouchableOpacity onPress={() => setSelectedChatId('')} style={styles.backButton}>
+                      <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
+                    </TouchableOpacity>
                   )}
-                  <View style={[styles.msgWrap, msg.from === 'me' && styles.msgWrapMe]}>
-                    <View style={[styles.msgBubble, msg.from === 'me' && styles.msgBubbleMe]}>
-                      <Text style={[styles.msgText, msg.from === 'me' && styles.msgTextMe]}>{msg.text}</Text>
-                    </View>
-                    <View style={styles.msgMeta}>
-                      <Text style={[styles.msgTime, msg.from === 'me' && styles.msgTimeMe]}>{msg.time}</Text>
-                      {msg.from === 'me' && (
-                        <Text style={styles.msgStatus}>{msg.status === 'read' ? '✓✓' : '✓'}</Text>
-                      )}
-                    </View>
+                  <Image source={resolveRemoteImageSource(selectedChat.avatarUrl, DefaultAvatar)} style={styles.chatHeaderAvatar} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.chatHeaderName}>{selectedChat.name}</Text>
+                    <Text style={styles.chatHeaderSpec}>{selectedChat.specialty}</Text>
                   </View>
-                </React.Fragment>
-              ))
+                  {selectedChat.citaId && isDesktopLayout ? (
+                    <TouchableOpacity style={styles.joinBtn} activeOpacity={0.8} onPress={() => navigation.navigate('SalaEsperaVirtualPaciente', { citaId: selectedChat.citaId })}>
+                      <MaterialIcons name="videocam" size={16} color="#fff" /><Text style={styles.joinBtnText}>Unirse</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ) : (
+                <View style={styles.chatHeaderInner}>
+                   <Text style={styles.chatHeaderName}>Selecciona un chat</Text>
+                </View>
+              )}
+            </View>
+            {isTyping && selectedChat && (
+              <View style={styles.typingBar}>
+                <View style={styles.typingDots}>
+                  <View style={styles.typingDot} /><View style={[styles.typingDot, styles.typingDot2]} /><View style={[styles.typingDot, styles.typingDot3]} />
+                </View>
+                <Text style={styles.typingText}>{selectedChat.name.split(' ')[0]} está escribiendo…</Text>
+              </View>
             )}
-          </ScrollView>
-          <View style={styles.inputRow}>
-            <TouchableOpacity style={styles.attachBtn} activeOpacity={0.7}>
-              <MaterialIcons name="attach-file" size={20} color={colors.muted} />
-            </TouchableOpacity>
-            <TextInput value={reply} onChangeText={setReply} placeholder={selectedChat ? 'Escribe tu mensaje...' : 'Selecciona un chat'} placeholderTextColor="#8aa7bf" style={styles.input} multiline editable={Boolean(selectedChat)} />
-            <TouchableOpacity style={[styles.sendBtn, (!selectedChat || !reply.trim()) && styles.sendBtnDisabled]} onPress={handleSend} disabled={!selectedChat || !reply.trim()} activeOpacity={0.8}>
-              <MaterialIcons name="send" size={18} color="#fff" />
-            </TouchableOpacity>
+            <ScrollView ref={scrollRef} onScroll={handleScroll} scrollEventThrottle={100} contentContainerStyle={styles.messagesWrap} showsVerticalScrollIndicator={false}>
+              {loadingMessages ? (
+                <View style={styles.emptyState}><MaterialIcons name="hourglass-top" size={28} color={colors.muted} /><Text style={styles.emptyTitle}>Cargando mensajes...</Text></View>
+              ) : !selectedChat ? (
+                <View style={styles.emptyState}>
+                  <MaterialIcons name="chat-bubble-outline" size={64} color="#dbe8f5" />
+                  <Text style={styles.emptyTitle}>Selecciona un médico</Text>
+                  <Text style={styles.emptySubtitle}>Elige una conversación de la lista para ver los mensajes.</Text>
+                </View>
+              ) : (
+                messages.map((msg, index) => (
+                  <React.Fragment key={msg.id}>
+                    {(msg.dateLabel || index === 0) && (
+                      <View style={styles.dateSeparator}><View style={styles.dateLine} /><Text style={styles.dateLabel}>{msg.dateLabel || 'Hoy'}</Text><View style={styles.dateLine} /></View>
+                    )}
+                    <View style={[styles.msgWrap, msg.from === 'me' && styles.msgWrapMe]}>
+                      <View style={[styles.msgBubble, msg.from === 'me' && styles.msgBubbleMe]}>
+                        <Text style={[styles.msgText, msg.from === 'me' && styles.msgTextMe]}>{msg.text}</Text>
+                      </View>
+                      <View style={styles.msgMeta}>
+                        <Text style={[styles.msgTime, msg.from === 'me' && styles.msgTimeMe]}>{msg.time}</Text>
+                        {msg.from === 'me' && (
+                          <Text style={styles.msgStatus}>{msg.status === 'read' ? '✓✓' : '✓'}</Text>
+                        )}
+                      </View>
+                    </View>
+                  </React.Fragment>
+                ))
+              )}
+            </ScrollView>
+            <View style={styles.inputRow}>
+              <TouchableOpacity style={styles.attachBtn} activeOpacity={0.7}>
+                <MaterialIcons name="attach-file" size={20} color={colors.muted} />
+              </TouchableOpacity>
+              <TextInput value={reply} onChangeText={setReply} placeholder={selectedChat ? 'Escribe tu mensaje...' : 'Selecciona un chat'} placeholderTextColor="#8aa7bf" style={styles.input} multiline editable={Boolean(selectedChat)} />
+              <TouchableOpacity style={[styles.sendBtn, (!selectedChat || !reply.trim()) && styles.sendBtnDisabled]} onPress={handleSend} disabled={!selectedChat || !reply.trim()} activeOpacity={0.8}>
+                <MaterialIcons name="send" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        )}
       </View>
     </View>
   );
@@ -797,6 +820,7 @@ const styles = StyleSheet.create({
   chatHeaderAvatar: { width: 38, height: 38, borderRadius: 38, borderWidth: 2, borderColor: '#f2f6fb' },
   chatHeaderName: { fontSize: 15, fontWeight: '800', color: colors.dark },
   chatHeaderSpec: { fontSize: 11, fontWeight: '600', color: colors.muted, marginTop: 1 },
+  backButton: { marginRight: 8, padding: 4 },
   joinBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.primary, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   joinBtnText: { color: '#fff', fontWeight: '800', fontSize: 12 },
   messagesWrap: { padding: 14, gap: 8 },

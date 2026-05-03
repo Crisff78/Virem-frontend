@@ -125,15 +125,26 @@ function PortalSidebarBase<TModule extends string>({
         contentContainerStyle={styles.sidebarScroll}
       >
         <View style={styles.logoBox}>
-          <Image source={ViremLogo} style={styles.logo} />
-          <View style={styles.logoTextBox}>
-            <Text style={styles.logoTitle} numberOfLines={1}>
-              VIREM
-            </Text>
-            <Text style={styles.logoSubtitle} numberOfLines={1}>
-              {portalSubtitle}
-            </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
+            <Image source={ViremLogo} style={styles.logo} />
+            <View style={styles.logoTextBox}>
+              <Text style={styles.logoTitle} numberOfLines={1}>
+                VIREM
+              </Text>
+              <Text style={styles.logoSubtitle} numberOfLines={1}>
+                {portalSubtitle}
+              </Text>
+            </View>
           </View>
+          
+          {!isDesktopLayout && (
+            <TouchableOpacity 
+              onPress={onToggleMobileMenu}
+              style={styles.closeSidebarBtn}
+            >
+              <MaterialIcons name="close" size={24} color={colors.dark} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.userBox}>
@@ -278,7 +289,8 @@ const styles = StyleSheet.create({
 
   sidebarScroll: { paddingBottom: spacing.lg },
 
-  logoBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  logoBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  closeSidebarBtn: { padding: spacing.xs },
   logoTextBox: { flexShrink: 1 },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
   logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },

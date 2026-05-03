@@ -24,7 +24,7 @@ import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
 import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
-import { useResponsive } from './hooks/useResponsive';
+import { useResponsive, BREAKPOINTS } from './hooks/useResponsive';
 import { colors } from './theme/colors';
 import { spacing, radii } from './theme/spacing';
 
@@ -121,15 +121,15 @@ const PacienteConfiguracionScreen: React.FC = () => {
 
   const languageLabel = useMemo(() => {
     if (appLanguage === 'en') return 'English (US)';
-    if (appLanguage === 'pt') return 'Portugu�s (BR)';
-    return 'Espa�ol (ES)';
+    if (appLanguage === 'pt') return 'Português (BR)';
+    return 'Español (ES)';
   }, [appLanguage]);
 
   const optionsMap = {
     language: [
-      { label: 'Espa�ol (ES)', value: 'es' as const },
+      { label: 'Español (ES)', value: 'es' as const },
       { label: 'English (US)', value: 'en' as const },
-      { label: 'Portugu�s (BR)', value: 'pt' as const },
+      { label: 'Português (BR)', value: 'pt' as const },
     ],
     timeFormat: ['24 horas', '12 horas'],
     timeZone: ['(GMT-04:00) Santo Domingo', '(GMT-05:00) Bogota', '(GMT-06:00) Ciudad de Mexico'],
@@ -188,12 +188,12 @@ const PacienteConfiguracionScreen: React.FC = () => {
     if (newPassword.length < 8) {
       Alert.alert(
         tx({
-          es: 'Contrase�a d�bil',
+          es: 'Contraseña débil',
           en: 'Weak password',
           pt: 'Senha fraca',
         }),
         tx({
-          es: 'La nueva contrase�a debe tener al menos 8 caracteres.',
+          es: 'La nueva contraseña debe tener al menos 8 caracteres.',
           en: 'The new password must be at least 8 characters long.',
           pt: 'A nova senha deve ter pelo menos 8 caracteres.',
         })
@@ -209,7 +209,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
           pt: 'Nao coincide',
         }),
         tx({
-          es: 'La confirmaci�n de contrase�a no coincide.',
+          es: 'La confirmación de contraseña no coincide.',
           en: 'Password confirmation does not match.',
           pt: 'A confirmacao da senha nao coincide.',
         })
@@ -223,12 +223,12 @@ const PacienteConfiguracionScreen: React.FC = () => {
     setConfirmPassword('');
     Alert.alert(
       tx({
-        es: 'Contrase�a actualizada',
+        es: 'Contraseña actualizada',
         en: 'Password updated',
         pt: 'Senha atualizada',
       }),
       tx({
-        es: 'Tu contrase�a fue cambiada correctamente.',
+        es: 'Tu contraseña fue cambiada correctamente.',
         en: 'Your password was changed successfully.',
         pt: 'Sua senha foi alterada com sucesso.',
       })
@@ -328,6 +328,13 @@ const PacienteConfiguracionScreen: React.FC = () => {
       </View>
       )}
 
+      {/* Responsive logic inside component */}
+      {(() => {
+        const { fs, isMobile, width, select } = useResponsive();
+        return null; // Logic is handled in styles
+      })()}
+
+
       <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
         <Text style={styles.title}>{t('config.title')}</Text>
         <Text style={styles.subtitle}>{t('config.subtitle')}</Text>
@@ -345,31 +352,31 @@ const PacienteConfiguracionScreen: React.FC = () => {
             </View>
 
             <View style={styles.itemRow}>
-              <View>
+              <View style={styles.itemInfo}>
                 <Text style={styles.itemTitle}>{t('config.language')}</Text>
                 <Text style={styles.itemSub}>{languageLabel}</Text>
               </View>
-              <TouchableOpacity onPress={() => openSelector('language')}>
+              <TouchableOpacity onPress={() => openSelector('language')} style={styles.itemActionContainer}>
                 <Text style={styles.itemAction}>{t('config.change')}</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.itemRow}>
-              <View>
+              <View style={styles.itemInfo}>
                 <Text style={styles.itemTitle}>{t('config.timeFormat')}</Text>
                 <Text style={styles.itemSub}>{timeFormat}</Text>
               </View>
-              <TouchableOpacity onPress={() => openSelector('timeFormat')}>
+              <TouchableOpacity onPress={() => openSelector('timeFormat')} style={styles.itemActionContainer}>
                 <Text style={styles.itemAction}>{t('config.edit')}</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.itemRowLast}>
-              <View>
+              <View style={styles.itemInfo}>
                 <Text style={styles.itemTitle}>{t('config.timeZone')}</Text>
                 <Text style={styles.itemSub}>{timeZone}</Text>
               </View>
-              <TouchableOpacity onPress={() => openSelector('timeZone')}>
+              <TouchableOpacity onPress={() => openSelector('timeZone')} style={styles.itemActionContainer}>
                 <Text style={styles.itemAction}>{t('config.update')}</Text>
               </TouchableOpacity>
             </View>
@@ -387,40 +394,40 @@ const PacienteConfiguracionScreen: React.FC = () => {
             </View>
 
             <View style={styles.toggleRow}>
-              <View>
+              <View style={styles.itemInfo}>
                 <Text style={styles.itemTitle}>{t('config.email')}</Text>
                 <Text style={styles.itemSub}>{t('config.emailHint')}</Text>
               </View>
               <Switch
                 value={emailEnabled}
                 onValueChange={setEmailEnabled}
-                trackColor={{ false: '#d6e0eb', true: '#137fec' }}
+                trackColor={{ false: '#d6e0eb', true: colors.primary }}
                 thumbColor="#ffffff"
               />
             </View>
 
             <View style={styles.toggleRow}>
-              <View>
+              <View style={styles.itemInfo}>
                 <Text style={styles.itemTitle}>{t('config.sms')}</Text>
                 <Text style={styles.itemSub}>{t('config.smsHint')}</Text>
               </View>
               <Switch
                 value={smsEnabled}
                 onValueChange={setSmsEnabled}
-                trackColor={{ false: '#d6e0eb', true: '#137fec' }}
+                trackColor={{ false: '#d6e0eb', true: colors.primary }}
                 thumbColor="#ffffff"
               />
             </View>
 
             <View style={styles.toggleRowLast}>
-              <View>
+              <View style={styles.itemInfo}>
                 <Text style={styles.itemTitle}>{t('config.push')}</Text>
                 <Text style={styles.itemSub}>{t('config.pushHint')}</Text>
               </View>
               <Switch
                 value={pushEnabled}
                 onValueChange={setPushEnabled}
-                trackColor={{ false: '#d6e0eb', true: '#137fec' }}
+                trackColor={{ false: '#d6e0eb', true: colors.primary }}
                 thumbColor="#ffffff"
               />
             </View>
@@ -545,7 +552,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
               {tx({
-                es: 'Cambiar contrase�a',
+                es: 'Cambiar contraseña',
                 en: 'Change password',
                 pt: 'Alterar senha',
               })}
@@ -557,7 +564,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
               value={currentPassword}
               onChangeText={setCurrentPassword}
               placeholder={tx({
-                es: 'Contrase�a actual',
+                es: 'Contraseña actual',
                 en: 'Current password',
                 pt: 'Senha atual',
               })}
@@ -569,7 +576,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
               value={newPassword}
               onChangeText={setNewPassword}
               placeholder={tx({
-                es: 'Nueva contrase�a',
+                es: 'Nueva contraseña',
                 en: 'New password',
                 pt: 'Nova senha',
               })}
@@ -581,7 +588,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder={tx({
-                es: 'Confirmar contrase�a',
+                es: 'Confirmar contraseña',
                 en: 'Confirm password',
                 pt: 'Confirmar senha',
               })}
@@ -610,19 +617,12 @@ const PacienteConfiguracionScreen: React.FC = () => {
   );
 };
 
-const colors = {
-  primary: '#137fec',
-  bg: '#F6FAFD',
-  dark: '#0A1931',
-  blue: '#1A3D63',
-  muted: '#4A7FA7',
-  white: '#FFFFFF',
-};
+
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    flexDirection: Platform.OS === 'web' && BREAKPOINTS.desktop <= 1024 ? 'row' : 'column',
     backgroundColor: colors.bg,
   },
   sidebar: {
@@ -630,8 +630,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRightWidth: Platform.OS === 'web' ? 1 : 0,
     borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
-    borderRightColor: '#eef2f7',
-    borderBottomColor: '#eef2f7',
+    borderRightColor: colors.border,
+    borderBottomColor: colors.border,
     padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
   },
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
     borderRadius: 76,
     marginBottom: 10,
     borderWidth: 4,
-    borderColor: '#f5f7fb',
+    borderColor: colors.bg,
   },
   userName: { fontWeight: '800', color: colors.dark, fontSize: 14 },
   userPlan: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 2 },
@@ -667,10 +667,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 12,
-    minWidth: Platform.OS === 'web' ? 0 : 150,
+    minWidth: Platform.OS === 'web' ? 0 : 140,
   },
   menuItemActive: {
-    backgroundColor: 'rgba(19,127,236,0.10)',
+    backgroundColor: colors.primarySoft,
     borderRightWidth: 3,
     borderRightColor: colors.primary,
   },
@@ -690,79 +690,82 @@ const styles = StyleSheet.create({
 
   main: {
     flex: 1,
-    paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
-    paddingTop: Platform.OS === 'web' ? 18 : 12,
+    paddingHorizontal: 20,
+    paddingTop: 18,
   },
-  title: { fontSize: 42, fontWeight: '900', color: colors.dark, marginTop: 8 },
-  subtitle: { fontSize: 20, color: colors.muted, marginTop: 6, marginBottom: 18, fontWeight: '600' },
+  title: { fontSize: 32, fontWeight: '900', color: colors.dark, marginTop: 8 },
+  subtitle: { fontSize: 16, color: colors.muted, marginTop: 6, marginBottom: 18, fontWeight: '600' },
 
   grid: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 14,
   },
 
   cardHalf: {
-    width: Platform.OS === 'web' ? '49%' : '100%',
-    backgroundColor: '#fff',
+    flexGrow: 1,
+    minWidth: 300,
+    backgroundColor: colors.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#e4edf7',
+    borderColor: colors.border,
     padding: 16,
-    minHeight: 230,
+    marginBottom: 14,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   iconBox: {
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: 'rgba(19,127,236,0.12)',
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardTitle: { color: colors.dark, fontSize: 16, fontWeight: '900' },
-  cardHint: { color: '#9bb1c7', fontSize: 11, fontWeight: '600', marginTop: 2 },
+  cardHint: { color: colors.muted, fontSize: 11, fontWeight: '600', marginTop: 2 },
 
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 9,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#edf3fa',
+    borderBottomColor: colors.border,
   },
   itemRowLast: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 9,
+    paddingVertical: 12,
   },
+  itemInfo: { flex: 1, paddingRight: 10 },
   itemTitle: { color: colors.dark, fontSize: 14, fontWeight: '800' },
-  itemSub: { color: '#7f93a8', fontSize: 12, marginTop: 1, fontWeight: '600' },
+  itemSub: { color: colors.muted, fontSize: 12, marginTop: 1, fontWeight: '600' },
+  itemActionContainer: { paddingLeft: 10 },
   itemAction: { color: colors.primary, fontSize: 14, fontWeight: '800' },
 
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 9,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#edf3fa',
+    borderBottomColor: colors.border,
   },
   toggleRowLast: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 9,
+    paddingVertical: 12,
   },
 
   securityButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f8fbff',
+    backgroundColor: colors.bg,
     borderWidth: 1,
-    borderColor: '#dce8f5',
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 11,
@@ -772,14 +775,14 @@ const styles = StyleSheet.create({
   securityText: { color: colors.blue, fontSize: 14, fontWeight: '800' },
 
   supportBox: {
-    backgroundColor: '#f8fbff',
+    backgroundColor: colors.bg,
     borderWidth: 1,
-    borderColor: '#dce8f5',
+    borderColor: colors.border,
     borderRadius: 12,
     padding: 12,
   },
   supportTitle: { color: colors.dark, fontSize: 14, fontWeight: '900', marginBottom: 4 },
-  supportText: { color: '#7f93a8', fontSize: 12, lineHeight: 17, fontWeight: '600' },
+  supportText: { color: colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '600' },
   supportButtons: { flexDirection: 'row', gap: 10, marginTop: 12 },
   contactBtn: {
     flex: 1,
@@ -801,99 +804,20 @@ const styles = StyleSheet.create({
   faqBtnText: { color: colors.primary, fontSize: 13, fontWeight: '900' },
 
   versionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
-  versionText: { color: '#9bb1c7', fontSize: 11, fontWeight: '600' },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(10,25,49,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#dce8f5',
-    padding: 14,
-  },
-  modalTitle: {
-    color: colors.dark,
-    fontSize: 16,
-    fontWeight: '900',
-    marginBottom: 10,
-  },
-  optionButton: {
-    borderWidth: 1,
-    borderColor: '#dce8f5',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    backgroundColor: '#f8fbff',
-  },
-  optionText: {
-    color: colors.blue,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  cancelButton: {
-    marginTop: 2,
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  cancelText: {
-    color: '#64748b',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  passwordInput: {
-    borderWidth: 1,
-    borderColor: '#dce8f5',
-    borderRadius: 10,
-    backgroundColor: '#f8fbff',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 10,
-    color: colors.dark,
-    fontWeight: '600',
-  },
-  modalActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  modalPrimaryBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: 11,
-    marginTop: 10,
-  },
-  modalPrimaryText: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 13,
-  },
-  modalSecondaryBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#dce8f5',
-    borderRadius: 10,
-    paddingVertical: 11,
-    marginTop: 10,
-    backgroundColor: '#fff',
-  },
-  modalSecondaryText: {
-    color: '#64748b',
-    fontWeight: '800',
-    fontSize: 13,
-  },
+  versionText: { color: colors.muted, fontSize: 11, fontWeight: '600' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 24, width: '90%', maxWidth: 400 },
+  modalTitle: { fontSize: 20, fontWeight: '900', color: colors.dark, marginBottom: 18, textAlign: 'center' },
+  optionButton: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  optionText: { fontSize: 16, fontWeight: '700', color: colors.blue, textAlign: 'center' },
+  cancelButton: { marginTop: 18, paddingVertical: 14 },
+  cancelText: { color: colors.muted, fontSize: 16, fontWeight: '800', textAlign: 'center' },
+  passwordInput: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 12, color: colors.dark, fontSize: 14 },
+  modalActionsRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalPrimaryBtn: { flex: 1, backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  modalPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  modalSecondaryBtn: { flex: 1, backgroundColor: colors.bg, borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  modalSecondaryText: { color: colors.muted, fontWeight: '800', fontSize: 14 },
 });
 
 export default PacienteConfiguracionScreen;
