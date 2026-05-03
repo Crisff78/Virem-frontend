@@ -110,7 +110,7 @@ const sortCitasByStartAsc = (items: CitaItem[]) =>
 
 const DashboardPacienteScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, setNotificationsOpen } = usePacienteModule();
   const { signOut } = useAuth();
   const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { t } = useLanguage();
@@ -193,8 +193,8 @@ const DashboardPacienteScreen: React.FC = () => {
   }, [navigation]);
 
   const handleNotificationsPress = useCallback(() => {
-    navigation.navigate('PacienteNotificaciones' as any);
-  }, [navigation]);
+    setNotificationsOpen(true);
+  }, [setNotificationsOpen]);
 
   const handleVerCitas = useCallback(() => {
     navigation.navigate('PacienteCitas' as any);
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderDashed,
+    borderColor: colors.borderSoft,
     borderStyle: 'dashed',
     gap: spacing.sm,
   },

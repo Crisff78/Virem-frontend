@@ -32,6 +32,10 @@ type PacienteModuleContextValue = {
    * Otherwise, push onto the stack as usual.
    */
   portalNavigate: (route: string, params?: Record<string, unknown>) => void;
+  /** True when the notification drawer is visible */
+  isNotificationsOpen: boolean;
+  /** Show or hide the notification drawer */
+  setNotificationsOpen: (open: boolean) => void;
 };
 
 const fallbackCtx: PacienteModuleContextValue = {
@@ -39,6 +43,8 @@ const fallbackCtx: PacienteModuleContextValue = {
   activeModule: 'DashboardPaciente',
   setActiveModule: () => undefined,
   portalNavigate: () => undefined,
+  isNotificationsOpen: false,
+  setNotificationsOpen: () => undefined,
 };
 
 export const PacienteModuleContext = createContext<PacienteModuleContextValue>(fallbackCtx);
@@ -64,6 +70,7 @@ export const PacienteModuleProvider: React.FC<ProviderProps> = ({
   children,
 }) => {
   const [activeModule, setActiveModuleRaw] = useState<PortalModule>(initialModule);
+  const [isNotificationsOpen, setNotificationsOpen] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const setActiveModule = useCallback((mod: PortalModule) => {
@@ -87,8 +94,10 @@ export const PacienteModuleProvider: React.FC<ProviderProps> = ({
       activeModule,
       setActiveModule,
       portalNavigate,
+      isNotificationsOpen,
+      setNotificationsOpen,
     }),
-    [activeModule, portalNavigate, setActiveModule]
+    [activeModule, portalNavigate, setActiveModule, isNotificationsOpen]
   );
 
   return (

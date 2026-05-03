@@ -119,7 +119,7 @@ const MIN_REFRESH_INTERVAL_MS = 15000;
 
 const PacienteCitasScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, setNotificationsOpen } = usePacienteModule();
   const { signOut } = useAuth();
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
@@ -556,7 +556,7 @@ const PacienteCitasScreen: React.FC = () => {
               onChangeText={setSearchText}
             />
           </View>
-          <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('PacienteNotificaciones')}>
+          <TouchableOpacity style={styles.notifBtn} onPress={() => setNotificationsOpen(true)}>
             <MaterialIcons name="notifications" size={22} color={colors.dark} />
             <View style={styles.notifDot} />
           </TouchableOpacity>

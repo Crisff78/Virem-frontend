@@ -59,7 +59,7 @@ const parseUser = (raw: string | null): User | null => {
 
 const PacienteConfiguracionScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, setNotificationsOpen } = usePacienteModule();
   const { language: appLanguage, setLanguage, t, tx } = useLanguage();
   const { user, refreshUser, signOut, fullName, planLabel, fotoUrl, hasProfilePhoto } =
     usePatientPortalSession({ syncOnMount: false });
@@ -297,7 +297,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteNotificaciones')}
+              onPress={() => setNotificationsOpen(true)}
             >
               <MaterialIcons name="notifications" size={20} color={colors.muted} />
               <Text style={styles.menuText}>{t('menu.notifications')}</Text>

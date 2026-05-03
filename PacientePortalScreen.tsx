@@ -3,6 +3,7 @@ import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { PacienteModuleProvider, usePacienteModule, PORTAL_MODULES, type PortalModule } from './navigation/PacienteModuleContext';
 import PacienteSidebar from './components/PacienteSidebar';
+import { NotificationDrawer } from './components/NotificationDrawer';
 
 // Import every sidebar module screen
 import DashboardPacienteScreen from './DashboardPacienteScreen';
@@ -48,6 +49,8 @@ const PacientePortalInner: React.FC = () => {
           <ModuleSlot key={moduleName} moduleName={moduleName} />
         ))}
       </View>
+
+      <NotificationDrawer />
     </View>
   );
 };

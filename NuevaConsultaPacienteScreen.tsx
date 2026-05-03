@@ -141,7 +141,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, setNotificationsOpen } = usePacienteModule();
   const { signOut } = useAuth();
   const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { width: viewportWidth } = useWindowDimensions();
@@ -388,7 +388,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
 
           <TouchableOpacity
             style={styles.notifBtn}
-            onPress={() => navigation.navigate('PacienteNotificaciones')}
+            onPress={() => setNotificationsOpen(true)}
           >
             <MaterialIcons name="notifications" size={22} color={colors.dark} />
             <View style={styles.notifDot} />
