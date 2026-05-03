@@ -2,8 +2,19 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as Linking from "expo-linking";
 import React from "react";
-import { Platform, StyleSheet } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { Platform, Text, TextInput } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+
+import { MAX_FONT_SIZE_MULTIPLIER } from "./theme/typography";
+
+// Clamp global del fontScale del sistema. Evita que tipografías
+// gigantes del usuario rompan los layouts en cualquier pantalla.
+const TextAny = Text as any;
+const TextInputAny = TextInput as any;
+TextAny.defaultProps = TextAny.defaultProps || {};
+TextAny.defaultProps.maxFontSizeMultiplier = MAX_FONT_SIZE_MULTIPLIER;
+TextInputAny.defaultProps = TextInputAny.defaultProps || {};
+TextInputAny.defaultProps.maxFontSizeMultiplier = MAX_FONT_SIZE_MULTIPLIER;
 
 import EstablecerNuevaContrasenaScreen from "./EstablecerNuevaContrasenaScreen";
 import LandingScreen from "./LandingScreen";
@@ -128,8 +139,7 @@ const App: React.FC = () => {
       <LanguageProvider>
         <ThemeProvider><AuthProvider>
           <SocketProvider>
-            <SafeAreaView style={styles.rootSafeArea} edges={["top", "left", "right"]}>
-              <NavigationContainer linking={linking}>
+            <NavigationContainer linking={linking}>
                 <Stack.Navigator
                   id="RootStack"
                   initialRouteName="Landing"
@@ -213,7 +223,6 @@ const App: React.FC = () => {
                   <Stack.Screen name="EspecialidadDetalle" component={EspecialidadDetalleScreen} />
                 </Stack.Navigator>
               </NavigationContainer>
-            </SafeAreaView>
           </SocketProvider>
         </AuthProvider></ThemeProvider>
       </LanguageProvider>
@@ -222,9 +231,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-const styles = StyleSheet.create({
-  rootSafeArea: {
-    flex: 1,
-  },
-});

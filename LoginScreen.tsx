@@ -1,32 +1,30 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  StatusBar,
-  TextInput,
-  Image,
-  Alert,
   ActivityIndicator,
+  Alert,
+  Image,
   Platform,
-  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useResponsive } from './hooks/useResponsive';
-import FadeInView from './components/FadeInView';
-import ViremImage from './components/ViremImage';
-
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as SecureStore from 'expo-secure-store';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+import { ScreenScaffold } from './components/ScreenScaffold';
+import { ResponsiveContainer } from './components/ResponsiveContainer';
+import FadeInView from './components/FadeInView';
+import { useResponsive } from './hooks/useResponsive';
 import { RootStackParamList } from './navigation/types';
 import { isValidEmail } from './utils/validation';
 import { apiClient } from './utils/api';
 import { useAuth } from './providers/AuthProvider';
-
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { spacing, radii } from './theme/spacing';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const MEDICO_CACHE_BY_EMAIL_KEY = 'medicoProfileByEmail';
@@ -77,6 +75,7 @@ const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
   const route = useRoute<RouteProp<RootStackParamList, 'Login'>>();
   const { signIn } = useAuth<any>();
+  const { fs, isSmallMobile, isTablet } = useResponsive();
 
   const [email, setEmail] = useState(route.params?.prefillEmail ?? '');
   const [password, setPassword] = useState('');
@@ -111,15 +110,15 @@ const LoginScreen: React.FC = () => {
       const mergedProfile =
         shouldMergeMedicoCache && cachedMedico && userProfile
           ? {
-            ...userProfile,
-            nombreCompleto: userProfile?.nombreCompleto || cachedMedico?.nombreCompleto,
-            especialidad: userProfile?.especialidad || cachedMedico?.especialidad,
-            fotoUrl: userProfile?.fotoUrl || cachedMedico?.fotoUrl,
-            cedula: userProfile?.cedula || cachedMedico?.cedula,
-            telefono: userProfile?.telefono || cachedMedico?.telefono,
-            genero: userProfile?.genero || cachedMedico?.genero,
-            fechanacimiento: userProfile?.fechanacimiento || cachedMedico?.fechanacimiento,
-          }
+              ...userProfile,
+              nombreCompleto: userProfile?.nombreCompleto || cachedMedico?.nombreCompleto,
+              especialidad: userProfile?.especialidad || cachedMedico?.especialidad,
+              fotoUrl: userProfile?.fotoUrl || cachedMedico?.fotoUrl,
+              cedula: userProfile?.cedula || cachedMedico?.cedula,
+              telefono: userProfile?.telefono || cachedMedico?.telefono,
+              genero: userProfile?.genero || cachedMedico?.genero,
+              fechanacimiento: userProfile?.fechanacimiento || cachedMedico?.fechanacimiento,
+            }
           : userProfile;
 
       await signIn(token, mergedProfile);
@@ -128,12 +127,8 @@ const LoginScreen: React.FC = () => {
         rolid === 3 ? 'AdminPanel' : rolid === 2 ? 'DashboardMedico' : 'DashboardPaciente';
 
       navigation.reset({ index: 0, routes: [{ name: targetRoute }] });
-
     } catch (err: any) {
-      Alert.alert(
-        'Error',
-        err?.message ?? 'No se pudo iniciar sesión. Intenta de nuevo.'
-      );
+      Alert.alert('Error', err?.message ?? 'No se pudo iniciar sesión. Intenta de nuevo.');
     } finally {
       setIsLoading(false);
     }
@@ -142,32 +137,32 @@ const LoginScreen: React.FC = () => {
   const handleForgotPassword = () => navigation.navigate('RecuperarContrasena');
   const handleGoToRegister = () => navigation.navigate('SeleccionPerfil');
 
-  const { isDesktop, isTablet, isMobile, select } = useResponsive();
+  const cardPadding = isSmallMobile ? spacing.lg : spacing.xxl;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
-      
-      <View style={styles.container}>
+    <ScreenScaffold
+      background={COLORS.backgroundLight}
+      center
+      contentStyle={{ paddingVertical: spacing.lg }}
+    >
+      <ResponsiveContainer maxWidth={isTablet ? 480 : 420}>
         <FadeInView style={styles.content}>
-          <View style={styles.card}>
-            {/* Sección de Logo y Nombre (Horizontal con Imagen Local) */}
+          <View style={[styles.card, { padding: cardPadding }]}>
             <View style={styles.logoSectionHorizontal}>
-              <Image 
-                source={ViremLogo} 
-                style={styles.logoSmallOriginal} 
-              />
-              <Text style={styles.appNameHorizontal}>VIREM</Text>
+              <Image source={ViremLogo} style={styles.logoSmallOriginal} />
+              <Text style={[styles.appNameHorizontal, { fontSize: fs(22) }]} numberOfLines={1}>
+                VIREM
+              </Text>
             </View>
 
-            <Text style={styles.title}>Accede a tu cuenta</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, { fontSize: fs(22) }]}>Accede a tu cuenta</Text>
+            <Text style={[styles.subtitle, { fontSize: fs(14) }]}>
               Bienvenido de nuevo. Por favor, introduce tus credenciales.
             </Text>
 
             <View style={styles.form}>
               <View>
-                <Text style={styles.inputLabel}>Correo Electrónico</Text>
+                <Text style={[styles.inputLabel, { fontSize: fs(14) }]}>Correo Electrónico</Text>
                 <View style={styles.inputContainer}>
                   <MaterialCommunityIcons
                     name="email-outline"
@@ -176,19 +171,22 @@ const LoginScreen: React.FC = () => {
                     style={styles.inputIcon}
                   />
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { fontSize: fs(16) }]}
                     placeholder="tu@email.com"
                     placeholderTextColor="#A0AEC0"
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    autoComplete="email"
+                    textContentType="emailAddress"
                     value={email}
                     onChangeText={setEmail}
+                    returnKeyType="next"
                   />
                 </View>
               </View>
 
               <View>
-                <Text style={styles.inputLabel}>Contraseña</Text>
+                <Text style={[styles.inputLabel, { fontSize: fs(14) }]}>Contraseña</Text>
                 <View style={styles.inputContainer}>
                   <MaterialCommunityIcons
                     name="lock-outline"
@@ -197,14 +195,23 @@ const LoginScreen: React.FC = () => {
                     style={styles.inputIcon}
                   />
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { fontSize: fs(16) }]}
                     placeholder="Introduce tu contraseña"
                     placeholderTextColor="#A0AEC0"
                     secureTextEntry={!showPassword}
+                    autoComplete="password"
+                    textContentType="password"
                     value={password}
                     onChangeText={setPassword}
+                    returnKeyType="go"
+                    onSubmitEditing={handleLogin}
                   />
-                  <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={styles.passwordToggle}>
+                  <TouchableOpacity
+                    onPress={() => setShowPassword((v) => !v)}
+                    style={styles.passwordToggle}
+                    accessibilityRole="button"
+                    accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  >
                     <MaterialCommunityIcons
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                       size={20}
@@ -215,168 +222,132 @@ const LoginScreen: React.FC = () => {
               </View>
 
               <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordLink}>
-                <Text style={styles.linkText}>¿Olvidaste tu contraseña?</Text>
+                <Text style={[styles.linkText, { fontSize: fs(13) }]}>
+                  ¿Olvidaste tu contraseña?
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.button, { opacity: isLoading ? 0.7 : 1 }]}
-                activeOpacity={0.8}
+                style={[styles.button, isLoading && styles.buttonDisabled]}
+                activeOpacity={0.85}
                 onPress={handleLogin}
                 disabled={isLoading}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isLoading, busy: isLoading }}
               >
                 {isLoading ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <Text style={styles.buttonText}>Iniciar Sesión</Text>
+                  <Text style={[styles.buttonText, { fontSize: fs(16) }]}>Iniciar Sesión</Text>
                 )}
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity onPress={handleGoToRegister} style={styles.registerLink}>
-              <Text style={styles.registerText}>
-                ¿No tienes cuenta? <Text style={styles.linkTextBold}>Regístrate</Text>
+              <Text style={[styles.registerText, { fontSize: fs(13) }]}>
+                ¿No tienes cuenta?{' '}
+                <Text style={[styles.linkTextBold, { fontSize: fs(13) }]}>Regístrate</Text>
               </Text>
             </TouchableOpacity>
           </View>
         </FadeInView>
-      </View>
-    </SafeAreaView>
+      </ResponsiveContainer>
+    </ScreenScaffold>
   );
 };
 
 export default LoginScreen;
 
 const styles = StyleSheet.create({
-  safeArea: { 
-    flex: 1, 
-    backgroundColor: COLORS.backgroundLight 
-  },
-  container: { 
-    flex: 1, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    paddingHorizontal: 20,
-  },
-  content: { 
-    width: '100%', 
-    alignItems: 'center' 
-  },
-  card: { 
-    width: '100%', 
-    maxWidth: 400, 
-    backgroundColor: COLORS.cardLight, 
-    borderRadius: 16, 
-    padding: 30, 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 4 }, 
-    shadowOpacity: 0.1, 
-    shadowRadius: 10, 
-    elevation: 8, 
-    alignItems: 'center'
+  content: { width: '100%', alignItems: 'center' },
+  card: {
+    width: '100%',
+    backgroundColor: COLORS.cardLight,
+    borderRadius: radii.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 8,
+    alignItems: 'center',
   },
   logoSectionHorizontal: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    marginBottom: 20, 
+    marginBottom: spacing.lg,
+    flexWrap: 'wrap',
   },
-  logoSmallOriginal: { 
-    width: 30, 
-    height: 30, 
-    resizeMode: 'contain', 
-    marginRight: 8,
+  logoSmallOriginal: {
+    width: 30,
+    height: 30,
+    resizeMode: 'contain',
+    marginRight: spacing.sm,
   },
   appNameHorizontal: {
-    fontSize: 22,
-    fontWeight: 'bold', 
-    color: COLORS.textPrimary, 
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
-  title: { 
-    fontSize: 24, 
-    fontWeight: 'bold', 
-    color: COLORS.textPrimary, 
+  title: {
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
-  subtitle: { 
-    fontSize: 14, 
-    color: COLORS.textSecondary, 
-    textAlign: 'center', 
-    marginBottom: 30,
-    paddingHorizontal: 10,
+  subtitle: {
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.xxl,
+    paddingHorizontal: spacing.sm,
+    lineHeight: 20,
   },
-  form: { 
-    width: '100%', 
-    gap: 20, 
-  },
+  form: { width: '100%', gap: spacing.lg },
   inputLabel: {
-    fontSize: 14,
     fontWeight: '600',
     color: COLORS.textPrimary,
-    marginBottom: 5,
+    marginBottom: spacing.xs,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48, 
-    borderWidth: 1, 
-    borderColor: COLORS.borderLight, 
-    borderRadius: 8, 
-    backgroundColor: COLORS.cardLight, 
-    paddingHorizontal: 0,
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: radii.sm,
+    backgroundColor: COLORS.cardLight,
   },
   inputIcon: {
-    paddingLeft: 12,
-    paddingRight: 8,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.sm,
   },
-  input: { 
+  input: {
     flex: 1,
-    paddingHorizontal: 0, 
-    fontSize: 16, 
-    color: COLORS.textPrimary, 
+    paddingVertical: Platform.OS === 'web' ? spacing.md : spacing.sm,
+    color: COLORS.textPrimary,
   },
-  forgotPasswordLink: { 
-    alignSelf: 'flex-end', 
-    paddingVertical: 5,
-    marginTop: -5, 
+  forgotPasswordLink: {
+    alignSelf: 'flex-end',
+    paddingVertical: spacing.xs,
+    marginTop: -spacing.xs,
   },
-  linkText: { 
-    color: COLORS.link, 
-    fontSize: 14, 
-    fontWeight: '600',
-    textDecorationLine: 'none', 
+  linkText: { color: COLORS.link, fontWeight: '600' },
+  button: {
+    width: '100%',
+    minHeight: 48,
+    backgroundColor: COLORS.primary,
+    borderRadius: radii.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
   },
-  button: { 
-    width: '100%', 
-    height: 48, 
-    backgroundColor: COLORS.primary, 
-    borderRadius: 8, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginTop: 15,
-  },
-  buttonText: { 
-    color: COLORS.cardLight, 
-    fontSize: 18, 
-    fontWeight: 'bold' 
-  },
-  registerLink: { 
-    marginTop: 20 
-  },
-  registerText: { 
-    fontSize: 14, 
-    color: COLORS.textSecondary
-  },
-  linkTextBold: { 
-    color: COLORS.link, 
-    fontSize: 14, 
-    fontWeight: 'bold' 
-  },
-  passwordToggle: { 
-    paddingHorizontal: 12, 
-    justifyContent: 'center' 
-  },
+  buttonDisabled: { opacity: 0.7 },
+  buttonText: { color: COLORS.cardLight, fontWeight: 'bold' },
+  registerLink: { marginTop: spacing.lg },
+  registerText: { color: COLORS.textSecondary, textAlign: 'center' },
+  linkTextBold: { color: COLORS.link, fontWeight: 'bold' },
+  passwordToggle: { paddingHorizontal: spacing.md, justifyContent: 'center', minHeight: 48 },
 });

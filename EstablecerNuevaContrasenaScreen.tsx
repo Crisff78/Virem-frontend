@@ -1,26 +1,26 @@
-import { MaterialIcons } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+import { ScreenScaffold } from './components/ScreenScaffold';
+import { ResponsiveContainer } from './components/ResponsiveContainer';
+import { useResponsive } from './hooks/useResponsive';
 import { RootStackParamList } from './navigation/types';
 import { requestJson } from './utils/api';
+import { spacing, radii } from './theme/spacing';
 
-type NavigationProps = NativeStackNavigationProp<
-  RootStackParamList,
-  'EstablecerNuevaContrasena'
->;
+type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'EstablecerNuevaContrasena'>;
 type RouteProps = RouteProp<RootStackParamList, 'EstablecerNuevaContrasena'>;
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
@@ -44,9 +44,8 @@ const EstablecerNuevaContrasenaScreen: React.FC = () => {
 
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute<RouteProps>();
-  const email = route.params?.email; // Traemos el email desde la pantalla anterior
-  const { width } = useWindowDimensions();
-  const cardWidth = Math.max(300, Math.min(420, width - 24));
+  const email = route.params?.email;
+  const { fs } = useResponsive();
 
   const checkRule = (rule: string) => {
     if (!newPassword) return false;
@@ -66,54 +65,47 @@ const EstablecerNuevaContrasenaScreen: React.FC = () => {
 
   const rules = useMemo(
     () => [
-      { key: 'min8', label: 'Minimo 8 caracteres' },
-      { key: 'uppercase', label: 'Una mayuscula (A-Z)' },
-      { key: 'number', label: 'Un numero (0-9)' },
-      { key: 'special', label: 'Un simbolo (!@#...)' },
+      { key: 'min8', label: 'Mínimo 8 caracteres' },
+      { key: 'uppercase', label: 'Una mayúscula (A-Z)' },
+      { key: 'number', label: 'Un número (0-9)' },
+      { key: 'special', label: 'Un símbolo (!@#…)' },
     ],
     []
   );
 
   const handlePasswordReset = async () => {
     if (!email) {
-      Alert.alert('Error', 'No se encontro el correo para actualizar la contrasena.');
+      Alert.alert('Error', 'No se encontró el correo para actualizar la contraseña.');
       return;
     }
-
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Las contrasenas no coinciden.');
+      Alert.alert('Error', 'Las contraseñas no coinciden.');
       return;
     }
-
     if (
       newPassword.length < 8 ||
       !checkRule('uppercase') ||
       !checkRule('number') ||
       !checkRule('special')
     ) {
-      Alert.alert('Seguridad', 'La contrasena no cumple con los requisitos.');
+      Alert.alert('Seguridad', 'La contraseña no cumple con los requisitos.');
       return;
     }
 
     setIsLoading(true);
-
     try {
       const data = await requestJson<any>('/api/auth/recovery/reset-password', {
         method: 'POST',
-        body: {
-          email: email?.toLowerCase().trim(),
-          newPassword: newPassword,
-        },
+        body: { email: email?.toLowerCase().trim(), newPassword },
       });
-
       if (data?.success) {
-        Alert.alert('Exito', 'Contrasena actualizada. Ya puedes iniciar sesion.');
+        Alert.alert('Éxito', 'Contraseña actualizada. Ya puedes iniciar sesión.');
         navigation.navigate('Login');
       } else {
         Alert.alert('Error', data?.message || 'No se pudo actualizar.');
       }
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'No hay conexion con el servidor.');
+      Alert.alert('Error', error?.message || 'No hay conexión con el servidor.');
     } finally {
       setIsLoading(false);
     }
@@ -122,214 +114,209 @@ const EstablecerNuevaContrasenaScreen: React.FC = () => {
   const handleBackToLogin = () => navigation.navigate('Login');
 
   return (
-    <ScrollView
-      style={styles.mainContainer}
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View style={[styles.cardContainer, { width: cardWidth }]}>
-        <View style={styles.logoWrapper}>
-          <Image source={ViremLogo} style={styles.logoImage} />
-          <Text style={styles.logoText}>Virem</Text>
-        </View>
+    <ScreenScaffold background={colors.backgroundLight} center>
+      <ResponsiveContainer maxWidth={460}>
+        <View style={styles.cardContainer}>
+          <View style={styles.logoWrapper}>
+            <Image source={ViremLogo} style={styles.logoImage} />
+            <Text style={[styles.logoText, { fontSize: fs(22) }]}>Virem</Text>
+          </View>
 
-        <View style={styles.header}>
-          <Text style={styles.title}>Establecer nueva contrasena</Text>
-          <Text style={styles.subtitle}>
-            Crea una contrasena segura para tu cuenta.
-          </Text>
-          {!!email && (
-            <Text style={[styles.subtitle, { marginTop: 6 }]} numberOfLines={1}>
-              {email}
+          <View style={styles.header}>
+            <Text style={[styles.title, { fontSize: fs(20) }]}>Establecer nueva contraseña</Text>
+            <Text style={[styles.subtitle, { fontSize: fs(13) }]}>
+              Crea una contraseña segura para tu cuenta.
             </Text>
-          )}
-        </View>
-
-        <View style={styles.formSection}>
-          {/* Nueva contrasena */}
-          <View style={styles.labelContainer}>
-            <Text style={styles.labelText}>Nueva contrasena</Text>
-            <View style={styles.inputGroup}>
-              <TextInput
-                style={styles.input}
-                placeholder="Escribe tu nueva contrasena"
-                placeholderTextColor={colors.placeholder}
-                secureTextEntry={!isPasswordVisible}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                autoCapitalize="none"
-              />
-
-              <TouchableOpacity
-                style={styles.visibilityIconWrapper}
-                onPress={() => setIsPasswordVisible((v) => !v)}
-              >
-                <MaterialIcons
-                  name={isPasswordVisible ? 'visibility' : 'visibility-off'}
-                  size={22}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Confirmar contrasena */}
-          <View style={styles.labelContainer}>
-            <Text style={styles.labelText}>Confirmar contrasena</Text>
-            <View style={styles.inputGroup}>
-              <TextInput
-                style={styles.input}
-                placeholder="Confirma tu contrasena"
-                placeholderTextColor={colors.placeholder}
-                secureTextEntry={!isConfirmPasswordVisible}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                autoCapitalize="none"
-              />
-
-              <TouchableOpacity
-                style={styles.visibilityIconWrapper}
-                onPress={() => setIsConfirmPasswordVisible((v) => !v)}
-              >
-                <MaterialIcons
-                  name={isConfirmPasswordVisible ? 'visibility' : 'visibility-off'}
-                  size={22}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Reglas */}
-          <View style={styles.rulesGrid}>
-            {rules.map((r) => {
-              const ok = checkRule(r.key);
-              return (
-                <View key={r.key} style={styles.ruleItem}>
-                  <MaterialIcons
-                    name={ok ? 'check-circle' : 'radio-button-unchecked'}
-                    size={16}
-                    color={ok ? colors.primary : colors.borderColor}
-                  />
-                  <Text style={styles.ruleText}>{r.label}</Text>
-                </View>
-              );
-            })}
-          </View>
-
-          {/* Boton actualizar */}
-          <TouchableOpacity
-            style={styles.updateButton}
-            onPress={handlePasswordReset}
-            disabled={isLoading}
-            activeOpacity={0.85}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.buttonText}>Actualizar contrasena</Text>
+            {!!email && (
+              <Text style={[styles.subtitle, { fontSize: fs(13), marginTop: spacing.xs }]} numberOfLines={1}>
+                {email}
+              </Text>
             )}
-          </TouchableOpacity>
+          </View>
 
-          {/* Volver */}
-          <TouchableOpacity
-            style={styles.footerLinkWrapper}
-            onPress={handleBackToLogin}
-            disabled={isLoading}
-            activeOpacity={0.85}
-          >
-            <MaterialIcons name="arrow-back" size={18} color={colors.textSecondary} />
-            <Text style={styles.footerLinkText}>Volver al login</Text>
-          </TouchableOpacity>
+          <View style={styles.formSection}>
+            <View style={styles.labelContainer}>
+              <Text style={[styles.labelText, { fontSize: fs(14) }]}>Nueva contraseña</Text>
+              <View style={styles.inputGroup}>
+                <TextInput
+                  style={[styles.input, { fontSize: fs(15) }]}
+                  placeholder="Escribe tu nueva contraseña"
+                  placeholderTextColor={colors.placeholder}
+                  secureTextEntry={!isPasswordVisible}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  autoCapitalize="none"
+                  autoComplete="password-new"
+                  textContentType="newPassword"
+                />
+                <TouchableOpacity
+                  style={styles.visibilityIconWrapper}
+                  onPress={() => setIsPasswordVisible((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={isPasswordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  <MaterialIcons
+                    name={isPasswordVisible ? 'visibility' : 'visibility-off'}
+                    size={22}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.labelContainer}>
+              <Text style={[styles.labelText, { fontSize: fs(14) }]}>Confirmar contraseña</Text>
+              <View style={styles.inputGroup}>
+                <TextInput
+                  style={[styles.input, { fontSize: fs(15) }]}
+                  placeholder="Confirma tu contraseña"
+                  placeholderTextColor={colors.placeholder}
+                  secureTextEntry={!isConfirmPasswordVisible}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  autoCapitalize="none"
+                  autoComplete="password-new"
+                  textContentType="newPassword"
+                />
+                <TouchableOpacity
+                  style={styles.visibilityIconWrapper}
+                  onPress={() => setIsConfirmPasswordVisible((v) => !v)}
+                  accessibilityRole="button"
+                >
+                  <MaterialIcons
+                    name={isConfirmPasswordVisible ? 'visibility' : 'visibility-off'}
+                    size={22}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.rulesGrid}>
+              {rules.map((r) => {
+                const ok = checkRule(r.key);
+                return (
+                  <View key={r.key} style={styles.ruleItem}>
+                    <MaterialIcons
+                      name={ok ? 'check-circle' : 'radio-button-unchecked'}
+                      size={16}
+                      color={ok ? colors.primary : colors.borderColor}
+                    />
+                    <Text style={[styles.ruleText, { fontSize: fs(11) }]} numberOfLines={1}>
+                      {r.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.updateButton, isLoading && styles.disabled]}
+              onPress={handlePasswordReset}
+              disabled={isLoading}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              {isLoading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={[styles.buttonText, { fontSize: fs(15) }]}>Actualizar contraseña</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.footerLinkWrapper}
+              onPress={handleBackToLogin}
+              disabled={isLoading}
+              activeOpacity={0.85}
+            >
+              <MaterialIcons name="arrow-back" size={18} color={colors.textSecondary} />
+              <Text style={[styles.footerLinkText, { fontSize: fs(13) }]}>Volver al login</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ResponsiveContainer>
+    </ScreenScaffold>
   );
 };
 
+export default EstablecerNuevaContrasenaScreen;
+
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: colors.backgroundLight,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-  },
   logoWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.base,
   },
-  logoImage: {
-    width: 40,
-    height: 40,
-    resizeMode: 'contain',
-  },
-  logoText: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary },
+  logoImage: { width: 40, height: 40, resizeMode: 'contain' },
+  logoText: { fontWeight: 'bold', color: colors.textPrimary },
   cardContainer: {
+    width: '100%',
     backgroundColor: colors.cardLight,
-    borderRadius: 12,
+    borderRadius: radii.md,
     elevation: 3,
-    padding: 25,
+    padding: spacing.xl,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
   },
-  header: { width: '100%', alignItems: 'center', marginBottom: 18 },
-  title: {
-    color: colors.textPrimary,
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  subtitle: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', marginTop: 5 },
+  header: { width: '100%', alignItems: 'center', marginBottom: spacing.base },
+  title: { color: colors.textPrimary, fontWeight: 'bold', textAlign: 'center' },
+  subtitle: { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs },
   formSection: { width: '100%' },
-  labelContainer: { marginBottom: 15 },
-  labelText: { color: colors.textPrimary, fontSize: 14, fontWeight: '500', marginBottom: 5 },
+  labelContainer: { marginBottom: spacing.base },
+  labelText: { color: colors.textPrimary, fontWeight: '500', marginBottom: spacing.xs },
   inputGroup: {
     flexDirection: 'row',
     borderWidth: 1,
     borderColor: colors.borderColor,
-    borderRadius: 8,
-    height: 48,
+    borderRadius: radii.sm,
+    minHeight: 48,
     overflow: 'hidden',
   },
-  input: { flex: 1, paddingHorizontal: 12, color: colors.textPrimary },
+  input: { flex: 1, paddingHorizontal: spacing.md, color: colors.textPrimary },
   visibilityIconWrapper: {
-    width: 45,
+    minWidth: 45,
     justifyContent: 'center',
     alignItems: 'center',
     borderLeftWidth: 1,
     borderLeftColor: colors.borderColor,
+    paddingHorizontal: spacing.sm,
   },
   rulesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 20,
-    marginTop: 2,
+    marginBottom: spacing.lg,
+    marginTop: spacing.xxs,
+    gap: spacing.xs,
   },
-  ruleItem: { flexDirection: 'row', alignItems: 'center', width: '48%', marginBottom: 6 },
-  ruleText: { color: colors.textSecondary, fontSize: 11, marginLeft: 6 },
+  ruleItem: { flexDirection: 'row', alignItems: 'center', minWidth: '48%' },
+  ruleText: { color: colors.textSecondary, marginLeft: spacing.xs, flexShrink: 1 },
   updateButton: {
     width: '100%',
-    height: 48,
-    borderRadius: 8,
+    minHeight: 48,
+    paddingVertical: spacing.md,
+    borderRadius: radii.sm,
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  buttonText: { color: 'white', fontSize: 15, fontWeight: 'bold' },
-  footerLinkWrapper: { flexDirection: 'row', alignItems: 'center', marginTop: 18 },
+  disabled: { opacity: 0.7 },
+  buttonText: { color: 'white', fontWeight: 'bold' },
+  footerLinkWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.base,
+    alignSelf: 'center',
+  },
   footerLinkText: {
     color: colors.textSecondary,
-    fontSize: 13,
     fontWeight: 'bold',
-    marginLeft: 6,
+    marginLeft: spacing.xs,
     textDecorationLine: 'underline',
   },
 });
-
-export default EstablecerNuevaContrasenaScreen;
