@@ -1,10 +1,10 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 
-import { MedicoModuleProvider, useMedicoModule, MEDICO_PORTAL_MODULES, type MedicoPortalModule } from '../../navigation/MedicoModuleContext';
-import MedicoSidebar from '../../components/MedicoSidebar';
+import { MedicoModuleProvider, useMedicoModule, MEDICO_PORTAL_MODULES, type MedicoPortalModule } from './navigation/MedicoModuleContext';
+import MedicoSidebar from './components/MedicoSidebar';
 
-// Import every sidebar module screen (co-located in screens/medico/)
+// Import every sidebar module screen
 import DashboardMedico from './DashboardMedico';
 import MedicoCitasScreen from './MedicoCitasScreen';
 import MedicoPacientesScreen from './MedicoPacientesScreen';

@@ -1,11 +1,11 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 
-import { PacienteModuleProvider, usePacienteModule, PORTAL_MODULES, type PortalModule } from '../../navigation/PacienteModuleContext';
-import PacienteSidebar from '../../components/PacienteSidebar';
-import { NotificationDrawer } from '../../components/NotificationDrawer';
+import { PacienteModuleProvider, usePacienteModule, PORTAL_MODULES, type PortalModule } from './navigation/PacienteModuleContext';
+import PacienteSidebar from './components/PacienteSidebar';
+import { NotificationDrawer } from './components/NotificationDrawer';
 
-// Import every sidebar module screen (co-located in screens/paciente/)
+// Import every sidebar module screen
 import DashboardPacienteScreen from './DashboardPacienteScreen';
 import NuevaConsultaPacienteScreen from './NuevaConsultaPacienteScreen';
 import PacienteCitasScreen from './PacienteCitasScreen';
