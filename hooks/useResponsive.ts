@@ -21,13 +21,13 @@ export const useResponsive = () => {
   // Escala tipografía relativa al ancho de pantalla.
   // Clamp: mínimo 75% (phones pequeños), máximo 160% (tablets grandes).
   const fs = (size: number): number => {
-    const scale = Math.min(Math.max(width / BASE_WIDTH, 0.75), 1.6);
+    const scale = Math.min(Math.max(width / BASE_WIDTH, 0.75), 1.15);
     return Math.round(size * scale);
   };
 
   // Escala espaciado y dimensiones (rango más conservador que fs).
   const rs = (size: number): number => {
-    const scale = Math.min(Math.max(width / BASE_WIDTH, 0.8), 1.4);
+    const scale = Math.min(Math.max(width / BASE_WIDTH, 0.8), 1.1);
     return Math.round(size * scale);
   };
 
