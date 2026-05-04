@@ -47,116 +47,6 @@ const FadeInView = ({ children, delay = 0, style }: any) => {
   );
 };
 
-const ShrinkingLine = ({ delay = 0, trigger = true }) => {
-  const widthAnim = useRef(new Animated.Value(250)).current; 
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (trigger) {
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.parallel([
-          Animated.timing(widthAnim, { 
-            toValue: 60, 
-            duration: 1200, 
-            easing: Easing.out(Easing.exp), 
-            useNativeDriver: false 
-          }),
-          Animated.timing(opacity, { 
-            toValue: 1, 
-            duration: 800, 
-            useNativeDriver: false 
-          }),
-        ])
-      ]).start();
-    }
-  }, [delay, trigger]);
-
-  return (
-    <Animated.View style={{ 
-      width: widthAnim, 
-      height: 4, 
-      backgroundColor: colors.primary, 
-      marginBottom: 16, 
-      borderRadius: 2,
-      opacity 
-    }} />
-  );
-};
-
-const MessageBadge = ({ trigger }: { trigger: boolean }) => {
-  const scale = useRef(new Animated.Value(0)).current;
-  const [showChecks, setShowChecks] = useState(false);
-  const checkAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (trigger) {
-      Animated.spring(scale, { toValue: 1, friction: 6, tension: 40, useNativeDriver: true }).start();
-      
-      const timer = setTimeout(() => {
-        setShowChecks(true);
-        Animated.timing(checkAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
-      }, 2000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [trigger, scale, checkAnim]);
-
-  return (
-    <Animated.View style={{
-      position: 'absolute',
-      right: -10,
-      top: -10,
-      backgroundColor: '#EBF8FF',
-      padding: 8,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: '#BEE3F8',
-      transform: [{ scale }],
-      zIndex: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      ...shadow('#000', 0.1, 10, { width: 0, height: 4 }, 5)
-    }}>
-      <MaterialIcons name="security" size={14} color={colors.primary} />
-      <Text style={{ fontSize: 10, fontWeight: '700', color: colors.secondary, marginLeft: 4 }}>Seguro</Text>
-      {showChecks && (
-        <Animated.View style={{ marginLeft: 4, opacity: checkAnim }}>
-          <MaterialIcons name="done-all" size={14} color="#3182CE" />
-        </Animated.View>
-      )}
-    </Animated.View>
-  );
-};
-
-const FloatingPhone = ({ children }: any) => {
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      if (typeof document !== 'undefined' && !document.getElementById('floatingPhoneCSS')) {
-        const style = document.createElement('style');
-        style.id = 'floatingPhoneCSS';
-        style.innerHTML = `
-          @keyframes floating {
-            0% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-15px) rotate(1deg); }
-            100% { transform: translateY(0px) rotate(0deg); }
-          }
-          .floating-phone {
-            animation: floating 4s ease-in-out infinite;
-          }
-        `;
-        document.head.appendChild(style);
-      }
-    }
-  }, []);
-
-  return (
-    <View style={Platform.OS === 'web' ? ({ className: 'floating-phone' } as any) : {}}>
-      {children}
-    </View>
-  );
-};
-
 const HoverCard = ({ children, style, onPress }: any) => {
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -315,10 +205,9 @@ const LandingScreen: React.FC = () => {
       >
         {/* HERO SECTION */}
         <AnimatedGradientBg style={[styles.heroSection, isDesktop && styles.heroDesktop]}>
-          {/* Decorative Blobs */}
-          <View style={{ position: 'absolute', top: -100, left: -100, width: 400, height: 400, borderRadius: 200, backgroundColor: 'rgba(43, 108, 176, 0.05)', zIndex: 0 }} />
-          <View style={{ position: 'absolute', bottom: 50, left: '20%', width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(43, 108, 176, 0.03)', zIndex: 0 }} />
-          <View style={{ position: 'absolute', top: '20%', right: '10%', width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(235, 248, 255, 0.5)', zIndex: 0 }} />
+          <View style={{ position: 'absolute', top: -100, left: -100, width: 400, height: 400, borderRadius: 200, backgroundColor: 'rgba(43, 108, 176, 0.05)' }} />
+          <View style={{ position: 'absolute', bottom: 50, left: '20%', width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(43, 108, 176, 0.03)' }} />
+          <View style={{ position: 'absolute', top: '20%', right: '10%', width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(235, 248, 255, 0.4)' }} />
           
           <View style={styles.heroTextContainer}>
             <FadeInView style={isDesktop && styles.heroTextDesktop}>
