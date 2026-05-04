@@ -23,7 +23,7 @@ const DUMMY_TRANSACTIONS = [
   { id: '3', type: 'Retiro', amount: '- $5,000.00 DOP', date: 'Lun, 12 Oct', patient: 'Transferencia a Banco' },
 ];
 
-const MedicoFinanzasScreen = (): JSX.Element => {
+const MedicoFinanzasScreen = (): React.ReactElement => {
   const { isInsidePortal } = useMedicoModule();
   const navigation = usePortalAwareMedicoNavigation();
   const { width: viewportWidth } = useWindowDimensions();

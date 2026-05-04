@@ -93,7 +93,7 @@ const VideoCallFrame: React.FC<VideoCallFrameProps> = ({
           )}
           <video 
             ref={remoteVideoRef} 
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+            style={styles.videoElement as any} 
             autoPlay 
             playsInline 
           />
@@ -102,7 +102,7 @@ const VideoCallFrame: React.FC<VideoCallFrameProps> = ({
         <View style={styles.localContainer}>
           <video 
             ref={localVideoRef} 
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+            style={styles.videoElement as any} 
             autoPlay 
             playsInline 
             muted 
@@ -153,4 +153,9 @@ const styles = StyleSheet.create({
   errorText: { marginTop: 15, color: '#fff', fontSize: 16, textAlign: 'center' },
   retryBtn: { marginTop: 20, backgroundColor: '#137fec', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8 },
   retryBtnText: { color: '#fff', fontWeight: '700' },
+  videoElement: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
 });

@@ -16,7 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
 import { usePacienteModule } from './navigation/PacienteModuleContext';
 import { apiClient } from "./utils/api";
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
@@ -147,7 +147,7 @@ const DocumentRow: React.FC<{ item: DocumentItem }> = ({ item }) => (
     onPress={() => downloadExampleDocument(item)}
   >
     <View style={[styles.docIconWrap, { backgroundColor: item.bg }]}>
-      <MaterialIcons name={item.icon} size={20} color={item.tint} />
+      <MaterialIcons name={item.icon as any} size={20} color={item.tint} />
     </View>
     <View style={{ flex: 1, minWidth: 0 }}>
       <Text style={styles.docTitle} numberOfLines={1}>
@@ -174,7 +174,7 @@ const SectionBlock: React.FC<{
     <View style={styles.sectionHead}>
       <View style={styles.sectionHeadLeft}>
         <View style={styles.sectionIcon}>
-          <MaterialIcons name={icon} size={18} color={colors.blue} />
+          <MaterialIcons name={icon as any} size={18} color={colors.blue} />
         </View>
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>

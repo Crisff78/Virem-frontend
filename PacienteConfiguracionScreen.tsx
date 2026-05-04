@@ -19,7 +19,7 @@ import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation'
 import { usePacienteModule } from './navigation/PacienteModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from "./providers/ThemeContext";
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
@@ -63,6 +63,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
   const { language: appLanguage, setLanguage, t, tx } = useLanguage();
   const { user, refreshUser, signOut, fullName, planLabel, fotoUrl, hasProfilePhoto } =
     usePatientPortalSession({ syncOnMount: false });
+  const { fs, isMobile, width, select } = useResponsive();
 
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -328,11 +329,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
       </View>
       )}
 
-      {/* Responsive logic inside component */}
-      {(() => {
-        const { fs, isMobile, width, select } = useResponsive();
-        return null; // Logic is handled in styles
-      })()}
+      {/* Responsive logic applied to styles below */}
 
 
       <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
@@ -478,35 +475,37 @@ const PacienteConfiguracionScreen: React.FC = () => {
               </View>
             </View>
 
-            <View style={styles.supportBox}>
-              <Text style={styles.supportTitle}>{t('config.needHelp')}</Text>
-              <Text style={styles.supportText}>{t('config.supportText')}</Text>
-
-              <View style={styles.supportButtons}>
-                <TouchableOpacity
-                  style={styles.contactBtn}
-                  onPress={() =>
-                    Alert.alert(
-                      'Contacto de soporte',
-                      'Escribenos a soporte@virem.app y te responderemos en breve.'
-                    )
-                  }
-                >
-                  <Text style={styles.contactBtnText}>{t('config.contact')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.faqBtn}
-                  onPress={() =>
-                    Alert.alert(
-                      'Preguntas frecuentes',
-                      'Puedes revisar tus dudas en el Centro de Ayuda dentro de la app.'
-                    )
-                  }
-                >
-                  <Text style={styles.faqBtnText}>{t('config.faq')}</Text>
-                </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.securityButton}
+              onPress={() =>
+                Alert.alert(
+                  'Contacto de soporte',
+                  'Escribenos a soporte@virem.app y te responderemos en breve.'
+                )
+              }
+            >
+              <View style={styles.securityLeft}>
+                <MaterialIcons name="mail-outline" size={18} color="#7f93a8" />
+                <Text style={styles.securityText}>{t('config.contact')}</Text>
               </View>
-            </View>
+              <MaterialIcons name="chevron-right" size={20} color="#9bb1c7" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.securityButton}
+              onPress={() =>
+                Alert.alert(
+                  'Preguntas frecuentes',
+                  'Puedes revisar tus dudas en el Centro de Ayuda dentro de la app.'
+                )
+              }
+            >
+              <View style={styles.securityLeft}>
+                <MaterialIcons name="help-center" size={18} color="#7f93a8" />
+                <Text style={styles.securityText}>{t('config.faq')}</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={20} color="#9bb1c7" />
+            </TouchableOpacity>
 
             <View style={styles.versionRow}>
               <MaterialIcons name="info-outline" size={14} color="#9bb1c7" />
@@ -704,7 +703,7 @@ const styles = StyleSheet.create({
 
   cardHalf: {
     flexGrow: 1,
-    minWidth: 300,
+    minWidth: Platform.OS === 'web' ? 300 : '100%',
     backgroundColor: colors.surface,
     borderRadius: 18,
     borderWidth: 1,
@@ -783,9 +782,10 @@ const styles = StyleSheet.create({
   },
   supportTitle: { color: colors.dark, fontSize: 14, fontWeight: '900', marginBottom: 4 },
   supportText: { color: colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '600' },
-  supportButtons: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  supportButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
   contactBtn: {
     flex: 1,
+    minWidth: 120,
     backgroundColor: colors.primary,
     borderRadius: 10,
     alignItems: 'center',
@@ -794,6 +794,7 @@ const styles = StyleSheet.create({
   contactBtnText: { color: '#fff', fontSize: 13, fontWeight: '900' },
   faqBtn: {
     flex: 1,
+    minWidth: 120,
     borderWidth: 1,
     borderColor: colors.primary,
     borderRadius: 10,

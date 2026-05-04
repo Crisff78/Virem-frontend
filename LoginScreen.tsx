@@ -147,23 +147,23 @@ const LoginScreen: React.FC = () => {
               </Text>
             </View>
 
-            <Text style={[styles.title, { fontSize: fs(22) }]}>Accede a tu cuenta</Text>
-            <Text style={[styles.subtitle, { fontSize: fs(14) }]}>
+            <Text style={[styles.title, { fontSize: fs(20) }]}>Accede a tu cuenta</Text>
+            <Text style={[styles.subtitle, { fontSize: fs(13) }]}>
               Bienvenido de nuevo. Por favor, introduce tus credenciales.
             </Text>
 
             <View style={styles.form}>
               <View>
-                <Text style={[styles.inputLabel, { fontSize: fs(14) }]}>Correo Electrónico</Text>
+                <Text style={[styles.inputLabel, { fontSize: fs(13) }]}>Correo Electrónico</Text>
                 <View style={styles.inputContainer}>
                   <MaterialCommunityIcons
                     name="email-outline"
-                    size={22}
+                    size={20}
                     color={colors.muted}
                     style={styles.inputIcon}
                   />
                   <TextInput
-                    style={[styles.input, { fontSize: fs(16) }]}
+                    style={[styles.input, { fontSize: fs(15) }]}
                     placeholder="tu@email.com"
                     placeholderTextColor="#A0AEC0"
                     keyboardType="email-address"
@@ -178,16 +178,16 @@ const LoginScreen: React.FC = () => {
               </View>
 
               <View>
-                <Text style={[styles.inputLabel, { fontSize: fs(14) }]}>Contraseña</Text>
+                <Text style={[styles.inputLabel, { fontSize: fs(13) }]}>Contraseña</Text>
                 <View style={styles.inputContainer}>
                   <MaterialCommunityIcons
                     name="lock-outline"
-                    size={22}
+                    size={20}
                     color={colors.muted}
                     style={styles.inputIcon}
                   />
                   <TextInput
-                    style={[styles.input, { fontSize: fs(16) }]}
+                    style={[styles.input, { fontSize: fs(15) }]}
                     placeholder="Introduce tu contraseña"
                     placeholderTextColor="#A0AEC0"
                     secureTextEntry={!showPassword}
@@ -230,7 +230,7 @@ const LoginScreen: React.FC = () => {
                 {isLoading ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <Text style={[styles.buttonText, { fontSize: fs(16) }]}>Iniciar Sesión</Text>
+                  <Text style={[styles.buttonText, { fontSize: fs(15) }]}>Iniciar Sesión</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -305,11 +305,12 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surface,
+    minHeight: 52,
+    borderWidth: 1.5,
+    borderColor: '#EDF2F7',
+    borderRadius: 12,
+    backgroundColor: '#F7FAFC',
+    marginBottom: spacing.xs,
   },
   inputIcon: {
     paddingLeft: spacing.md,
@@ -317,8 +318,15 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    paddingVertical: Platform.OS === 'web' ? spacing.md : spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
     color: colors.dark,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+        backgroundColor: 'transparent',
+      } as any,
+    }),
   },
   forgotPasswordLink: {
     alignSelf: 'flex-end',

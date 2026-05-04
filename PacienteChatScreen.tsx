@@ -18,7 +18,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
 import { usePacienteModule } from './navigation/PacienteModuleContext';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { RootStackParamList } from './navigation/types';
@@ -178,27 +178,44 @@ const PacienteChatScreen: React.FC = () => {
           if (!conversationId || !citaId) return null;
           const nextDateMs = parseDateMs(conversation?.cita?.fechaHoraInicio || null);
           const doctorId = normalizeText(conversation?.medico?.medicoid);
-          const fallbackAvatar = routeDoctorId && doctorId === routeDoctorId ? routeAvatarUrl : '';
+          
+          // Tomar la foto real del médico del payload de la conversación
+          const doctorPhoto = sanitizeRemoteImageUrl(conversation?.medico?.fotoUrl || conversation?.medico?.usuario?.fotoUrl);
+          const routeDoctorId = normalizeText(route.params?.doctorId);
+          const routeAvatarUrl = sanitizeRemoteImageUrl(route.params?.doctorAvatarUrl);
+          const avatarUrl = doctorPhoto || (routeDoctorId && doctorId === routeDoctorId ? routeAvatarUrl : '');
+
           return {
             id: conversationId,
             doctorId,
             name: normalizeText(conversation?.medico?.nombreCompleto || 'Especialista') || 'Especialista',
             specialty:
               normalizeText(conversation?.medico?.especialidad || 'Medicina General') || 'Medicina General',
-            avatarUrl: fallbackAvatar,
+            avatarUrl,
             citaId,
             unreadCount: Number(conversation?.unreadCount || 0),
             nextDateMs,
             timeLabel: formatTimeLabel(nextDateMs),
           } as ChatContact;
         })
-        .filter((row: ChatContact | null): row is ChatContact => Boolean(row))
-        .sort((a, b) => {
-          if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
-          return a.nextDateMs - b.nextDateMs;
-        });
+        .filter((row: ChatContact | null): row is ChatContact => Boolean(row));
 
-      setContacts(contactList);
+      // Agrupar por doctorId para evitar chats duplicados del mismo médico
+      const groupedMap = new Map<string, ChatContact>();
+      contactList.forEach(c => {
+        const existing = groupedMap.get(c.doctorId);
+        // Nos quedamos con la conversación que tenga la fecha más reciente (o mayor ID)
+        if (!existing || c.nextDateMs < existing.nextDateMs) {
+          groupedMap.set(c.doctorId, c);
+        }
+      });
+
+      const finalContacts = Array.from(groupedMap.values()).sort((a, b) => {
+        if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
+        return a.nextDateMs - b.nextDateMs;
+      });
+
+      setContacts(finalContacts);
     } catch {
       setContacts([]);
     } finally {
@@ -244,8 +261,12 @@ const PacienteChatScreen: React.FC = () => {
       }
 
       const normalized = (payload.mensajes as any[]).map((message: any) => {
-        const sender = normalizeText(message?.emisorTipo).toLowerCase();
-        const from = sender === 'paciente' ? 'me' : 'other';
+        const senderId = String(message?.emisorId || '');
+        const currentUserId = String(user?.usuarioid || user?.id || sessionUser?.usuarioid || sessionUser?.id || '').trim();
+        
+        // Identificación robusta: ignorar mayúsculas/minúsculas y espacios
+        const from = (senderId !== '' && currentUserId !== '' && senderId === currentUserId) ? 'me' : 'other';
+        
         const time = formatTimeLabel(parseDateMs(message?.createdAt));
         return {
           id: normalizeText(message?.mensajeId || `${Date.now()}-${Math.random()}`),
@@ -348,8 +369,15 @@ const PacienteChatScreen: React.FC = () => {
           }
         : null);
     if (conversationId === selectedChatId && rawMessage) {
-      const sender = normalizeText(rawMessage?.emisorTipo).toLowerCase();
-      const from = sender === 'paciente' ? 'me' : 'other';
+      const senderId = String(rawMessage?.emisorId || '');
+      const nextUser = {
+        ...ensurePatientSessionUser(sessionUser),
+        usuarioid: String(profileUser?.usuarioid || sessionUser?.usuarioid || sessionUser?.id || ''),
+      };
+      setUser(nextUser);
+      const currentUserId = String(nextUser?.usuarioid || '').trim();
+      const from = (senderId !== '' && currentUserId !== '' && senderId === currentUserId) ? 'me' : 'other';
+      
       const createdMs = parseDateMs(rawMessage?.createdAt);
       const nextMessage: Message = {
         id: normalizeText(rawMessage?.mensajeId || `${Date.now()}-${Math.random()}`),
@@ -454,6 +482,21 @@ const PacienteChatScreen: React.FC = () => {
     if (!text || !selectedChat) return;
 
     try {
+      const createdAt = new Date().toISOString();
+      // Generar un ID temporal para que aparezca al instante
+      const tempId = `temp-${Date.now()}`;
+      const nextMessage: Message = {
+        id: tempId,
+        from: 'me',
+        text,
+        time: formatTimeLabel(createdAt),
+        status: 'sending',
+      };
+      
+      userAtBottomRef.current = true;
+      appendMessage(selectedChat.id, nextMessage);
+      setReply('');
+
       const payload = await apiClient.post<any>(
         `/api/agenda/me/conversaciones/${selectedChat.id}/mensajes`,
         {
@@ -464,25 +507,25 @@ const PacienteChatScreen: React.FC = () => {
           },
         }
       );
-      if (!payload?.success || !payload?.mensaje) {
-        return;
+
+      if (payload?.success && payload?.mensaje) {
+        // Reemplazar el mensaje temporal con el real del servidor
+        setMessagesByChat(prev => {
+          const list = prev[selectedChat.id] || [];
+          return {
+            ...prev,
+            [selectedChat.id]: list.map(m => 
+              m.id === tempId 
+                ? { ...m, id: normalizeText(payload.mensaje.mensajeId), status: 'sent' } 
+                : m
+            )
+          };
+        });
       }
-
-      const createdAt = parseDateMs(payload?.mensaje?.createdAt);
-      const nextMessage: Message = {
-        id: normalizeText(payload?.mensaje?.mensajeId || `out-${Date.now()}`),
-        from: 'me',
-        text,
-        time: formatTimeLabel(createdAt),
-        status: 'sent',
-      };
-      userAtBottomRef.current = true;
-
-      appendMessage(selectedChat.id, nextMessage);
-      setReply('');
       loadContacts();
-    } catch {
-      // noop
+    } catch (err) {
+      console.error("[Chat] Error enviando mensaje:", err);
+      Alert.alert("Error", "No se pudo enviar el mensaje. Revisa tu conexion.");
     }
   };
 
@@ -501,7 +544,7 @@ const PacienteChatScreen: React.FC = () => {
         pressed && styles.menuItemPressed,
       ]}
     >
-      <MaterialIcons name={icon} size={20} color={active ? colors.primary : colors.muted} />
+      <MaterialIcons name={icon as any} size={20} color={active ? colors.primary : colors.muted} />
       <Text style={[styles.menuText, active && styles.menuTextActive]}>{label}</Text>
     </Pressable>
   );

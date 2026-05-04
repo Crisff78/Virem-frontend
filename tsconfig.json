@@ -1,20 +1,29 @@
 {
-  "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "moduleResolution": "bundler",
-    "module": "ESNext",
-    "forceConsistentCasingInFileNames": true,
-    "ignoreDeprecations": "5.0",
-    "jsx": "react-native",
-    "esModuleInterop": true,
+    "allowJs": true,
     "allowSyntheticDefaultImports": true,
-    "strict": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "jsx": "react-native",
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
+    "moduleResolution": "node",
+    "noEmit": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true,
+    "target": "ESNext",
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "module": "ESNext",
     "baseUrl": ".",
     "paths": {
-      "*": ["node_modules/*", "src/*"]
-    },
-    "types": ["react", "react-native", "node"]
+      "*": [
+        "node_modules/*"
+      ]
+    }
   },
   "include": [
     "**/*.ts",
@@ -22,6 +31,9 @@
   ],
   "exclude": [
     "node_modules",
-    "ViremApp"
-  ]
+    "babel.config.js",
+    "metro.config.js",
+    "jest.config.js"
+  ],
+  "extends": "expo/tsconfig.base"
 }

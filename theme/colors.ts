@@ -3,7 +3,7 @@
  * Antes vivía duplicada en 40+ pantallas. Importar desde aquí.
  */
 export const colors = {
-  primary: '#2B6CB0',
+  primary: '#1A4376',
   primarySoft: 'rgba(43, 108, 176, 0.12)',
   bg: '#F8FAFC',
   surface: '#FFFFFF',

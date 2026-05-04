@@ -19,7 +19,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import { useTheme } from "./providers/ThemeContext";
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useLanguage } from './localization/LanguageContext';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 import { resolveRemoteImageSource } from './utils/imageSources';
@@ -38,6 +38,7 @@ const MedicoConfiguracionScreen: React.FC = () => {
   const { language: appLanguage, setLanguage, t, tx } = useLanguage();
   const { user, refreshUser, signOut, fotoUrl } =
     useMedicoPortalSession({ syncOnMount: false });
+  const { fs, rs, isDesktop, isMobile, width, select } = useResponsive();
 
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -122,8 +123,6 @@ const MedicoConfiguracionScreen: React.FC = () => {
 
   const prettyValue = (val: any) => String(val || '').trim() || '---';
 
-  const { fs, rs, isDesktop, isMobile, width, select } = useResponsive();
-
   const sideItems = [
     { icon: 'dashboard', label: 'Dashboard', route: 'DashboardMedico' },
     { icon: 'calendar-today', label: 'Agenda', route: 'MedicoCitas' },
@@ -160,7 +159,7 @@ const MedicoConfiguracionScreen: React.FC = () => {
                   style={[styles.menuItemRow, item.active ? styles.menuItemActive : null]}
                   onPress={() => item.route && navigation.navigate(item.route)}
                 >
-                  <MaterialIcons name={item.icon} size={20} color={item.active ? colors.primary : colors.muted} />
+                  <MaterialIcons name={item.icon as any} size={20} color={item.active ? colors.primary : colors.muted} />
                   <Text style={[styles.menuText, item.active && styles.menuTextActive]}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -299,15 +298,27 @@ const MedicoConfiguracionScreen: React.FC = () => {
               </View>
             </View>
 
-            <View style={styles.supportBox}>
-              <Text style={styles.supportTitle}>¿Necesitas ayuda?</Text>
-              <Text style={styles.supportText}>Si tienes problemas con la agenda o videollamadas, contáctanos.</Text>
-              <View style={styles.supportButtons}>
-                <TouchableOpacity style={styles.contactBtn} onPress={() => Alert.alert('Soporte', 'Escríbenos a medicos@virem.app')}>
-                  <Text style={styles.contactBtnText}>Contactar</Text>
-                </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.securityButton} 
+              onPress={() => Alert.alert('Soporte', 'Escríbenos a medicos@virem.app')}
+            >
+              <View style={styles.securityLeft}>
+                <MaterialIcons name="mail-outline" size={18} color={colors.muted} />
+                <Text style={styles.securityText}>Contactar Soporte</Text>
               </View>
-            </View>
+              <MaterialIcons name="chevron-right" size={20} color="#9bb1c7" />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.securityButton} 
+              onPress={() => Alert.alert('Centro de Ayuda', 'El centro de ayuda para médicos estará disponible pronto.')}
+            >
+              <View style={styles.securityLeft}>
+                <MaterialIcons name="help-center" size={18} color={colors.muted} />
+                <Text style={styles.securityText}>Centro de Ayuda</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={20} color="#9bb1c7" />
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -374,7 +385,16 @@ const styles = StyleSheet.create({
   title: { fontSize: 32, fontWeight: '900', color: colors.dark },
   subtitle: { fontSize: 16, color: colors.muted, marginTop: 6, marginBottom: 18, fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  cardHalf: { flexGrow: 1, minWidth: 300, backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 16, marginBottom: 14 },
+  cardHalf: { 
+    flexGrow: 1, 
+    minWidth: Platform.OS === 'web' ? 300 : '100%', 
+    backgroundColor: colors.surface, 
+    borderRadius: 18, 
+    borderWidth: 1, 
+    borderColor: colors.border, 
+    padding: 16, 
+    marginBottom: 14 
+  },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   cardHeaderText: { flex: 1 },
   iconBox: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
@@ -395,8 +415,15 @@ const styles = StyleSheet.create({
   supportBox: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12 },
   supportTitle: { color: colors.dark, fontSize: 14, fontWeight: '900', marginBottom: 4 },
   supportText: { color: colors.muted, fontSize: 12, lineHeight: 17, fontWeight: '600' },
-  supportButtons: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  contactBtn: { flex: 1, backgroundColor: colors.primary, borderRadius: 10, alignItems: 'center', paddingVertical: 10 },
+  supportButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
+  contactBtn: {
+    flex: 1,
+    minWidth: 120,
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
   contactBtnText: { color: '#fff', fontSize: 13, fontWeight: '900' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 24, width: '90%', maxWidth: 400 },

@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import {
   LiveKitRoom,
   VideoTrack,
@@ -68,24 +68,25 @@ const VideoCallFrame: React.FC<VideoCallFrameProps> = ({
   }
 
   return (
-    <LiveKitRoom
-      serverUrl={liveKitUrl}
-      token={token}
-      connect={true}
-      audio={true}
-      video={true}
-      onDisconnected={onHangup}
-      style={styles.container}
-    >
-      <RoomControls 
-        onHangup={onHangup}
-        micEnabled={micEnabled}
-        setMicEnabled={setMicEnabled}
-        camEnabled={camEnabled}
-        setCamEnabled={setCamEnabled}
-      />
-      <ParticipantView />
-    </LiveKitRoom>
+    <View style={styles.container}>
+      <LiveKitRoom
+        serverUrl={liveKitUrl}
+        token={token}
+        connect={true}
+        audio={true}
+        video={true}
+        onDisconnected={onHangup}
+      >
+        <RoomControls 
+          onHangup={onHangup}
+          micEnabled={micEnabled}
+          setMicEnabled={setMicEnabled}
+          camEnabled={camEnabled}
+          setCamEnabled={setCamEnabled}
+        />
+        <ParticipantView />
+      </LiveKitRoom>
+    </View>
   );
 };
 
@@ -105,7 +106,7 @@ const ParticipantView = () => {
       {/* Remote Video (Full Screen) */}
       <View style={styles.remoteContainer}>
         {remoteTrack ? (
-          <VideoTrack trackRef={remoteTrack} style={styles.remoteVideo} />
+          <VideoTrack trackRef={remoteTrack as any} style={styles.remoteVideo} />
         ) : (
           <View style={styles.waitingContainer}>
             <ActivityIndicator size="large" color="#137fec" />
@@ -117,7 +118,7 @@ const ParticipantView = () => {
       {/* Local Video (PiP) */}
       <View style={styles.localContainer}>
         {localTrack && (
-          <VideoTrack trackRef={localTrack} style={styles.localVideo} />
+          <VideoTrack trackRef={localTrack as any} style={styles.localVideo} />
         )}
       </View>
     </View>

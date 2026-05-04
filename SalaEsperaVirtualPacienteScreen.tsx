@@ -32,8 +32,7 @@ import { useSocketEvent } from './hooks/useSocketEvent';
 import { useSocketRoom } from './hooks/useSocketRoom';
 import { useAuth } from './providers/AuthProvider';
 import { getAuthToken } from './utils/session';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');

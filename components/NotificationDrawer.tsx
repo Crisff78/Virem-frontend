@@ -14,7 +14,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useLanguage } from '../localization/LanguageContext';
 import { apiUrl } from '../config/backend';
 import { useSocketEvent } from '../hooks/useSocketEvent';

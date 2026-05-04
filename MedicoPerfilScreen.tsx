@@ -17,7 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from './navigation/types';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 import { apiClient } from './utils/api';
@@ -444,7 +444,7 @@ const MedicoPerfilScreen: React.FC = () => {
                 activeOpacity={0.85}
               >
                 <MaterialIcons
-                  name={item.icon}
+                  name={item.icon as any}
                   size={20}
                   color={item.active ? colors.primary : colors.muted}
                 />

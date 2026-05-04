@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Animated } from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './navigation/types';

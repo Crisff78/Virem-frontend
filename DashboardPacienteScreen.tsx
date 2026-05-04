@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { resolveRemoteImageSource } from './utils/imageSources';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';

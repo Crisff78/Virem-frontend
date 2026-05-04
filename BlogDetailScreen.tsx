@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Platform }
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from './navigation/types';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 
 type BlogDetailRouteProp = RouteProp<RootStackParamList, 'BlogDetail'>;
 type BlogDetailNavProp = NativeStackNavigationProp<RootStackParamList, 'BlogDetail'>;

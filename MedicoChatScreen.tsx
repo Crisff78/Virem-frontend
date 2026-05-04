@@ -18,7 +18,7 @@ import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedic
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import type { RootStackParamList } from './navigation/types';
 import { useSocketEvent } from './hooks/useSocketEvent';
@@ -151,30 +151,46 @@ const MedicoChatScreen: React.FC = () => {
         return;
       }
 
-      const sorted = (payload.conversaciones as any[])
+      const contactList = (payload.conversaciones as any[])
         .map((conversation) => {
           const conversationId = normalizeText(conversation?.conversacionId);
           const citaId = normalizeText(conversation?.citaId);
           if (!conversationId || !citaId) return null;
           const nextDateMs = parseDateMs(conversation?.cita?.fechaHoraInicio || null);
+          const patientId = normalizeText(conversation?.paciente?.pacienteid);
+          
+          // Resolver la foto del paciente
+          const patientPhoto = sanitizeRemoteImageUrl(conversation?.paciente?.fotoUrl || conversation?.paciente?.usuario?.fotoUrl);
+
           return {
             id: conversationId,
-            patientId: normalizeText(conversation?.paciente?.pacienteid),
+            patientId,
             name: normalizeText(conversation?.paciente?.nombreCompleto || 'Paciente') || 'Paciente',
             status: normalizeText(conversation?.cita?.estadoCodigo || 'pendiente') || 'pendiente',
+            avatarUrl: patientPhoto,
             citaId,
             unreadCount: Number(conversation?.unreadCount || 0),
             nextDateMs,
             timeLabel: formatDateTime(conversation?.cita?.fechaHoraInicio),
-          } as ChatContact;
+          } as ChatContact & { avatarUrl?: string };
         })
-        .filter((row: ChatContact | null): row is ChatContact => Boolean(row))
-        .sort((a, b) => {
-          if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
-          if (a.nextDateMs === b.nextDateMs) return a.name.localeCompare(b.name);
-          return a.nextDateMs - b.nextDateMs;
-        });
-      setContacts(sorted);
+        .filter((row: any): row is any => Boolean(row));
+
+      // Agrupar por patientId para evitar duplicados
+      const groupedMap = new Map<string, any>();
+      contactList.forEach(c => {
+        const existing = groupedMap.get(c.patientId);
+        if (!existing || c.nextDateMs < existing.nextDateMs) {
+          groupedMap.set(c.patientId, c);
+        }
+      });
+
+      const finalSorted = Array.from(groupedMap.values()).sort((a, b) => {
+        if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
+        return a.nextDateMs - b.nextDateMs;
+      });
+
+      setContacts(finalSorted);
     } catch {
       setContacts([]);
     } finally {
@@ -220,8 +236,12 @@ const MedicoChatScreen: React.FC = () => {
       }
 
       const normalized = (payload.mensajes as any[]).map((message: any) => {
-        const sender = normalizeText(message?.emisorTipo).toLowerCase();
-        const from = sender === 'medico' ? 'me' : 'other';
+        const senderId = String(message?.emisorId || '');
+        const currentUserId = String(user?.usuarioid || user?.id || sessionUser?.usuarioid || sessionUser?.id || '').trim();
+        
+        // Identificación robusta por ID de usuario
+        const from = (senderId !== '' && currentUserId !== '' && senderId === currentUserId) ? 'me' : 'other';
+        
         return {
           id: normalizeText(message?.mensajeId || `${Date.now()}-${Math.random()}`),
           from,
@@ -319,8 +339,11 @@ const MedicoChatScreen: React.FC = () => {
           }
         : null);
     if (conversationId === selectedChatId && rawMessage) {
-      const sender = normalizeText(rawMessage?.emisorTipo).toLowerCase();
-      const from = sender === 'medico' ? 'me' : 'other';
+      const senderId = String(rawMessage?.emisorId || '');
+      const currentUserId = String(user?.usuarioid || user?.id || sessionUser?.usuarioid || sessionUser?.id || '').trim();
+      
+      const from = (senderId !== '' && currentUserId !== '' && senderId === currentUserId) ? 'me' : 'other';
+      
       const nextMessage: Message = {
         id: normalizeText(rawMessage?.mensajeId || `${Date.now()}-${Math.random()}`),
         from,
@@ -407,6 +430,18 @@ const MedicoChatScreen: React.FC = () => {
     if (!text || !selectedChatId) return;
 
     try {
+      const createdAt = new Date().toISOString();
+      const tempId = `temp-${Date.now()}`;
+      const nextMessage: Message = {
+        id: tempId,
+        from: 'me',
+        text,
+        time: formatDateTime(createdAt),
+      };
+
+      appendMessage(selectedChatId, nextMessage);
+      setReply('');
+
       const payload = await apiClient.post<any>(
         `/api/agenda/me/conversaciones/${selectedChatId}/mensajes`,
         {
@@ -417,22 +452,23 @@ const MedicoChatScreen: React.FC = () => {
           },
         }
       );
-      if (!payload?.success || !payload?.mensaje) {
-        return;
+      if (payload?.success && payload?.mensaje) {
+        setMessagesByChat(prev => {
+          const list = prev[selectedChatId] || [];
+          return {
+            ...prev,
+            [selectedChatId]: list.map(m => 
+              m.id === tempId 
+                ? { ...m, id: normalizeText(payload.mensaje.mensajeId) } 
+                : m
+            )
+          };
+        });
       }
-
-      const nextMessage: Message = {
-        id: normalizeText(payload?.mensaje?.mensajeId || `${Date.now()}`),
-        from: 'me',
-        text,
-        time: formatDateTime(payload?.mensaje?.createdAt),
-      };
-
-      appendMessage(selectedChatId, nextMessage);
-      setReply('');
       loadContacts();
-    } catch {
-      // noop
+    } catch (err) {
+      console.error("[MedicoChat] Error enviando mensaje:", err);
+      Alert.alert("Error", "No se pudo enviar el mensaje.");
     }
   };
 
@@ -496,7 +532,7 @@ const MedicoChatScreen: React.FC = () => {
                 activeOpacity={0.85}
               >
                 <MaterialIcons
-                  name={item.icon}
+                  name={item.icon as any}
                   size={20}
                   color={item.active ? colors.primary : colors.muted}
                 />
@@ -562,7 +598,7 @@ const MedicoChatScreen: React.FC = () => {
                       onPress={() => setSelectedChatId(chat.id)}
                       activeOpacity={0.85}
                     >
-                      <Image source={DefaultAvatar} style={styles.contactAvatar} />
+                      <Image source={resolveRemoteImageSource((chat as any).avatarUrl, DefaultAvatar)} style={styles.contactAvatar} />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.contactName, active && styles.contactNameActive]}>{chat.name}</Text>
                         <Text style={styles.contactMeta}>
@@ -590,7 +626,7 @@ const MedicoChatScreen: React.FC = () => {
                         <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
                       </TouchableOpacity>
                     )}
-                    <Image source={DefaultAvatar} style={styles.chatHeaderAvatar} />
+                    <Image source={resolveRemoteImageSource((selectedContact as any).avatarUrl, DefaultAvatar)} style={styles.chatHeaderAvatar} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.chatHeaderName}>{selectedContact.name}</Text>
                       <Text style={styles.chatHeaderSub} numberOfLines={1}>

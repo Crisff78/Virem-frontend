@@ -1,10 +1,10 @@
-declare module 'react';
-declare module 'react-native';
-declare module 'react-native-vector-icons/MaterialIcons';
-declare module '@expo/vector-icons';
-declare module 'react-native-reanimated';
-declare module 'react-native-safe-area-context';
-declare module 'react-native-screens';
-declare module 'react-native-gesture-handler';
-declare module '@react-navigation/native';
-declare module '@react-navigation/native-stack';
+// Global declarations for non-TS modules
+declare module '*.png';
+declare module '*.jpg';
+declare module '*.jpeg';
+declare module '*.svg';
+declare module '*.gif';
+declare module '*.ico';
+
+// We should NOT declare module 'react' or 'react-native' here 
+// as it overrides the real types and can break the bundler.
