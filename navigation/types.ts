@@ -34,14 +34,14 @@ export type DoctorRouteSnapshot = {
 export type RootStackParamList = {
   Landing: undefined;
   Especialidades: undefined;
-  EspecialidadDetalle: { 
-    title: string; 
-    description: string; 
-    image: any; 
-    icon: string; 
-    detailedInfo?: string; 
-    whenToGo?: string[]; 
-    importance?: string; 
+  EspecialidadDetalle: {
+    title: string;
+    description: string;
+    image: string | number;
+    icon: string;
+    detailedInfo?: string;
+    whenToGo?: string[];
+    importance?: string;
   };
   SeleccionPerfil: undefined;
   Login: { prefillEmail?: string } | undefined;
@@ -62,9 +62,6 @@ export type RootStackParamList = {
     datosPersonales: DatosPersonalesMedico;
   };
 
-  Home: undefined;
-
-  // ✅ NUEVA PANTALLA
   DashboardPaciente: undefined;
   PacienteCitas: undefined;
   PacienteChat:

@@ -1,5 +1,4 @@
-
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -14,18 +13,18 @@ import {
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
-import { apiClient } from "./utils/api";
+import { usePortalAwareNavigation } from '../../navigation/usePortalAwareNavigation';
+import { usePacienteModule } from '../../navigation/PacienteModuleContext';
+import { apiClient } from "../../utils/api";
 import { MaterialIcons } from '@expo/vector-icons';
 
-import { useLanguage } from './localization/LanguageContext';
-import { usePatientPortalSession } from './hooks/usePatientPortalSession';
-import type { RootStackParamList } from './navigation/types';
-import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
+import { useLanguage } from '../../localization/LanguageContext';
+import { usePatientPortalSession } from '../../hooks/usePatientPortalSession';
+import type { RootStackParamList } from '../../navigation/types';
+import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from '../../utils/imageSources';
 
-const ViremLogo = require('./assets/imagenes/descarga.png');
-const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
+const ViremLogo = require('../../assets/imagenes/descarga.png');
+const DefaultAvatar = require('../../assets/imagenes/avatar-default.jpg');
 const STORAGE_KEY = 'user';
 const LEGACY_USER_STORAGE_KEY = 'userProfile';
 
@@ -237,89 +236,89 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       {!isInsidePortal && (
-        <View style={styles.sidebar}>
-          <View>
-            <View style={styles.logoBox}>
-              <Image source={ViremLogo} style={styles.logo} />
-              <View>
-                <Text style={styles.logoTitle}>VIREM</Text>
-                <Text style={styles.logoSubtitle}>Portal Paciente</Text>
-              </View>
-            </View>
-
-            <View style={styles.userBox}>
-              <Image source={userAvatarSource} style={styles.userAvatar} />
-              <Text style={styles.userName}>{fullName}</Text>
-              <Text style={styles.userPlan}>{planLabel}</Text>
-              {loadingUser ? <Text style={styles.syncText}>Actualizando perfil...</Text> : null}
-              {!hasProfilePhoto ? (
-                <Text style={styles.hintText}>No tienes foto. Ve a Perfil para agregarla.</Text>
-              ) : null}
-            </View>
-
-            <View style={styles.menu}>
-              <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('DashboardPaciente')}>
-                <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-                <Text style={styles.menuText}>{t('menu.home')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.menuItemRow}
-                onPress={() => navigation.navigate('NuevaConsultaPaciente')}
-              >
-                <MaterialIcons name="person-search" size={20} color={colors.muted} />
-                <Text style={styles.menuText}>Buscar Médico</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.menuItemRow}
-                onPress={() => navigation.navigate('PacienteCitas')}
-              >
-                <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-                <Text style={styles.menuText}>{t('menu.appointments')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.menuItemRow}
-                onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
-              >
-                <MaterialIcons name="videocam" size={20} color={colors.muted} />
-                <Text style={styles.menuText}>{t('menu.videocall')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.menuItemRow}
-                onPress={() => navigation.navigate('PacienteChat')}
-              >
-                <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-                <Text style={styles.menuText}>{t('menu.chat')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.menuItemRow, styles.menuItemActive]}
-                onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
-              >
-                <MaterialIcons name="description" size={20} color={colors.primary} />
-                <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.recipesDocs')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.menuItemRow}
-                onPress={() => navigation.navigate('PacientePerfil')}
-              >
-                <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-                <Text style={styles.menuText}>{t('menu.profile')}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.menuItemRow}
-                onPress={() => navigation.navigate('PacienteConfiguracion')}
-              >
-                <MaterialIcons name="settings" size={20} color={colors.muted} />
-                <Text style={styles.menuText}>{t('menu.settings')}</Text>
-              </TouchableOpacity>
+      <View style={styles.sidebar}>
+        <View>
+          <View style={styles.logoBox}>
+            <Image source={ViremLogo} style={styles.logo} />
+            <View>
+              <Text style={styles.logoTitle}>VIREM</Text>
+              <Text style={styles.logoSubtitle}>Portal Paciente</Text>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <MaterialIcons name="logout" size={20} color="#fff" />
-            <Text style={styles.logoutText}>{t('menu.logout')}</Text>
-          </TouchableOpacity>
+          <View style={styles.userBox}>
+            <Image source={userAvatarSource} style={styles.userAvatar} />
+            <Text style={styles.userName}>{fullName}</Text>
+            <Text style={styles.userPlan}>{planLabel}</Text>
+            {loadingUser ? <Text style={styles.syncText}>Actualizando perfil...</Text> : null}
+            {!hasProfilePhoto ? (
+              <Text style={styles.hintText}>No tienes foto. Ve a Perfil para agregarla.</Text>
+            ) : null}
+          </View>
+
+          <View style={styles.menu}>
+            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('DashboardPaciente')}>
+              <MaterialIcons name="grid-view" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>{t('menu.home')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+            >
+              <MaterialIcons name="person-search" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>Buscar Médico</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteCitas')}
+            >
+              <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>{t('menu.appointments')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
+            >
+              <MaterialIcons name="videocam" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>{t('menu.videocall')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteChat')}
+            >
+              <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>{t('menu.chat')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.menuItemRow, styles.menuItemActive]}
+              onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
+            >
+              <MaterialIcons name="description" size={20} color={colors.primary} />
+              <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.recipesDocs')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacientePerfil')}
+            >
+              <MaterialIcons name="account-circle" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>{t('menu.profile')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItemRow}
+              onPress={() => navigation.navigate('PacienteConfiguracion')}
+            >
+              <MaterialIcons name="settings" size={20} color={colors.muted} />
+              <Text style={styles.menuText}>{t('menu.settings')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <MaterialIcons name="logout" size={20} color="#fff" />
+          <Text style={styles.logoutText}>{t('menu.logout')}</Text>
+        </TouchableOpacity>
+      </View>
       )}
 
       <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
@@ -346,13 +345,13 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.pageTitle}>
-          {tx({
-            es: 'Mis Recetas y Documentos',
-            en: 'My Prescriptions and Documents',
-            pt: 'Minhas Receitas e Documentos',
-          })}
-        </Text>
+          <Text style={styles.pageTitle}>
+            {tx({
+              es: 'Mis Recetas y Documentos',
+              en: 'My Prescriptions and Documents',
+              pt: 'Minhas Receitas e Documentos',
+            })}
+          </Text>
         <Text style={styles.pageSubtitle}>
           Accede y descarga tu historial médico organizado por categorías.
         </Text>

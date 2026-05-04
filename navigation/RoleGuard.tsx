@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useAuth } from '../providers/AuthProvider';
 import type { RootStackParamList } from './types';
+import { colors } from '../theme/colors';
 
 export const PACIENTE_ROLE_ID = 1;
 export const MEDICO_ROLE_ID = 2;
@@ -84,10 +85,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#F6FAFD',
+    backgroundColor: colors.bg,
   },
   text: {
-    color: '#4A7FA7',
+    color: colors.muted,
     fontSize: 13,
     fontWeight: '700',
   },

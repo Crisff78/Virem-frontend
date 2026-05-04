@@ -120,7 +120,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
         tx({
           es: 'Tu contrasena fue actualizada correctamente.',
           en: 'Your password was updated successfully.',
-          pt: 'Sua senha foi atualizada com sucesso.',
+          pt: 'Sua senha fue actualizada con éxito.',
         }),
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
@@ -146,7 +146,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
           tx({
             es: 'No se pudo actualizar la contrasena.',
             en: 'Could not update password.',
-            pt: 'Nao foi possivel atualizar a senha.',
+            pt: 'Nao foi possivel actualizar a senha.',
           })
         )
       );
@@ -238,7 +238,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
             {tx({
               es: 'Actualice sus credenciales para mantener la seguridad de su cuenta medica.',
               en: 'Update your credentials to keep your medical account secure.',
-              pt: 'Atualize suas credenciais para manter sua conta medica segura.',
+              pt: 'Atualize suas credenciales para manter sua conta médica segura.',
             })}
           </Text>
 
@@ -253,7 +253,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
                 placeholder={tx({ es: 'Ingrese su contrasena actual', en: 'Enter your current password', pt: 'Digite sua senha atual' })}
                 placeholderTextColor="#8ea6bc"
               />
-              <TouchableOpacity onPress={() => setShowCurrent((v) => !v)}>
+              <TouchableOpacity onPress={() => setShowCurrent((v: boolean) => !v)}>
                 <MaterialIcons name={showCurrent ? 'visibility-off' : 'visibility'} size={20} color="#4A7FA7" />
               </TouchableOpacity>
             </View>
@@ -270,7 +270,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
                 placeholder={tx({ es: 'Minimo 8 caracteres', en: 'Minimum 8 characters', pt: 'Minimo 8 caracteres' })}
                 placeholderTextColor="#8ea6bc"
               />
-              <TouchableOpacity onPress={() => setShowNew((v) => !v)}>
+              <TouchableOpacity onPress={() => setShowNew((v: boolean) => !v)}>
                 <MaterialIcons name={showNew ? 'visibility-off' : 'visibility'} size={20} color="#4A7FA7" />
               </TouchableOpacity>
             </View>
@@ -285,7 +285,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
                 placeholder={tx({ es: 'Repita su nueva contrasena', en: 'Repeat your new password', pt: 'Repita sua nova senha' })}
                 placeholderTextColor="#8ea6bc"
               />
-              <TouchableOpacity onPress={() => setShowConfirm((v) => !v)}>
+              <TouchableOpacity onPress={() => setShowConfirm((v: boolean) => !v)}>
                 <MaterialIcons name={showConfirm ? 'visibility-off' : 'visibility'} size={20} color="#4A7FA7" />
               </TouchableOpacity>
             </View>
@@ -327,7 +327,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <Text style={styles.primaryButtonText}>
-                  {tx({ es: 'Actualizar Contrasena', en: 'Update Password', pt: 'Atualizar Senha' })}
+                  {tx({ es: 'Actualizar Contrasena', en: 'Update Password', pt: 'Actualizar Senha' })}
                 </Text>
               )}
             </TouchableOpacity>
@@ -349,7 +349,7 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
               {tx({
                 es: 'Nunca comparta su contrasena con terceros. Recomendamos cambiarla cada 90 dias.',
                 en: 'Never share your password with third parties. We recommend changing it every 90 days.',
-                pt: 'Nunca compartilhe sua senha com terceiros. Recomendamos troca-la a cada 90 dias.',
+                pt: 'Nunca compartilhe sua senha com terceros. Recomendamos troca-la a cada 90 dias.',
               })}
             </Text>
           </View>
@@ -508,4 +508,3 @@ const styles = StyleSheet.create({
 });
 
 export default PacienteCambiarContrasenaScreen;
-
