@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -8,159 +8,147 @@ import {
   View,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import {
+  LiveKitRoom,
+  VideoTrack,
+  useTracks,
+  AudioSession,
+  registerGlobals,
+} from '@livekit/react-native';
+import { Track } from 'livekit-client';
+
+// Register WebRTC globals
+if (Platform.OS !== 'web') {
+  registerGlobals();
+}
 
 type VideoCallFrameProps = {
   roomName: string;
   displayName: string;
   onHangup?: () => void;
   onReadyToClose?: () => void;
-  jwtToken?: string;
-  jitsiDomain?: string;
+  token?: string; // LiveKit token
+  liveKitUrl?: string;
 };
 
 /**
- * Embedded Jitsi Meet component.
- * Uses the IFrame API on Web and a WebView on Mobile.
+ * Professional Video Call component using LiveKit.
+ * Features: Native WebRTC, Audio Session management, Toggle Cam/Mic, Switch Camera.
  */
 const VideoCallFrame: React.FC<VideoCallFrameProps> = ({
   roomName,
   displayName,
   onHangup,
   onReadyToClose,
-  jwtToken,
-  jitsiDomain = 'meet.jit.si',
-}) => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const jitsiContainerRef = useRef<View>(null);
-  const apiRef = useRef<any>(null);
+  token,
+  liveKitUrl = 'wss://virem.livekit.cloud',
+}: VideoCallFrameProps) => {
+  const [micEnabled, setMicEnabled] = useState<boolean>(true);
+  const [camEnabled, setCamEnabled] = useState<boolean>(true);
 
   useEffect(() => {
     if (Platform.OS !== 'web') {
-      // For mobile, we would ideally use a WebView or react-native-jitsi-meet.
-      // Since this is a pair-programming session, I'll implement the Web version first
-      // and provide a placeholder for mobile, or use an iframe in WebView if allowed.
-      setLoading(false);
-      return;
-    }
-
-    // Load Jitsi IFrame API script if not present
-    const scriptId = 'jitsi-external-api';
-    const setupJitsi = () => {
-      try {
-        const domain = jitsiDomain;
-        const options = {
-          roomName: roomName,
-          width: '100%',
-          height: '100%',
-          parentNode: document.getElementById('jitsi-container'),
-          userInfo: {
-            displayName: displayName,
-          },
-          configOverwrite: {
-            startWithAudioMuted: false,
-            startWithVideoMuted: false,
-            prejoinPageEnabled: false, 
-            disableDeepLinking: true,
-            enableWelcomePage: false,
-          },
-          interfaceConfigOverwrite: {
-            TOOLBAR_BUTTONS: [
-              'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-              'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
-              'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
-              'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
-              'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
-              'security'
-            ],
-          },
-          jwt: jwtToken,
-        };
-
-        const api = new (window as any).JitsiMeetExternalAPI(domain, options);
-        apiRef.current = api;
-
-        api.addEventListeners({
-          readyToClose: () => {
-            if (onReadyToClose) onReadyToClose();
-            if (onHangup) onHangup();
-          },
-          videoConferenceTerminated: () => {
-            if (onHangup) onHangup();
-          },
-        });
-
-        setLoading(false);
-      } catch (err) {
-        console.error('Jitsi error:', err);
-        setError('No se pudo cargar la videollamada.');
-        setLoading(false);
-      }
-    };
-
-    if (!(window as any).JitsiMeetExternalAPI) {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.src = `https://${jitsiDomain}/external_api.js`;
-      script.async = true;
-      script.onload = setupJitsi;
-      script.onerror = () => {
-        setError('Error al cargar el script de videollamada.');
-        setLoading(false);
+      AudioSession.startAudioSession();
+      return () => {
+        AudioSession.stopAudioSession();
       };
-      document.body.appendChild(script);
-    } else {
-      setupJitsi();
     }
+  }, []);
 
-    return () => {
-      if (apiRef.current) {
-        apiRef.current.dispose();
-      }
-      // Remove the iframe manually if Jitsi doesn't cleanup properly
-      const container = document.getElementById('jitsi-container');
-      if (container) container.innerHTML = '';
-    };
-  }, [roomName, displayName, jwtToken, jitsiDomain, onHangup, onReadyToClose]);
-
-  if (Platform.OS !== 'web') {
+  if (!token) {
     return (
-      <View style={styles.mobilePlaceholder}>
-        <MaterialIcons name="videocam" size={48} color="#137fec" />
-        <Text style={styles.mobileText}>
-          La videollamada integrada está optimizada para Web.
-        </Text>
-        <Text style={styles.mobileSubtext}>
-          En móviles, estamos trabajando para integrar el SDK nativo.
-        </Text>
-        <TouchableOpacity style={styles.closeBtn} onPress={onHangup}>
-          <Text style={styles.closeBtnText}>Cerrar</Text>
+      <View style={styles.errorOverlay}>
+        <MaterialIcons name="error-outline" size={48} color="#ef4444" />
+        <Text style={styles.errorText}>No se pudo obtener el token de acceso.</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={onHangup}>
+          <Text style={styles.retryBtnText}>Regresar</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#137fec" />
-          <Text style={styles.loadingText}>Iniciando sala...</Text>
-        </View>
-      )}
-      {error && (
-        <View style={styles.errorOverlay}>
-          <MaterialIcons name="error-outline" size={48} color="#ef4444" />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={onHangup}>
-            <Text style={styles.retryBtnText}>Regresar</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      <View
-        id="jitsi-container"
-        style={[styles.jitsiInner, (loading || error) && styles.hidden]}
+    <LiveKitRoom
+      serverUrl={liveKitUrl}
+      token={token}
+      connect={true}
+      audio={true}
+      video={true}
+      onDisconnected={onHangup}
+      style={styles.container}
+    >
+      <RoomControls 
+        onHangup={onHangup}
+        micEnabled={micEnabled}
+        setMicEnabled={setMicEnabled}
+        camEnabled={camEnabled}
+        setCamEnabled={setCamEnabled}
       />
+      <ParticipantView />
+    </LiveKitRoom>
+  );
+};
+
+const ParticipantView = () => {
+  const tracks = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: true },
+    { source: Track.Source.ScreenShare, withPlaceholder: false },
+  ]);
+
+  // Find remote camera track
+  const remoteTrack = tracks.find(t => !t.participant.isLocal && t.source === Track.Source.Camera);
+  // Find local camera track
+  const localTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
+
+  return (
+    <View style={styles.stage}>
+      {/* Remote Video (Full Screen) */}
+      <View style={styles.remoteContainer}>
+        {remoteTrack ? (
+          <VideoTrack trackRef={remoteTrack} style={styles.remoteVideo} />
+        ) : (
+          <View style={styles.waitingContainer}>
+            <ActivityIndicator size="large" color="#137fec" />
+            <Text style={styles.waitingText}>Esperando al otro participante...</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Local Video (PiP) */}
+      <View style={styles.localContainer}>
+        {localTrack && (
+          <VideoTrack trackRef={localTrack} style={styles.localVideo} />
+        )}
+      </View>
+    </View>
+  );
+};
+
+const RoomControls = ({ onHangup, micEnabled, setMicEnabled, camEnabled, setCamEnabled }: { onHangup?: () => void, micEnabled: boolean, setMicEnabled: (v: boolean) => void, camEnabled: boolean, setCamEnabled: (v: boolean) => void }) => {
+  return (
+    <View style={styles.controlsOverlay}>
+      <View style={styles.controlsRow}>
+        <TouchableOpacity 
+          style={[styles.controlBtn, !micEnabled && styles.controlBtnOff]} 
+          onPress={() => setMicEnabled(!micEnabled)}
+        >
+          <MaterialIcons name={micEnabled ? "mic" : "mic-off"} size={24} color="#fff" />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.controlBtn, !camEnabled && styles.controlBtnOff]} 
+          onPress={() => setCamEnabled(!camEnabled)}
+        >
+          <MaterialIcons name={camEnabled ? "videocam" : "videocam-off"} size={24} color="#fff" />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.controlBtn, styles.hangupBtn]} 
+          onPress={onHangup}
+        >
+          <MaterialIcons name="call-end" size={28} color="#fff" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -171,40 +159,87 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
-    width: '100%',
-    height: '100%',
+  },
+  stage: {
+    flex: 1,
     position: 'relative',
   },
-  jitsiInner: {
+  remoteContainer: {
     flex: 1,
+    backgroundColor: '#0A1931',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  remoteVideo: {
     width: '100%',
     height: '100%',
   },
-  hidden: {
-    opacity: 0,
-    width: 0,
-    height: 0,
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0A1931',
-    alignItems: 'center',
-    justifyContent: 'center',
+  localContainer: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 120,
+    height: 180,
+    borderRadius: 16,
+    backgroundColor: '#1A3D63',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
     zIndex: 10,
   },
-  loadingText: {
+  localVideo: {
+    flex: 1,
+  },
+  controlsOverlay: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  controlsRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 40,
+    gap: 20,
+    alignItems: 'center',
+  },
+  controlBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  controlBtnOff: {
+    backgroundColor: '#ef4444',
+  },
+  hangupBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#ef4444',
+  },
+  waitingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waitingText: {
+    color: '#8aa7bf',
     marginTop: 15,
-    color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   errorOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: '#0A1931',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-    zIndex: 11,
   },
   errorText: {
     marginTop: 15,
@@ -222,37 +257,5 @@ const styles = StyleSheet.create({
   retryBtnText: {
     color: '#fff',
     fontWeight: '700',
-  },
-  mobilePlaceholder: {
-    flex: 1,
-    backgroundColor: '#0A1931',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 30,
-  },
-  mobileText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  mobileSubtext: {
-    color: '#8aa7bf',
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 10,
-    lineHeight: 20,
-  },
-  closeBtn: {
-    marginTop: 30,
-    backgroundColor: '#ef4444',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 12,
-  },
-  closeBtnText: {
-    color: '#fff',
-    fontWeight: '800',
   },
 });

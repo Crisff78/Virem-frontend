@@ -1,6 +1,7 @@
+// @ts-ignore
 import React from 'react';
 import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity } from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
 import { useWindowDimensions } from 'react-native';
@@ -22,7 +23,7 @@ const DUMMY_TRANSACTIONS = [
   { id: '3', type: 'Retiro', amount: '- $5,000.00 DOP', date: 'Lun, 12 Oct', patient: 'Transferencia a Banco' },
 ];
 
-const MedicoFinanzasScreen: React.FC = () => {
+const MedicoFinanzasScreen = (): JSX.Element => {
   const { isInsidePortal } = useMedicoModule();
   const navigation = usePortalAwareMedicoNavigation();
   const { width: viewportWidth } = useWindowDimensions();

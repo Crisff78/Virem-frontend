@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Animated } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';

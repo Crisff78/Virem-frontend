@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,7 +20,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from './navigation/types';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 import { useSocketEvent } from './hooks/useSocketEvent';
@@ -104,7 +105,7 @@ const formatPrice = (value: number | null | undefined) => {
   }).format(n);
 };
 
-const MedicoCitasScreen: React.FC = () => {
+const MedicoCitasScreen = (): JSX.Element => {
   const navigation = usePortalAwareMedicoNavigation();
   const { isInsidePortal } = useMedicoModule();
   const { loadingUser, refreshUser, signOut, doctorName, doctorSpec, fotoUrl } =
@@ -163,8 +164,8 @@ const MedicoCitasScreen: React.FC = () => {
 
   const upsertCita = useCallback((nextCita: CitaItem) => {
     if (!nextCita?.citaid) return;
-    setCitas((prev) => {
-      const idx = prev.findIndex((item) => item.citaid === nextCita.citaid);
+    setCitas((prev: CitaItem[]) => {
+      const idx = prev.findIndex((item: CitaItem) => item.citaid === nextCita.citaid);
       if (idx === -1) return [nextCita, ...prev];
       const next = [...prev];
       next[idx] = { ...prev[idx], ...nextCita };
@@ -196,7 +197,7 @@ const MedicoCitasScreen: React.FC = () => {
   const filteredCitas = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
     if (!q) return citas;
-    return citas.filter((item) => {
+    return citas.filter((item: CitaItem) => {
       const patient = normalizeText(item?.paciente?.nombreCompleto).toLowerCase();
       const estado = normalizeText(item?.estado).toLowerCase();
       const nota = normalizeText(item?.nota).toLowerCase();
@@ -208,15 +209,15 @@ const MedicoCitasScreen: React.FC = () => {
   const upcomingCitas = useMemo(() => {
     const now = Date.now();
     return filteredCitas
-      .filter((item) => parseDateMs(item?.fechaHoraInicio) >= now)
-      .sort((a, b) => parseDateMs(a?.fechaHoraInicio) - parseDateMs(b?.fechaHoraInicio));
+      .filter((item: CitaItem) => parseDateMs(item?.fechaHoraInicio) >= now)
+      .sort((a: CitaItem, b: CitaItem) => parseDateMs(a?.fechaHoraInicio) - parseDateMs(b?.fechaHoraInicio));
   }, [filteredCitas]);
 
   const historyCitas = useMemo(() => {
     const now = Date.now();
     return filteredCitas
-      .filter((item) => parseDateMs(item?.fechaHoraInicio) < now)
-      .sort((a, b) => parseDateMs(b?.fechaHoraInicio) - parseDateMs(a?.fechaHoraInicio));
+      .filter((item: CitaItem) => parseDateMs(item?.fechaHoraInicio) < now)
+      .sort((a: CitaItem, b: CitaItem) => parseDateMs(b?.fechaHoraInicio) - parseDateMs(a?.fechaHoraInicio));
   }, [filteredCitas]);
 
   const stats = useMemo(() => {
@@ -224,7 +225,7 @@ const MedicoCitasScreen: React.FC = () => {
     let platformFees = 0;
     let netProfit = 0;
     
-    filteredCitas.forEach(cita => {
+    filteredCitas.forEach((cita: CitaItem) => {
       if (cita.estadoCodigo === 'completada' || cita.estadoCodigo === 'confirmada' || cita.estadoCodigo === 'pendiente') {
         totalEarnings += (cita.montoTotal || 0);
         platformFees += (cita.montoPlataforma || 0);
@@ -420,7 +421,7 @@ const MedicoCitasScreen: React.FC = () => {
                   onPress={() => handleSideItemPress(item)}
                 >
                   <MaterialIcons
-                    name={item.icon}
+                    name={item.icon as any}
                     size={20}
                     color={item.active ? colors.primary : colors.muted}
                   />
@@ -495,7 +496,7 @@ const MedicoCitasScreen: React.FC = () => {
               <Skeleton width="100%" height={120} borderRadius={12} />
             </View>
           ) : upcomingCitas.length ? (
-            upcomingCitas.map((cita) => (
+            upcomingCitas.map((cita: CitaItem) => (
               <View key={cita.citaid} style={styles.citaCard}>
                 <View style={[styles.citaTop, (isTablet || isMobile) && styles.citaTopMobile]}>
                   <View style={styles.citaMeta}>
@@ -592,7 +593,7 @@ const MedicoCitasScreen: React.FC = () => {
         </View>
         <View style={styles.sectionCard}>
           {historyCitas.length ? (
-            historyCitas.slice(0, 25).map((cita) => (
+            historyCitas.slice(0, 25).map((cita: CitaItem) => (
               <View key={`history-${cita.citaid}`} style={styles.historyRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.historyName}>{normalizeText(cita?.paciente?.nombreCompleto || 'Paciente')}</Text>

@@ -16,12 +16,12 @@ interface SkeletonProps {
   style?: ViewStyle;
 }
 
-const Skeleton: React.FC<SkeletonProps> = ({
+const Skeleton = ({
   width = '100%',
   height = 20,
   borderRadius = 4,
   style,
-}) => {
+}: SkeletonProps): JSX.Element => {
   const animatedValue = useRef(new Animated.Value(0)).current;
   const [measuredWidth, setMeasuredWidth] = useState(
     typeof width === 'number' ? width : 0

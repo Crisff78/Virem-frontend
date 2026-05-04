@@ -8,14 +8,14 @@ interface ViremImageProps extends ImageProps {
 
 const blurhash = 'L6PZfSaD00jE.AyE_3t7t7Rj4n9G';
 
-const ViremImage: React.FC<ViremImageProps> = ({ 
+const ViremImage = ({ 
   source, 
   style, 
   containerStyle,
   contentFit = 'cover',
   transition = 300,
   ...props 
-}) => {
+}: ViremImageProps): JSX.Element => {
   // Determine if it's a local asset (number) or remote/URI (object with uri or string)
   const isLocalAsset = typeof source === 'number';
 

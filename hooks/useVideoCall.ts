@@ -9,8 +9,8 @@ type VideoRoomInfo = {
   joinUrl: string;
   estado: string;
   canJoin: boolean;
-  jitsiDomain?: string;
-  jwtToken?: string;
+  token?: string;
+  liveKitUrl?: string;
 };
 
 export function useVideoCall() {
@@ -46,14 +46,13 @@ export function useVideoCall() {
 
       setRoomInfo({
         videoSalaId: sala.videoSalaId,
-        proveedor: sala.proveedor || 'jitsi',
+        proveedor: sala.proveedor || 'livekit',
         roomName: sala.roomName || sala.room_name,
         joinUrl: sala.joinUrl,
         estado: sala.estado,
         canJoin: sala.canJoin,
-        // The backend should ideally provide these for embedded use
-        jitsiDomain: sala.jitsiDomain || 'meet.jit.si',
-        jwtToken: sala.jwtToken,
+        token: sala.token || sala.joinUrl,
+        liveKitUrl: sala.liveKitUrl,
       });
       setIsInCall(true);
     } catch (err: any) {

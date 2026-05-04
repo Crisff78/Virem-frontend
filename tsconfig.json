@@ -1,21 +1,27 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "moduleResolution": "bundler",
     "module": "ESNext",
     "forceConsistentCasingInFileNames": true,
     "ignoreDeprecations": "5.0",
-    "jsx": "react-jsx",
+    "jsx": "react-native",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "skipLibCheck": true,
-    "baseUrl": "."
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*", "src/*"]
+    },
+    "types": ["react", "react-native", "node"]
   },
   "include": [
     "**/*.ts",
     "**/*.tsx"
   ],
   "exclude": [
+    "node_modules",
     "ViremApp"
   ]
 }

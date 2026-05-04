@@ -281,7 +281,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   useEffect(() => {
     if (nextCita && !roomCanJoin) {
       setWaitSeconds(0);
-      waitTimerRef.current = setInterval(() => setWaitSeconds((s) => s + 1), 1000);
+      waitTimerRef.current = setInterval(() => setWaitSeconds((s: number) => s + 1), 1000);
     } else {
       setWaitSeconds(0);
       if (waitTimerRef.current) { clearInterval(waitTimerRef.current); waitTimerRef.current = null; }
@@ -372,7 +372,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
       return;
     }
     const selected =
-      upcomingCitas.find((item) => String(item?.citaid || '').trim() === selectedCitaId) ||
+      upcomingCitas.find((item: any) => String(item?.citaid || '').trim() === selectedCitaId) ||
       upcomingCitas[0];
     setNextCita(selected || null);
     const selectedId = String(selected?.citaid || '').trim();
@@ -429,6 +429,36 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   }, [selectedCitaId]);
 
   useSocketRoom('cita', selectedCitaId, Boolean(selectedCitaId));
+
+  // Listen for room updates (doctor starts the call)
+  useSocketEvent('cita_actualizada', (data) => {
+    const updatedCitaId = String(data?.citaId || '').trim();
+    if (updatedCitaId && updatedCitaId === selectedCitaId) {
+       // If the backend says the room is joinable, update state
+       if (data?.extraPayload?.videoSala) {
+         const sala = data.extraPayload.videoSala;
+         if (sala.joinUrl) setRoomJoinUrl(sala.joinUrl);
+         if (sala.estado) setRoomStatus(sala.estado);
+         if (typeof sala.canJoin === 'boolean') setRoomCanJoin(sala.canJoin);
+       }
+    }
+  });
+
+  // Re-check joining availability every 30s even if no socket arrives
+  useEffect(() => {
+    const checkTimer = setInterval(() => {
+      if (nextCita?.fechaHoraInicio && !roomCanJoin) {
+        const start = new Date(nextCita.fechaHoraInicio).getTime();
+        const now = Date.now();
+        const buffer = 60 * 1000; // Match backend buffer
+        if (now >= start - buffer) {
+           // It's time! Manually set to true or re-fetch
+           setRoomCanJoin(true);
+        }
+      }
+    }, 15000);
+    return () => clearInterval(checkTimer);
+  }, [nextCita, roomCanJoin]);
 
   const enterVideoRoom = async () => {
     if (!nextCita?.citaid) return;
@@ -488,9 +518,9 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
       setCameras(fallbackCams);
       setMicrophones(fallbackMics);
       setSpeakers(fallbackSpeakers);
-      setSelectedCameraId((prev) => prev || fallbackCams[0].id);
-      setSelectedMicId((prev) => prev || fallbackMics[0].id);
-      setSelectedSpeakerId((prev) => prev || fallbackSpeakers[0].id);
+      setSelectedCameraId((prev: string) => prev || fallbackCams[0].id);
+      setSelectedMicId((prev: string) => prev || fallbackMics[0].id);
+      setSelectedSpeakerId((prev: string) => prev || fallbackSpeakers[0].id);
       return;
     }
 
@@ -539,9 +569,9 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
       setCameras(camList);
       setMicrophones(micList);
       setSpeakers(speakerList);
-      setSelectedCameraId((prev) => prev || camList[0]?.id || '');
-      setSelectedMicId((prev) => prev || micList[0]?.id || '');
-      setSelectedSpeakerId((prev) => prev || speakerList[0]?.id || '');
+      setSelectedCameraId((prev: string) => prev || camList[0]?.id || '');
+      setSelectedMicId((prev: string) => prev || micList[0]?.id || '');
+      setSelectedSpeakerId((prev: string) => prev || speakerList[0]?.id || '');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudieron cargar los dispositivos.';
       setDeviceError(message);
@@ -591,8 +621,8 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
           roomName={roomInfo.roomName}
           displayName={fullName}
           onHangup={endCall}
-          jwtToken={roomInfo.jwtToken}
-          jitsiDomain={roomInfo.jitsiDomain}
+          token={roomInfo.token}
+          liveKitUrl={roomInfo.liveKitUrl}
         />
       </View>
     );
@@ -723,7 +753,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
           <View style={styles.selectorCard}>
             <Text style={styles.selectorTitle}>Selecciona la cita a videollamar</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorList}>
-              {upcomingCitas.map((cita) => {
+              {upcomingCitas.map((cita: any) => {
                 const citaId = String(cita?.citaid || '').trim();
                 const active = citaId && citaId === selectedCitaId;
                 return (
@@ -765,10 +795,10 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 <Text style={styles.cameraTagText}>TU CÁMARA</Text>
               </View>
               <View style={styles.cameraControls}>
-                <TouchableOpacity style={[styles.cameraControl, !micOn && styles.cameraControlOff]} onPress={() => setMicOn((v) => !v)} activeOpacity={0.8}>
+                <TouchableOpacity style={[styles.cameraControl, !micOn && styles.cameraControlOff]} onPress={() => setMicOn((v: boolean) => !v)} activeOpacity={0.8}>
                   <MaterialIcons name={micOn ? 'mic' : 'mic-off'} size={20} color="#fff" />
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.cameraControl, !cameraOn && styles.cameraControlOff]} onPress={() => setCameraOn((v) => !v)} activeOpacity={0.8}>
+                <TouchableOpacity style={[styles.cameraControl, !cameraOn && styles.cameraControlOff]} onPress={() => setCameraOn((v: boolean) => !v)} activeOpacity={0.8}>
                   <MaterialIcons name={cameraOn ? 'videocam' : 'videocam-off'} size={20} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.cameraControl} onPress={openSettings} activeOpacity={0.8}>
@@ -974,7 +1004,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
               <View style={styles.settingBlock}>
                 <Text style={styles.settingLabel}>CÁMARA</Text>
-                <TouchableOpacity style={styles.selectLike} onPress={() => setOpenSelect((prev) => (prev === 'camera' ? null : 'camera'))}>
+                <TouchableOpacity style={styles.selectLike} onPress={() => setOpenSelect((prev: string | null) => (prev === 'camera' ? null : 'camera'))}>
                   <Text style={styles.selectLikeText}>
                     {getSelectedLabel(cameras, selectedCameraId, 'Sin cámara detectada')}
                   </Text>
@@ -983,7 +1013,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 {openSelect === 'camera' ? (
                   <View style={styles.selectMenu}>
                     {cameras.length ? (
-                      cameras.map((camera) => (
+                      cameras.map((camera: any) => (
                         <TouchableOpacity
                           key={camera.id}
                           style={[styles.selectOption, selectedCameraId === camera.id && styles.selectOptionActive]}
@@ -1011,7 +1041,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
               <View style={styles.settingBlock}>
                 <Text style={styles.settingLabel}>MICRÓFONO</Text>
-                <TouchableOpacity style={styles.selectLike} onPress={() => setOpenSelect((prev) => (prev === 'mic' ? null : 'mic'))}>
+                <TouchableOpacity style={styles.selectLike} onPress={() => setOpenSelect((prev: string | null) => (prev === 'mic' ? null : 'mic'))}>
                   <Text style={styles.selectLikeText}>
                     {getSelectedLabel(microphones, selectedMicId, 'Sin micrófono detectado')}
                   </Text>
@@ -1020,7 +1050,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 {openSelect === 'mic' ? (
                   <View style={styles.selectMenu}>
                     {microphones.length ? (
-                      microphones.map((mic) => (
+                      microphones.map((mic: any) => (
                         <TouchableOpacity
                           key={mic.id}
                           style={[styles.selectOption, selectedMicId === mic.id && styles.selectOptionActive]}
@@ -1048,7 +1078,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
               <View style={styles.settingBlock}>
                 <Text style={styles.settingLabel}>SALIDA DE AUDIO</Text>
-                <TouchableOpacity style={styles.selectLike} onPress={() => setOpenSelect((prev) => (prev === 'speaker' ? null : 'speaker'))}>
+                <TouchableOpacity style={styles.selectLike} onPress={() => setOpenSelect((prev: string | null) => (prev === 'speaker' ? null : 'speaker'))}>
                   <Text style={styles.selectLikeText}>
                     {getSelectedLabel(speakers, selectedSpeakerId, 'Sin salida detectada')}
                   </Text>
@@ -1057,7 +1087,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 {openSelect === 'speaker' ? (
                   <View style={styles.selectMenu}>
                     {speakers.length ? (
-                      speakers.map((speaker) => (
+                      speakers.map((speaker: any) => (
                         <TouchableOpacity
                           key={speaker.id}
                           style={[styles.selectOption, selectedSpeakerId === speaker.id && styles.selectOptionActive]}

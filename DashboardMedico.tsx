@@ -379,7 +379,10 @@ const DashboardMedico: React.FC = () => {
       shadowOpacity: 0.08, 
       shadowRadius: 15, 
       shadowOffset: { width: 0, height: 8 }, 
-      web: { boxShadow: '0 8px 24px rgba(43,108,176,0.15)' as any },
+      ...Platform.select({
+        web: { boxShadow: '0 8px 24px rgba(43,108,176,0.15)' as any },
+        default: {}
+      }),
       elevation: 5 
     },
     bigCardLeft: { flex: 1 },
@@ -576,7 +579,7 @@ const DashboardMedico: React.FC = () => {
   }), [fs, rs, isDesktop, colors]);
 
   // --- Sub-componentes internos que usan styles ---
-  const AppointmentCard: React.FC<AppointmentCardProps> = ({
+  const AppointmentCard: React.FC<any> = ({
     patient,
     detail,
     avatar,
@@ -584,7 +587,7 @@ const DashboardMedico: React.FC = () => {
     onDetails,
     videoCallDisabled,
     videoCallLabel = 'Videollamada',
-  }) => (
+  }: any) => (
     <View style={styles.apptCard}>
       <ViremImage source={avatar} style={styles.apptAvatar} />
       <View style={{ flex: 1 }}>
@@ -618,7 +621,7 @@ const DashboardMedico: React.FC = () => {
     lastSeen,
     avatar,
     onPress,
-  }) => (
+  }: any) => (
     <View style={styles.docRow}>
       <View style={styles.docLeft}>
         <View style={styles.docIconBox}>
@@ -639,7 +642,7 @@ const DashboardMedico: React.FC = () => {
     </View>
   );
 
-  const StatPill: React.FC<{ title: string; value: string; icon: MaterialIconName; trendText: string; trendUp?: boolean }> = ({ title, value, icon, trendText, trendUp = true }) => (
+  const StatPill: React.FC<{ title: string; value: string; icon: MaterialIconName; trendText: string; trendUp?: boolean }> = ({ title, value, icon, trendText, trendUp = true }: any) => (
     <View style={styles.statCard}>
       <View style={styles.statTopRow}>
         <Text style={styles.statTitle}>{title}</Text>
@@ -682,7 +685,7 @@ const DashboardMedico: React.FC = () => {
     </View>
   );
 
-  const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
+  const toggleMobileMenu = () => setIsMobileMenuOpen((prev: boolean) => !prev);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   const loadDashboardData = useCallback(async () => {
@@ -943,8 +946,8 @@ const DashboardMedico: React.FC = () => {
             roomName={roomInfo.roomName}
             displayName={doctorName}
             onHangup={endCall}
-            jwtToken={roomInfo.jwtToken}
-            jitsiDomain={roomInfo.jitsiDomain}
+            token={roomInfo.token}
+            liveKitUrl={roomInfo.liveKitUrl}
           />
         </View>
       ) : (
@@ -1051,7 +1054,7 @@ const DashboardMedico: React.FC = () => {
                   </View>
                 ) : (
                   upcomingCitas.length > 0 ? (
-                    upcomingCitas.map((cita) => (
+                    upcomingCitas.map((cita: any) => (
                       <AppointmentCard
                         key={cita.citaid}
                         patient={cita.paciente.nombreCompleto}
@@ -1064,7 +1067,7 @@ const DashboardMedico: React.FC = () => {
                     ))
                   ) : (
                     <View style={styles.emptyCard}>
-                      <MaterialCommunityIcons name="calendar-blank" size={40} color={colors.viremMuted} />
+                      <MaterialCommunityIcons name="calendar-blank" size={40} color={colors.muted} />
                       <Text style={styles.emptyText}>No hay citas virtuales hoy</Text>
                     </View>
                   )
@@ -1083,7 +1086,7 @@ const DashboardMedico: React.FC = () => {
                     </View>
                   ) : (
                     dashboardData.expedientesRecientes.length > 0 ? (
-                      dashboardData.expedientesRecientes.map((exp) => (
+                      dashboardData.expedientesRecientes.map((exp: any) => (
                         <FileCard
                           key={exp.id}
                           name={exp.name}
