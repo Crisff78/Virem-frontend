@@ -270,20 +270,17 @@ const LandingScreen: React.FC = () => {
 
         {isDesktop && (
           <View style={styles.navLinksCenter}>
-            <TouchableOpacity onPress={() => scrollTo(0)}>
-              <Text style={[styles.navLinkCenterText, activeSection === 'inicio' && { color: colors.secondary, fontWeight: '800' }]}>Inicio</Text>
+            <TouchableOpacity onPress={() => scrollTo(layoutY.plataforma)}>
+              <Text style={[styles.navLinkCenterText, activeSection === 'plataforma' && { color: colors.secondary, fontWeight: '800' }]}>Plataforma</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => scrollTo(layoutY.especialidades)}>
               <Text style={[styles.navLinkCenterText, activeSection === 'especialidades' && { color: colors.secondary, fontWeight: '800' }]}>Especialidades</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => scrollTo(layoutY.plataforma)}>
-              <Text style={[styles.navLinkCenterText, activeSection === 'plataforma' && { color: colors.secondary, fontWeight: '800' }]}>Plataforma</Text>
+            <TouchableOpacity onPress={() => scrollTo(layoutY.nosotros)}>
+              <Text style={[styles.navLinkCenterText, activeSection === 'nosotros' && { color: colors.secondary, fontWeight: '800' }]}>Nosotros</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => scrollTo(layoutY.blog)}>
               <Text style={[styles.navLinkCenterText, activeSection === 'blog' && { color: colors.secondary, fontWeight: '800' }]}>Blog</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => scrollTo(layoutY.nosotros)}>
-              <Text style={[styles.navLinkCenterText, activeSection === 'nosotros' && { color: colors.secondary, fontWeight: '800' }]}>Nosotros</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => scrollTo(layoutY.contacto)}>
               <Text style={[styles.navLinkCenterText, activeSection === 'contacto' && { color: colors.secondary, fontWeight: '800' }]}>Contacto</Text>
@@ -294,9 +291,15 @@ const LandingScreen: React.FC = () => {
         <View style={styles.navRight}>
           <TouchableOpacity 
             onPress={() => navigation.navigate('Login')}
-            style={[styles.navBtn, { backgroundColor: colors.primary, ...shadow(colors.primary, 0.2, 10, { width: 0, height: 4 }, 4) }]}
+            style={[styles.navBtn, { backgroundColor: colors.primary, marginRight: 12, ...shadow(colors.primary, 0.2, 10, { width: 0, height: 4 }, 4) }]}
           >
-            <Text style={styles.navBtnText}>MI PORTAL</Text>
+            <Text style={styles.navBtnText}>REGISTRARSE</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Login')}
+            style={[styles.navBtn, { backgroundColor: colors.secondary, ...shadow(colors.secondary, 0.2, 10, { width: 0, height: 4 }, 4) }]}
+          >
+            <Text style={styles.navBtnText}>INICIAR SESIÓN</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -312,14 +315,18 @@ const LandingScreen: React.FC = () => {
       >
         {/* HERO SECTION */}
         <AnimatedGradientBg style={[styles.heroSection, isDesktop && styles.heroDesktop]}>
+          {/* Decorative Blobs */}
+          <View style={{ position: 'absolute', top: -100, left: -100, width: 400, height: 400, borderRadius: 200, backgroundColor: 'rgba(43, 108, 176, 0.05)', zIndex: 0 }} />
+          <View style={{ position: 'absolute', bottom: 50, left: '20%', width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(43, 108, 176, 0.03)', zIndex: 0 }} />
+          <View style={{ position: 'absolute', top: '20%', right: '10%', width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(235, 248, 255, 0.5)', zIndex: 0 }} />
+          
           <View style={styles.heroTextContainer}>
             <FadeInView style={isDesktop && styles.heroTextDesktop}>
-              <ShrinkingLine trigger={true} />
               <Text style={styles.heroTitle}>
-                Tu médico, donde estés
+                ¡TU SALUD ES NUESTRA <Text style={{ color: colors.primary }}>PRIORIDAD</Text>!
               </Text>
               <Text style={styles.heroSubtitle}>
-                Atención médica de clase mundial al alcance de tu mano. Especialistas certificados, recetas digitales y seguimiento integral en una sola plataforma.
+                Somos líderes en atención primaria en salud. Nos enfocamos en prestar un servicio de salud integral destinado a proteger tu salud y bienestar, desde la comodidad de tu hogar.
               </Text>
               
               <View style={{ flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
@@ -327,70 +334,32 @@ const LandingScreen: React.FC = () => {
                   onPress={() => navigation.navigate('SeleccionPerfil')}
                   style={[styles.heroActionBtn, shadow(colors.primary, 0.3, 15, { width: 0, height: 8 }, 8)]}
                 >
-                  <Text style={styles.heroActionBtnText}>COMENZAR AHORA</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={() => scrollTo(layoutY.plataforma)}
-                  style={{ 
-                    flexDirection: 'row', 
-                    alignItems: 'center', 
-                    paddingHorizontal: 20, 
-                    justifyContent: 'center' 
-                  }}
-                >
-                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', marginRight: 12, ...shadow('#000', 0.1, 5, { width: 0, height: 2 }, 2) }}>
-                    <MaterialIcons name="play-arrow" size={24} color={colors.primary} />
-                  </View>
-                  <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>SABER MÁS</Text>
+                  <Text style={styles.heroActionBtnText}>AGENDAR UNA CITA</Text>
                 </TouchableOpacity>
               </View>
-
-              {isDesktop && (
-                <View style={{ flexDirection: 'row', marginTop: 60, gap: 40 }}>
-                  <View>
-                    <Text style={{ fontSize: 24, fontWeight: '900', color: colors.dark }}>500+</Text>
-                    <Text style={{ fontSize: 13, color: colors.muted }}>Médicos</Text>
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 24, fontWeight: '900', color: colors.dark }}>10k+</Text>
-                    <Text style={{ fontSize: 13, color: colors.muted }}>Pacientes</Text>
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 24, fontWeight: '900', color: colors.dark }}>4.9/5</Text>
-                    <Text style={{ fontSize: 13, color: colors.muted }}>Calificación</Text>
-                  </View>
-                </View>
-              )}
             </FadeInView>
           </View>
 
           <View style={styles.heroImageContainer}>
             <FadeInView delay={300} style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-              <FloatingPhone>
-                <Animated.View style={[{
-                  width: isDesktop ? 450 : 320,
-                  height: isDesktop ? 550 : 400,
-                  borderRadius: 40,
-                  backgroundColor: '#fff',
-                  padding: 10,
-                  ...shadow('#000', 0.2, 40, { width: 0, height: 20 }, 15)
-                }, {
-                  transform: [{
-                    translateY: scrollY.interpolate({
-                      inputRange: [0, 500],
-                      outputRange: [0, 80],
-                      extrapolate: 'clamp'
-                    })
-                  }]
-                } as any]}>
-                  <MessageBadge trigger={true} />
-                  <ViremImage 
-                    source={HeartHQImg} 
-                    style={{ width: '100%', height: '100%', borderRadius: 30 }} 
-                    resizeMode="cover"
-                  />
-                </Animated.View>
-              </FloatingPhone>
+              <Animated.View style={[{
+                width: isDesktop ? 600 : 350,
+                height: isDesktop ? 600 : 350,
+              }, {
+                transform: [{
+                  translateY: scrollY.interpolate({
+                    inputRange: [0, 500],
+                    outputRange: [0, 40],
+                    extrapolate: 'clamp'
+                  })
+                }]
+              } as any]}>
+                <ViremImage 
+                  source={HeartHQImg} 
+                  style={{ width: '100%', height: '100%' }} 
+                  contentFit="contain"
+                />
+              </Animated.View>
             </FadeInView>
           </View>
         </AnimatedGradientBg>
