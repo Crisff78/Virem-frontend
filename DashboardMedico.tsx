@@ -977,16 +977,25 @@ const DashboardMedico: React.FC = () => {
                 </Text>
 
                 <View style={styles.bigCardActions}>
-                  <TouchableOpacity 
-                    style={[styles.primaryBtn, (!nextCita || openingCitaId) && { opacity: 0.6 }]} 
-                    onPress={() => handleVideoCall()}
-                    disabled={!nextCita || !!openingCitaId}
-                  >
-                    <MaterialIcons name="videocam" size={20} color="#fff" />
-                    <Text style={styles.primaryBtnText}>
-                      {openingCitaId ? 'Iniciando...' : 'Entrar a consulta'}
-                    </Text>
-                  </TouchableOpacity>
+                  {(() => {
+                    const citaStart = nextCita ? new Date(nextCita.fechaHoraInicio).getTime() : 0;
+                    const now = Date.now();
+                    const isTooEarly = nextCita && now < citaStart - 5 * 60 * 1000;
+                    const canJoin = nextCita && !isTooEarly;
+
+                    return (
+                      <TouchableOpacity 
+                        style={[styles.primaryBtn, (!canJoin || openingCitaId) && { opacity: 0.6 }]} 
+                        onPress={() => handleVideoCall()}
+                        disabled={!canJoin || !!openingCitaId}
+                      >
+                        <MaterialIcons name={isTooEarly ? "lock-clock" : "videocam"} size={20} color="#fff" />
+                        <Text style={styles.primaryBtnText}>
+                          {openingCitaId ? 'Iniciando...' : isTooEarly ? 'Aún no es la hora' : 'Entrar a consulta'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })()}
                   <TouchableOpacity style={styles.secondaryBtn} onPress={() => handleSidebarNavigation('MedicoCitas')}>
                     <Text style={styles.secondaryBtnText}>Ver agenda completa</Text>
                   </TouchableOpacity>
@@ -1050,7 +1059,7 @@ const DashboardMedico: React.FC = () => {
                         avatar={resolveRemoteImageSource(cita.paciente.fotoUrl, DefaultAvatar)}
                         onVideoCall={() => handleVideoCall(cita.citaid)}
                         onDetails={() => {}}
-                        videoCallDisabled={!!openingCitaId}
+                        videoCallDisabled={!!openingCitaId || (new Date(cita.fechaHoraInicio).getTime() > Date.now() + 5 * 60 * 1000)}
                       />
                     ))
                   ) : (

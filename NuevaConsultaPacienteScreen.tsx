@@ -153,6 +153,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
   const isTabletLayout = viewportWidth >= 720;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showAllSpecialties, setShowAllSpecialties] = useState(false);
 
   useEffect(() => {
     if (sessionUser) {
@@ -310,10 +311,15 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
         <View>
           <View style={styles.logoBox}>
             <Image source={ViremLogo} style={styles.logo} />
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.logoTitle}>VIREM</Text>
               <Text style={styles.logoSubtitle}>Portal Paciente</Text>
             </View>
+            {!isDesktopLayout && (
+              <TouchableOpacity onPress={closeMobileMenu} style={styles.closeMenuBtn}>
+                <MaterialIcons name="close" size={24} color={colors.dark} />
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.userBox}>
@@ -395,6 +401,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
+
         <View style={styles.centerHeader}>
           <Text style={styles.pageTitle}>
             {tx({
@@ -429,7 +436,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Especialidades Medicas</Text>
+          <Text style={styles.sectionTitle}>Especialidades Médicas</Text>
           <TouchableOpacity onPress={() => setSearchText('')}>
             <Text style={styles.sectionLink}>
               {loadingSpecialties ? 'Actualizando...' : `${specialtyList.length} disponibles`}
@@ -438,7 +445,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
         </View>
 
         <View style={styles.specialtiesGrid}>
-          {filteredSpecialties.map((item) => (
+          {(showAllSpecialties ? filteredSpecialties : filteredSpecialties.slice(0, 4)).map((item) => (
             <View key={item.label} style={specialtyColumnStyle}>
               <SpecialtyCard
                 icon={item.icon}
@@ -462,15 +469,31 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
           ) : null}
         </View>
 
+        {filteredSpecialties.length > 4 && (
+          <TouchableOpacity 
+            style={styles.showMoreBtn} 
+            onPress={() => setShowAllSpecialties(!showAllSpecialties)}
+          >
+            <Text style={styles.showMoreText}>
+              {showAllSpecialties ? 'Ver menos' : `Ver las otras ${filteredSpecialties.length - 4} especialidades`}
+            </Text>
+            <MaterialIcons 
+              name={showAllSpecialties ? 'keyboard-arrow-up' : 'keyboard-arrow-down'} 
+              size={20} 
+              color={colors.primary} 
+            />
+          </TouchableOpacity>
+        )}
+
         <View style={styles.expressCard}>
           <View style={styles.expressLeft}>
             <View style={styles.expressIconWrap}>
               <MaterialIcons name="emergency" size={24} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.expressTitle}>Necesitas atencion inmediata?</Text>
+              <Text style={styles.expressTitle}>¿Necesitas atención inmediata?</Text>
               <Text style={styles.expressSubtitle}>
-                Contamos con medicos de guardia disponibles 24/7 para videoconsultas de urgencia.
+                Médicos de guardia disponibles 24/7 para videoconsultas de urgencia.
               </Text>
             </View>
           </View>
@@ -560,6 +583,7 @@ const styles = StyleSheet.create({
   logo: { width: 44, height: 44, resizeMode: 'contain' },
   logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
   logoSubtitle: { fontSize: 11, fontWeight: '700', color: colors.muted },
+  closeMenuBtn: { padding: 4 },
 
   userBox: { marginTop: 18, alignItems: 'center', paddingVertical: 12 },
   userAvatar: {
@@ -808,10 +832,10 @@ const styles = StyleSheet.create({
 
   expressCard: {
     marginTop: 18,
-    backgroundColor: '#071c3c',
-    borderRadius: 18,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
+    backgroundColor: '#0F172A',
+    borderRadius: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -836,12 +860,12 @@ const styles = StyleSheet.create({
   expressTitle: {
     color: '#fff',
     fontWeight: '900',
-    fontSize: 20,
+    fontSize: 18,
   },
   expressSubtitle: {
     marginTop: 2,
     color: '#bfd3ea',
-    fontSize: 13,
+    fontSize: 12,
   },
   expressBtn: {
     backgroundColor: colors.primary,
@@ -856,6 +880,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '900',
     fontSize: 14,
+  },
+  showMoreBtn: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 12,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  showMoreText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
   },
 });
 

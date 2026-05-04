@@ -349,6 +349,7 @@ const DashboardPacienteScreen: React.FC = () => {
             )}
           </View>
 
+
           {/* Quick actions */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { fontSize: fs(15) }]}>Accesos rápidos</Text>
@@ -492,6 +493,29 @@ const DashboardPacienteScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Express Consultation Card */}
+          <View style={styles.expressCard}>
+            <View style={styles.expressLeft}>
+              <View style={styles.expressIconWrap}>
+                <MaterialIcons name="bolt" size={24} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.expressTitle, { fontSize: fs(18) }]}>¿Necesitas atención inmediata?</Text>
+                <Text style={[styles.expressSubtitle, { fontSize: fs(12) }]}>
+                  Médicos de guardia disponibles 24/7 para videoconsultas de urgencia.
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.expressBtn}
+              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
+            >
+              <Text style={[styles.expressBtnText, { fontSize: fs(13) }]}>Consulta Express</Text>
+              <MaterialIcons name="arrow-forward" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
 
           <View style={{ height: spacing.xxl }} />
         </FadeInView>
@@ -778,4 +802,55 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, minWidth: 0, color: '#991b1b', fontWeight: '600' },
   errorRetry: { color: colors.danger, fontWeight: '800' },
+  expressCard: {
+    marginTop: spacing.md,
+    backgroundColor: '#0F172A',
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    flexWrap: 'wrap',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  expressLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    flex: 1,
+    minWidth: 260,
+  },
+  expressIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expressTitle: {
+    color: '#fff',
+    fontWeight: '900',
+  },
+  expressSubtitle: {
+    marginTop: 2,
+    color: '#94A3B8',
+  },
+  expressBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  expressBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+  },
 });

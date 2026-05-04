@@ -786,35 +786,34 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 </View>
               </Animated.View>
               <Text style={styles.waitTitle}>
-                {loadingCita ? 'Cargando tu cita...' : nextCita ? (isLongWait ? 'El médico aún no se ha conectado' : `Esperando al ${doctorName}…`) : 'Sin citas de videollamada'}
+                {loadingCita ? 'Cargando tu cita...' : nextCita ? (
+                  roomCanJoin ? '¡Es hora de tu consulta!' : (
+                    new Date(nextCita.fechaHoraInicio || 0).getTime() > Date.now() + 2 * 60 * 1000
+                    ? 'Aún no es la hora de tu cita'
+                    : isLongWait ? 'El médico aún no se ha conectado' : `Esperando al ${doctorName}…`
+                  )
+                ) : 'Sin citas de videollamada'}
               </Text>
-              {(nextCita || loadingCita) && !isLongWait && (
-                <View style={styles.waitDotsRow}>
-                  <Animated.Text style={[styles.waitDot, { opacity: dot1 }]}>•</Animated.Text>
-                  <Animated.Text style={[styles.waitDot, { opacity: dot2 }]}>•</Animated.Text>
-                  <Animated.Text style={[styles.waitDot, { opacity: dot3 }]}>•</Animated.Text>
-                </View>
+
+              {nextCita && !roomCanJoin && new Date(nextCita.fechaHoraInicio || 0).getTime() > Date.now() && (
+                 <Text style={styles.waitSub}>
+                   Faltan unos minutos para iniciar. Relájate, te avisaremos cuando sea el momento.
+                 </Text>
               )}
-              <Text style={styles.waitSub}>
-                {loadingCita ? 'Sincronizando...' : nextCita ? (isLongWait ? 'La espera está tomando más de lo habitual' : 'No cierres esta ventana') : 'Agenda una consulta para iniciar'}
-              </Text>
-              {nextCita && !roomCanJoin && waitSeconds > 0 && (
-                <View style={[styles.waitTimerBox, isLongWait && styles.waitTimerBoxWarn]}>
-                  <MaterialIcons name="timer" size={14} color={isLongWait ? '#f59e0b' : colors.muted} />
-                  <Text style={[styles.waitTimerText, isLongWait && styles.waitTimerTextWarn]}>Tiempo de espera: {formatWaitTime(waitSeconds)}</Text>
-                </View>
+
+              {nextCita && !roomCanJoin && !isLongWait && new Date(nextCita.fechaHoraInicio || 0).getTime() <= Date.now() && (
+                <Text style={styles.waitSub}>
+                  {loadingCita ? 'Sincronizando...' : 'Conectando con el consultorio...'}
+                </Text>
               )}
+
               {isLongWait && (
                 <View style={styles.timeoutCard}>
-                  <Text style={styles.timeoutMsg}>Puedes reprogramar tu cita o contactar a soporte si necesitas ayuda.</Text>
+                  <Text style={styles.timeoutMsg}>Parece que hay un retraso. Puedes esperar un poco más o contactar a soporte.</Text>
                   <View style={styles.timeoutActions}>
                     <TouchableOpacity style={styles.timeoutBtnPrimary} onPress={() => navigation.navigate('PacienteCitas')} activeOpacity={0.8}>
                       <MaterialIcons name="event" size={14} color="#fff" />
                       <Text style={styles.timeoutBtnPrimaryText}>Reprogramar</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.timeoutBtnSecondary} activeOpacity={0.8}>
-                      <MaterialIcons name="support-agent" size={14} color={colors.primary} />
-                      <Text style={styles.timeoutBtnSecondaryText}>Soporte</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -852,7 +851,11 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 <View>
                   <Text style={styles.summaryLabel}>Estado de sala</Text>
                   <Text style={[styles.summaryValue, roomCanJoin && styles.summaryValueGreen]}>
-                    {loadingRoom ? 'Sincronizando...' : roomCanJoin ? '● Abierta' : roomStatus || 'pendiente'}
+                    {loadingRoom ? 'Sincronizando...' : roomCanJoin ? '● Lista para entrar' : (
+                      new Date(nextCita?.fechaHoraInicio || 0).getTime() > Date.now() + 2 * 60 * 1000 
+                      ? 'No disponible aún' 
+                      : roomStatus || 'pendiente'
+                    )}
                   </Text>
                 </View>
               </View>
@@ -882,10 +885,10 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                   <MaterialIcons name="sync" size={20} color="#fff" />
                 </Animated.View>
               ) : (
-                <MaterialIcons name="video-call" size={20} color="#fff" />
+                <MaterialIcons name={roomCanJoin ? "video-call" : "lock-clock"} size={20} color="#fff" />
               )}
               <Text style={styles.joinBtnText}>
-                {openingRoom ? 'Conectando…' : roomCanJoin ? 'Entrar a la consulta' : 'Esperando al médico…'}
+                {openingRoom ? 'Conectando…' : roomCanJoin ? 'Entrar a la consulta' : 'Aún no es la hora'}
               </Text>
             </TouchableOpacity>
 
