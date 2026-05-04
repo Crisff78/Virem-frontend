@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { sanitizeRemoteImageUrl, resolveRemoteImageSource } from './utils/imageSources';
 import {
+  Alert,
   Image,
   Platform,
   Pressable,
@@ -53,7 +54,7 @@ type Message = {
   text: string;
   time: string;
   dateLabel?: string;
-  status?: 'sent' | 'read';
+  status?: 'sending' | 'sent' | 'read';
 };
 
 type ChatContact = {
@@ -370,12 +371,7 @@ const PacienteChatScreen: React.FC = () => {
         : null);
     if (conversationId === selectedChatId && rawMessage) {
       const senderId = String(rawMessage?.emisorId || '');
-      const nextUser = {
-        ...ensurePatientSessionUser(sessionUser),
-        usuarioid: String(profileUser?.usuarioid || sessionUser?.usuarioid || sessionUser?.id || ''),
-      };
-      setUser(nextUser);
-      const currentUserId = String(nextUser?.usuarioid || '').trim();
+      const currentUserId = String(user?.usuarioid || user?.id || sessionUser?.usuarioid || sessionUser?.id || '').trim();
       const from = (senderId !== '' && currentUserId !== '' && senderId === currentUserId) ? 'me' : 'other';
       
       const createdMs = parseDateMs(rawMessage?.createdAt);
