@@ -237,7 +237,6 @@ const PacienteConfiguracionScreen: React.FC = () => {
     );
   };
 
-  return (
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const SidebarContent = () => (
@@ -650,6 +649,60 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.5)',
     zIndex: 2000,
+  },
+  logoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 30,
+    paddingHorizontal: 5,
+  },
+  logo: {
+    width: 44,
+    height: 44,
+    resizeMode: 'contain',
+  },
+  logoTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: 1,
+  },
+  logoSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.muted,
+    marginTop: -2,
+    textTransform: 'uppercase',
+  },
+  userBox: {
+    padding: 16,
+    backgroundColor: '#f8fbff',
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#eef4fb',
+  },
+  userAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  userName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.dark,
+    textAlign: 'center',
+  },
+  userPlan: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    marginTop: 2,
   },
   drawerContent: {
     width: 280,
