@@ -136,7 +136,8 @@ const PacienteCitasScreen: React.FC = () => {
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
   const { t } = useLanguage();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingCitas, setLoadingCitas] = useState(false);
@@ -449,115 +450,128 @@ const PacienteCitasScreen: React.FC = () => {
     );
   };
 
-  const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
-  const closeMobileMenu = () => setIsMobileMenuOpen(false);
-  const navigateFromMenu = (
-    route:
-      | 'DashboardPaciente'
-      | 'NuevaConsultaPaciente'
-      | 'PacienteCitas'
-      | 'SalaEsperaVirtualPaciente'
-      | 'PacienteChat'
-      | 'PacienteRecetasDocumentos'
-      | 'PacientePerfil'
-      | 'PacienteConfiguracion'
-  ) => {
-    closeMobileMenu();
-    navigation.navigate(route);
-  };
+  // --- Sidebar Content Standardized ---
+  const SidebarContent = () => (
+    <View style={styles.sidebarContent}>
+      <View style={styles.logoBox}>
+        <Image source={ViremLogo} style={styles.logo} />
+        <View>
+          <Text style={styles.logoTitle}>VIREM</Text>
+          <Text style={styles.logoSubtitle}>Paciente</Text>
+        </View>
+      </View>
+
+      <View style={styles.userBox}>
+        <Image source={userAvatarSource} style={styles.userAvatar} />
+        <Text style={styles.userName}>{fullName}</Text>
+        <Text style={styles.userPlan}>{planLabel}</Text>
+      </View>
+
+      <ScrollView style={styles.menuScroll} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity 
+          style={styles.menuItemRow} 
+          onPress={() => { setIsSidebarOpen(false); navigation.navigate('DashboardPaciente'); }}
+        >
+          <MaterialIcons name="grid-view" size={20} color={colors.muted} />
+          <Text style={styles.menuText}>Inicio</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.menuItemRow} 
+          onPress={() => { setIsSidebarOpen(false); navigation.navigate('NuevaConsultaPaciente'); }}
+        >
+          <MaterialIcons name="person-search" size={20} color={colors.muted} />
+          <Text style={styles.menuText}>Buscar Médico</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.menuItemRow, styles.menuItemActive]} 
+          onPress={() => { setIsSidebarOpen(false); }}
+        >
+          <MaterialIcons name="calendar-today" size={20} color={colors.primary} />
+          <Text style={[styles.menuText, styles.menuTextActive]}>Mis Citas</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.menuItemRow} 
+          onPress={() => { setIsSidebarOpen(false); navigation.navigate('SalaEsperaVirtualPaciente'); }}
+        >
+          <MaterialIcons name="videocam" size={20} color={colors.muted} />
+          <Text style={styles.menuText}>Videollamada</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.menuItemRow} 
+          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteChat'); }}
+        >
+          <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
+          <Text style={styles.menuText}>Mensajes</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.menuItemRow} 
+          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteRecetasDocumentos'); }}
+        >
+          <MaterialIcons name="description" size={20} color={colors.muted} />
+          <Text style={styles.menuText}>Recetas / Doc.</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.menuItemRow} 
+          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteNotificaciones'); }}
+        >
+          <MaterialIcons name="notifications" size={20} color={colors.muted} />
+          <Text style={styles.menuText}>Notificaciones</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.menuItemRow} 
+          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacientePerfil'); }}
+        >
+          <MaterialIcons name="account-circle" size={20} color={colors.muted} />
+          <Text style={styles.menuText}>Perfil</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.menuItemRow} 
+          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteConfiguracion'); }}
+        >
+          <MaterialIcons name="settings" size={20} color={colors.muted} />
+          <Text style={styles.menuText}>Configuración</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <MaterialIcons name="logout" size={20} color="#fff" />
+        <Text style={styles.logoutText}>Cerrar Sesión</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
-    <View style={[styles.container, isInsidePortal ? null : (isDesktopLayout ? styles.containerDesktop : styles.containerMobile)]}>
-      {!isInsidePortal && !isDesktopLayout ? (
-        <View style={styles.mobileMenuBar}>
-          <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
-            <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.dark} />
-            <Text style={styles.mobileMenuButtonText}>
-              {isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
-
-      {!isInsidePortal && (isDesktopLayout || isMobileMenuOpen) && (
-      <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}>
-        <View>
-          <View style={styles.logoBox}>
-            <Image source={ViremLogo} style={styles.logo} />
-            <View>
-              <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSubtitle}>Portal Paciente</Text>
-            </View>
-          </View>
-
-          <View style={styles.userBox}>
-            <Image source={userAvatarSource} style={styles.userAvatar} />
-            <Text style={styles.userName}>{fullName}</Text>
-            <Text style={styles.userPlan}>{planLabel}</Text>
-            {loadingUser ? <Text style={styles.syncText}>Actualizando perfil...</Text> : null}
-            {!hasProfilePhoto ? (
-              <Text style={styles.hintText}>No tienes foto. Ve a Perfil para agregarla.</Text>
-            ) : null}
-          </View>
-
-          <View style={[styles.menu, isDesktopLayout ? styles.menuDesktop : styles.menuMobile]}>
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('DashboardPaciente')}>
-              <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.home')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('NuevaConsultaPaciente')}>
-              <MaterialIcons name="person-search" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.searchDoctor')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]} onPress={() => navigateFromMenu('PacienteCitas')}>
-              <MaterialIcons name="calendar-today" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.appointments')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('SalaEsperaVirtualPaciente')}>
-              <MaterialIcons name="videocam" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.videocall')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('PacienteChat')}>
-              <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.chat')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('PacienteRecetasDocumentos')}>
-              <MaterialIcons name="description" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('PacientePerfil')}>
-              <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.profile')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigateFromMenu('PacienteConfiguracion')}>
-              <MaterialIcons name="settings" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.settings')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={() => {
-            closeMobileMenu();
-            handleLogout();
-          }}
+    <View style={styles.container}>
+      {/* Drawer Overlay */}
+      {isSidebarOpen && (
+        <TouchableOpacity 
+          style={styles.drawerOverlay} 
+          activeOpacity={1} 
+          onPress={() => setIsSidebarOpen(false)}
         >
-          <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>{t('menu.logout')}</Text>
+          <View style={styles.drawerContent}>
+            <SidebarContent />
+          </View>
         </TouchableOpacity>
-      </View>
       )}
 
       <View style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]}>
         <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.hamburgerBtn} 
+            onPress={() => setIsSidebarOpen(true)}
+          >
+            <MaterialIcons name="menu" size={26} color={colors.dark} />
+          </TouchableOpacity>
+
           <View style={styles.searchBox}>
             <MaterialIcons name="search" size={20} color={colors.muted} />
             <TextInput
@@ -845,55 +859,152 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d8e4f0',
-    backgroundColor: colors.white,
   },
-  mobileMenuButtonText: { color: colors.dark, fontWeight: '700', fontSize: 13 },
-
-  sidebar: {
-    backgroundColor: colors.white,
-    justifyContent: 'space-between',
+  drawerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 2000,
   },
-  sidebarDesktop: {
+  drawerContent: {
     width: 280,
-    borderRightWidth: 1,
-    borderRightColor: '#eef2f7',
+    height: '100%',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 20,
+  },
+  sidebarContent: {
+    flex: 1,
     padding: 20,
+    backgroundColor: '#fff',
   },
-  sidebarMobile: {
-    width: '100%',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eef2f7',
-    padding: 14,
+  logoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 30,
+    paddingHorizontal: 5,
   },
-  logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, resizeMode: 'contain' },
-  logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
-  logoSubtitle: { fontSize: 11, fontWeight: '700', color: colors.muted },
-  userBox: { marginTop: 18, alignItems: 'center', paddingVertical: 12 },
-  userAvatar: { width: 76, height: 76, borderRadius: 76, marginBottom: 10, borderWidth: 4, borderColor: '#f5f7fb' },
-  userName: { fontWeight: '800', color: colors.dark, fontSize: 14, textAlign: 'center' },
-  userPlan: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 2, textAlign: 'center' },
-  syncText: { marginTop: 6, color: colors.muted, fontSize: 11, fontWeight: '600', textAlign: 'center' },
-  hintText: { marginTop: 6, color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  menu: { marginTop: 10, gap: 6 },
-  menuDesktop: { flex: 1 },
-  menuMobile: { flexDirection: 'row', flexWrap: 'wrap' },
-  menuItemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12, minWidth: 150 },
-  menuItemActive: { backgroundColor: 'rgba(19,127,236,0.10)', borderRightWidth: 3, borderRightColor: colors.primary },
-  menuText: { fontSize: 14, fontWeight: '700', color: colors.muted },
-  menuTextActive: { color: colors.primary },
-  logoutButton: { flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blue, paddingVertical: 12, borderRadius: 12 },
-  logoutText: { color: '#fff', fontWeight: '800' },
+  logo: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
+  },
+  logoTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: 1,
+  },
+  logoSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.muted,
+    marginTop: -2,
+    textTransform: 'uppercase',
+  },
+  userBox: {
+    padding: 16,
+    backgroundColor: '#f8fbff',
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#eef4fb',
+  },
+  userAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  userName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.dark,
+    textAlign: 'center',
+  },
+  userPlan: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    marginTop: 2,
+  },
+  hamburgerBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  menuScroll: {
+    flex: 1,
+    marginTop: 20,
+  },
+  menuItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  menuItemActive: {
+    backgroundColor: 'rgba(19,127,236,0.1)',
+  },
+  menuText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.muted,
+  },
+  menuTextActive: {
+    color: colors.primary,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.blue,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 20,
+  },
+  logoutText: {
+    color: '#fff',
+    fontWeight: '800',
+  },
 
-  main: { flex: 1, paddingHorizontal: 26, paddingTop: 18 },
-  mainMobile: { paddingHorizontal: 14, paddingTop: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14, flexWrap: 'wrap' },
+  main: {
+    flex: 1,
+    paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
+    paddingTop: Platform.OS === 'web' ? 18 : 12,
+  },
+  mainMobile: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 14,
+  },
   searchBox: {
     flex: 1,
     flexDirection: 'row',

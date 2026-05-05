@@ -194,44 +194,7 @@ type AppointmentCardProps = {
   videoCallLabel?: string;
 };
 
-const AppointmentCard: React.FC<AppointmentCardProps> = ({
-  patient,
-  detail,
-  avatar,
-  onVideoCall,
-  onDetails,
-  videoCallDisabled,
-  videoCallLabel = 'Videollamada',
-}) => {
-  return (
-    <View style={styles.apptCard}>
-      <Image source={avatar} style={styles.apptAvatar} />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.apptDoctor}>{patient}</Text>
-        <Text style={styles.apptDetail}>{detail}</Text>
-      </View>
 
-      <View style={styles.apptBtns}>
-        {onVideoCall && (
-          <TouchableOpacity
-            style={[styles.smallBtnBlue, videoCallDisabled && styles.smallBtnGrayDisabled]}
-            onPress={onVideoCall}
-            disabled={videoCallDisabled}
-          >
-            <Text style={[styles.smallBtnBlueText, videoCallDisabled && styles.smallBtnGrayTextDisabled]}>
-              {videoCallLabel}
-            </Text>
-          </TouchableOpacity>
-        )}
-        {onDetails && (
-          <TouchableOpacity style={styles.smallBtnGray} onPress={onDetails}>
-            <Text style={styles.smallBtnGrayText}>Detalles</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-};
 
 // -------------------------------------------------------------
 // PANTALLA PRINCIPAL
@@ -259,6 +222,45 @@ const DashboardMedico: React.FC = () => {
   const lastRefreshRef = useRef(0);
 
   // --- Sub-componentes internos para acceder a styles ---
+  const AppointmentCard: React.FC<AppointmentCardProps> = ({
+    patient,
+    detail,
+    avatar,
+    onVideoCall,
+    onDetails,
+    videoCallDisabled,
+    videoCallLabel = 'Videollamada',
+  }) => {
+    return (
+      <View style={styles.apptCard}>
+        <Image source={avatar} style={styles.apptAvatar} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.apptDoctor}>{patient}</Text>
+          <Text style={styles.apptDetail}>{detail}</Text>
+        </View>
+
+        <View style={styles.apptBtns}>
+          {onVideoCall && (
+            <TouchableOpacity
+              style={[styles.smallBtnBlue, videoCallDisabled && styles.smallBtnGrayDisabled]}
+              onPress={onVideoCall}
+              disabled={videoCallDisabled}
+            >
+              <Text style={[styles.smallBtnBlueText, videoCallDisabled && styles.smallBtnGrayTextDisabled]}>
+                {videoCallLabel}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {onDetails && (
+            <TouchableOpacity style={styles.smallBtnGray} onPress={onDetails}>
+              <Text style={styles.smallBtnGrayText}>Detalles</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  };
+
   const PatientRow: React.FC<{ name: string; id: string; lastSeen: string; avatar: ImageSourcePropType; onPress?: () => void }> = ({
     name,
     id,
@@ -368,10 +370,10 @@ const DashboardMedico: React.FC = () => {
 
     sidebar: { backgroundColor: colors.white, justifyContent: 'space-between' },
     sidebarDesktop: { 
-      width: rs(260), 
+      width: rs(240), 
       borderRightWidth: 1, 
       borderRightColor: '#eef2f7', 
-      padding: rs(20) 
+      padding: rs(16) 
     },
     sidebarTablet: { 
       width: rs(220), 
@@ -471,14 +473,14 @@ const DashboardMedico: React.FC = () => {
     },
 
     title: { 
-      fontSize: fs(28), 
+      fontSize: fs(22), 
       fontWeight: '900', 
       color: colors.dark, 
       marginTop: rs(8), 
       letterSpacing: -0.3 
     },
     subtitle: { 
-      fontSize: fs(14), 
+      fontSize: fs(13), 
       color: colors.muted, 
       marginTop: rs(4), 
       marginBottom: rs(16), 
@@ -489,7 +491,7 @@ const DashboardMedico: React.FC = () => {
     bigCard: { 
       backgroundColor: '#fff', 
       borderRadius: rs(24), 
-      padding: rs(20), 
+      padding: rs(16), 
       flexDirection: isDesktop ? 'row' : 'column', 
       gap: rs(16), 
       marginBottom: rs(20), 
@@ -515,8 +517,8 @@ const DashboardMedico: React.FC = () => {
       letterSpacing: 1, 
       textTransform: 'uppercase' 
     },
-    bigCardTitle: { fontSize: fs(18), fontWeight: '900', color: colors.dark, marginBottom: rs(6) },
-    bigCardSub: { fontSize: fs(14), color: colors.muted, fontWeight: '700', marginBottom: rs(14) },
+    bigCardTitle: { fontSize: fs(16), fontWeight: '900', color: colors.dark, marginBottom: rs(6) },
+    bigCardSub: { fontSize: fs(13), color: colors.muted, fontWeight: '700', marginBottom: rs(14) },
     bigCardActions: { flexDirection: 'row', flexWrap: 'wrap', gap: rs(10) },
     primaryBtn: { 
       flexDirection: 'row', 
@@ -541,7 +543,7 @@ const DashboardMedico: React.FC = () => {
     },
     secondaryBtnText: { color: colors.muted, fontWeight: '900', fontSize: fs(14) },
 
-    quickRow: { flexDirection: 'row', gap: rs(10), marginBottom: rs(18) },
+    quickRow: { flexDirection: 'row', gap: rs(10), marginBottom: rs(18), flexWrap: 'wrap' },
     quickTile: { 
       flex: 1, 
       backgroundColor: '#fff', 
@@ -638,6 +640,7 @@ const DashboardMedico: React.FC = () => {
       alignItems: 'center', 
       justifyContent: 'center' 
     },
+    docAvatar: { width: '100%', height: '100%', borderRadius: rs(12) },
     docTitle: { color: colors.dark, fontWeight: '700', fontSize: fs(13) },
     docSub: { color: colors.muted, fontSize: fs(11), marginTop: rs(2) },
 
@@ -673,12 +676,12 @@ const DashboardMedico: React.FC = () => {
     statTitle: { 
       color: colors.muted, 
       fontWeight: '700', 
-      fontSize: fs(12), 
+      fontSize: fs(11), 
       textTransform: 'uppercase', 
       letterSpacing: 0.5 
     },
     statBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-    statValue: { fontSize: fs(24), fontWeight: '900', color: colors.dark },
+    statValue: { fontSize: fs(20), fontWeight: '900', color: colors.dark },
     trendRow: { 
       flexDirection: 'row', 
       alignItems: 'center', 
@@ -855,16 +858,6 @@ const DashboardMedico: React.FC = () => {
   
   return (
     <View style={[styles.container, isInsidePortal ? null : (isDesktopLayout ? styles.containerDesktop : (isTablet ? styles.containerTablet : styles.containerMobile))]}>
-      {!isInsidePortal && !isDesktopLayout ? (
-        <View style={styles.mobileMenuBar}>
-          <TouchableOpacity style={styles.mobileMenuButton} onPress={toggleMobileMenu}>
-            <MaterialIcons name={isMobileMenuOpen ? 'close' : 'menu'} size={22} color={colors.dark} />
-            <Text style={styles.mobileMenuButtonText}>
-              {isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
 
       {/* ===================== SIDEBAR ===================== */}
       {!isInsidePortal && (isDesktopLayout || isTablet || isMobileMenuOpen) && (
@@ -1008,6 +1001,19 @@ const DashboardMedico: React.FC = () => {
               value={String(dashboardData.stats.citasCompletadas)} 
               icon="check-circle" 
               trendText="80%" 
+            />
+            <StatPill 
+              title="Pacientes Mes" 
+              value={String(dashboardData.stats.nuevosPacientesMes)} 
+              icon="people" 
+              trendText="+12%" 
+            />
+            <StatPill 
+              title="Mensajes" 
+              value={String(dashboardData.stats.mensajesPendientes)} 
+              icon="chat" 
+              trendText="Pendientes" 
+              trendUp={false}
             />
           </View>
 

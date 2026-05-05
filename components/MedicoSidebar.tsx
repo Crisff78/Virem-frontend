@@ -96,9 +96,6 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
               size={22}
               color={colors.dark}
             />
-            <Text style={styles.mobileMenuButtonText}>
-              {isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
-            </Text>
           </TouchableOpacity>
         </View>
       ) : null}

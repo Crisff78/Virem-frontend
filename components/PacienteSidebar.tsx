@@ -88,21 +88,6 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
 
   return (
     <>
-      {/* Mobile hamburger bar */}
-      {!isDesktopLayout ? (
-        <View style={styles.mobileMenuBar}>
-          <TouchableOpacity style={styles.mobileMenuButton} onPress={onToggleMobileMenu}>
-            <MaterialIcons
-              name={isMobileMenuOpen ? 'close' : 'menu'}
-              size={22}
-              color={colors.dark}
-            />
-            <Text style={styles.mobileMenuButtonText}>
-              {isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
 
       {/* Sidebar panel */}
       {(isDesktopLayout || isMobileMenuOpen) && (
