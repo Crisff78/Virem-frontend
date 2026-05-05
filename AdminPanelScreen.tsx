@@ -19,6 +19,7 @@ import type { RootStackParamList } from './navigation/types';
 import { useAuth } from './providers/AuthProvider';
 import { ApiError, apiClient } from './utils/api';
 import { getApiErrorMessage } from './utils/apiErrors';
+import AdminSidebar from './components/AdminSidebar';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'AdminPanel'>;
 type TabKey = 'resumen' | 'usuarios' | 'citas' | 'pagos' | 'moderacion' | 'auditoria';
@@ -181,14 +182,7 @@ type AdminBudget = {
   };
 };
 
-const tabs: Array<{ key: TabKey; label: string; icon: string }> = [
-  { key: 'resumen', label: 'Resumen', icon: 'dashboard' },
-  { key: 'usuarios', label: 'Usuarios', icon: 'groups' },
-  { key: 'citas', label: 'Citas', icon: 'event-note' },
-  { key: 'pagos', label: 'Pagos', icon: 'receipt-long' },
-  { key: 'moderacion', label: 'Moderacion', icon: 'verified-user' },
-  { key: 'auditoria', label: 'Auditoria', icon: 'manage-search' },
-];
+
 
 const roleFilters = [
   { key: 'all', label: 'Todos' },
@@ -367,6 +361,7 @@ const AdminPanelScreen: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [citaScope, setCitaScope] = useState('all');
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(Platform.OS === 'web' && width >= 1024);
 
   const [panel, setPanel] = useState<PanelStats | null>(null);
   const [pendingDoctors, setPendingDoctors] = useState<PendingMedico[]>([]);
@@ -1258,56 +1253,58 @@ const AdminPanelScreen: React.FC = () => {
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={[styles.content, isWide && styles.contentWide]}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />
-      }
-    >
-      <View style={styles.header}>
-        <View style={styles.headerTitleWrap}>
-          <Text style={styles.title}>Panel Administrativo</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>
-            {panel?.admin?.email || 'Administrador'}
-            {lastUpdatedAt ? ` · ${formatDateTime(lastUpdatedAt)}` : ''}
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={[styles.headerIconButton, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]} 
-            onPress={() => navigation.navigate('ITAdminDashboard')}
-          >
-            <MaterialIcons name="developer-mode" size={20} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton} onPress={refresh} disabled={refreshing}>
-            <MaterialIcons name="refresh" size={20} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <MaterialIcons name="logout" size={18} color="#fff" />
-            <Text style={styles.logoutText}>Salir</Text>
-          </TouchableOpacity>
-        </View>
+    <View style={styles.appContainer}>
+      <AdminSidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+        adminEmail={panel?.admin?.email}
+        onLogout={handleLogout}
+      />
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          style={styles.screen}
+          contentContainerStyle={[styles.content, isWide && styles.contentWide]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />
+          }
+        >
+          <View style={styles.header}>
+            <View style={styles.headerTitleWrap}>
+              <View style={styles.headerTitleRow}>
+                <TouchableOpacity 
+                  onPress={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+                  style={styles.menuToggleBtn}
+                >
+                  <MaterialIcons name={isMobileMenuOpen ? "menu-open" : "menu"} size={26} color={colors.text} />
+                </TouchableOpacity>
+                <View>
+                  <Text style={styles.title}>Panel Administrativo</Text>
+                  <Text style={styles.subtitle} numberOfLines={1}>
+                    {panel?.admin?.email || 'Administrador'}
+                    {lastUpdatedAt ? ` · ${formatDateTime(lastUpdatedAt)}` : ''}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.headerActions}>
+              <TouchableOpacity 
+                style={[styles.headerIconButton, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]} 
+                onPress={() => navigation.navigate('ITAdminDashboard')}
+              >
+                <MaterialIcons name="developer-mode" size={20} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerIconButton} onPress={refresh} disabled={refreshing}>
+                <MaterialIcons name="refresh" size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {renderActiveTab()}
+        </ScrollView>
       </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow}>
-        {tabs.map((tab) => {
-          const active = activeTab === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.tabButton, active && styles.tabButtonActive]}
-              onPress={() => setActiveTab(tab.key)}
-            >
-              <MaterialIcons name={tab.icon as any} size={18} color={active ? '#fff' : colors.muted} />
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {renderActiveTab()}
-    </ScrollView>
+    </View>
   );
 };
 
@@ -1363,6 +1360,11 @@ const iconColorStyles: Record<Tone, string> = {
 };
 
 const styles = StyleSheet.create({
+  appContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: colors.bg,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.bg,
@@ -1395,6 +1397,18 @@ const styles = StyleSheet.create({
   headerTitleWrap: {
     flex: 1,
     minWidth: 0,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  menuToggleBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   title: {
     fontSize: 24,
