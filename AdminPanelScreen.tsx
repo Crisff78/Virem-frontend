@@ -1274,6 +1274,12 @@ const AdminPanelScreen: React.FC = () => {
           </Text>
         </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={[styles.headerIconButton, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]} 
+            onPress={() => navigation.navigate('ITAdminDashboard')}
+          >
+            <MaterialIcons name="developer-mode" size={20} color={colors.primary} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.headerIconButton} onPress={refresh} disabled={refreshing}>
             <MaterialIcons name="refresh" size={20} color={colors.text} />
           </TouchableOpacity>

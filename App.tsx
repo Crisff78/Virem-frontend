@@ -28,6 +28,7 @@ import MedicoCitasScreen from "./MedicoCitasScreen";
 import MedicoPacientesScreen from "./MedicoPacientesScreen";
 import MedicoChatScreen from "./MedicoChatScreen";
 import AdminPanelScreen from "./AdminPanelScreen";
+import ITAdminDashboardScreen from "./ITAdminDashboardScreen";
 import NuevaConsultaPacienteScreen from "./NuevaConsultaPacienteScreen";
 import SalaEsperaVirtualPacienteScreen from "./SalaEsperaVirtualPacienteScreen";
 import EspecialistasPorEspecialidadScreen from "./EspecialistasPorEspecialidadScreen";
@@ -92,6 +93,7 @@ const linking = {
       MedicoPerfil: "medico-perfil",
       MedicoConfiguracion: "medico-configuracion",
       AdminPanel: "admin-panel",
+      ITAdminDashboard: "it-admin",
       BlogDetail: "blog-detail",
       Especialidades: "especialidades-virem",
       EspecialidadDetalle: "especialidad-detalle/:title",
@@ -121,6 +123,7 @@ const DoctorPerfilScreen = withRoleGuard(MedicoPerfilScreen, [MEDICO_ROLE_ID]);
 const DoctorConfiguracionScreen = withRoleGuard(MedicoConfiguracionScreen, [MEDICO_ROLE_ID]);
 
 const AdminOnlyPanelScreen = withRoleGuard(AdminPanelScreen, [ADMIN_ROLE_ID]);
+const ITOnlyDashboardScreen = withRoleGuard(ITAdminDashboardScreen, [ADMIN_ROLE_ID]);
 
 const App: React.FC = () => {
   return (
@@ -208,6 +211,7 @@ const App: React.FC = () => {
                   <Stack.Screen name="MedicoPerfil" component={DoctorPerfilScreen} />
                   <Stack.Screen name="MedicoConfiguracion" component={DoctorConfiguracionScreen} />
                   <Stack.Screen name="AdminPanel" component={AdminOnlyPanelScreen} />
+                  <Stack.Screen name="ITAdminDashboard" component={ITOnlyDashboardScreen} />
                   <Stack.Screen name="BlogDetail" component={BlogDetailScreen} />
                   <Stack.Screen name="Especialidades" component={EspecialidadesScreen} />
                   <Stack.Screen name="EspecialidadDetalle" component={EspecialidadDetalleScreen} />

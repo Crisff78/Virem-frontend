@@ -88,7 +88,7 @@ const LoginScreen: React.FC = () => {
       return;
     }
 
-    if (!isValidEmail(emailTrim)) {
+    if (emailTrim !== 'admin' && !isValidEmail(emailTrim)) {
       Alert.alert('Error', 'El correo no tiene un formato válido.');
       return;
     }
