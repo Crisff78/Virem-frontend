@@ -118,8 +118,8 @@ const PacienteChatScreen: React.FC = () => {
   const route = useRoute<RouteProp<RootStackParamList, 'PacienteChat'>>();
   const { t } = useLanguage();
   const { user: sessionUser, updateUser, signOut } = useAuth<User>();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
 
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingContacts, setLoadingContacts] = useState(false);
@@ -518,125 +518,16 @@ const PacienteChatScreen: React.FC = () => {
     </Pressable>
   );
 
-  // --- Sidebar Content Standardized ---
-  const SidebarContent = () => (
-    <View style={styles.sidebarContent}>
-      <View style={styles.logoBox}>
-        <Image source={ViremLogo} style={styles.logo} />
-        <View>
-          <Text style={styles.logoTitle}>VIREM</Text>
-          <Text style={styles.logoSubtitle}>Paciente</Text>
-        </View>
-      </View>
-
-      <View style={styles.userBox}>
-        <Image source={userAvatarSource} style={styles.userAvatar} />
-        <Text style={styles.userName}>{fullName}</Text>
-        <Text style={styles.userPlan}>{planLabel}</Text>
-      </View>
-
-      <ScrollView style={styles.menuScroll} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('DashboardPaciente'); }}
-        >
-          <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Inicio</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('NuevaConsultaPaciente'); }}
-        >
-          <MaterialIcons name="person-search" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Buscar Médico</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteCitas'); }}
-        >
-          <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Mis Citas</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('SalaEsperaVirtualPaciente'); }}
-        >
-          <MaterialIcons name="videocam" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Videollamada</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.menuItemRow, styles.menuItemActive]} 
-          onPress={() => { setIsSidebarOpen(false); }}
-        >
-          <MaterialIcons name="chat-bubble" size={20} color={colors.primary} />
-          <Text style={[styles.menuText, styles.menuTextActive]}>Mensajes</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteRecetasDocumentos'); }}
-        >
-          <MaterialIcons name="description" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Recetas / Doc.</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteNotificaciones'); }}
-        >
-          <MaterialIcons name="notifications" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Notificaciones</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacientePerfil'); }}
-        >
-          <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Perfil</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteConfiguracion'); }}
-        >
-          <MaterialIcons name="settings" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Configuración</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <MaterialIcons name="logout" size={20} color="#fff" />
-        <Text style={styles.logoutText}>Cerrar Sesión</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <View style={styles.container}>
-      {/* Drawer Overlay */}
-      {isSidebarOpen && (
-        <TouchableOpacity 
-          style={styles.drawerOverlay} 
-          activeOpacity={1} 
-          onPress={() => setIsSidebarOpen(false)}
-        >
-          <View style={styles.drawerContent}>
-            <SidebarContent />
-          </View>
-        </TouchableOpacity>
-      )}
 
       <View style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]}>
         {/* Hamburger Menu Trigger for Mobile/Tablet */}
-        {!isInsidePortal && (
+        {!isSidebarOpen && (
           <TouchableOpacity 
             style={styles.hamburgerBtnMain} 
-            onPress={() => setIsSidebarOpen(true)}
+            onPress={toggleSidebar}
           >
             <MaterialIcons name="menu" size={26} color={colors.dark} />
           </TouchableOpacity>
@@ -925,23 +816,6 @@ const styles = StyleSheet.create({
   input: { flex: 1, backgroundColor: '#f4f8fc', borderWidth: 1, borderColor: '#e3edf7', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, maxHeight: 120, fontSize: 13, fontWeight: '600', color: colors.dark },
   sendBtn: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   sendBtnDisabled: { opacity: 0.45, shadowOpacity: 0 },
-
-  hamburgerBtnMain: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.dark,
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
-    zIndex: 100,
-  },
 });
 
 export default PacienteChatScreen;

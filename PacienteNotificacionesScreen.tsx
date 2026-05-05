@@ -14,6 +14,7 @@ import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { usePacienteModule } from './navigation/PacienteModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
@@ -403,8 +404,8 @@ const PacienteNotificacionesScreen: React.FC = () => {
       navigation.navigate('PacienteCitas');
       return;
     }
-    if (item.type === 'citas') {
-      navigation.navigate('PacienteCitas');
+    if (item.type === 'documentos') {
+      navigation.navigate('PacienteRecetasDocumentos');
       return;
     }
     navigation.navigate('PacienteRecetasDocumentos');
@@ -414,128 +415,22 @@ const PacienteNotificacionesScreen: React.FC = () => {
     await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
 
-  const SidebarContent = () => (
-    <View style={styles.sidebarContent}>
-      <View style={styles.logoBox}>
-        <Image source={ViremLogo} style={styles.logo} />
-        <View>
-          <Text style={styles.logoTitle}>VIREM</Text>
-          <Text style={styles.logoSubtitle}>Paciente</Text>
-        </View>
-      </View>
-
-      <View style={styles.userBox}>
-        <Image source={avatarSource} style={styles.userAvatar} />
-        <Text style={styles.userName}>{fullName}</Text>
-        <Text style={styles.userPlan}>{planLabel}</Text>
-      </View>
-
-      <ScrollView style={styles.menuScroll} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('DashboardPaciente'); }}
-        >
-          <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Inicio</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('NuevaConsultaPaciente'); }}
-        >
-          <MaterialIcons name="person-search" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Buscar Médico</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteCitas'); }}
-        >
-          <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Mis Citas</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('SalaEsperaVirtualPaciente'); }}
-        >
-          <MaterialIcons name="videocam" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Videollamada</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteChat'); }}
-        >
-          <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Mensajes</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteRecetasDocumentos'); }}
-        >
-          <MaterialIcons name="description" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Recetas / Doc.</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.menuItemRow, styles.menuItemActive]} 
-          onPress={() => { setIsSidebarOpen(false); }}
-        >
-          <MaterialIcons name="notifications" size={20} color={colors.primary} />
-          <Text style={[styles.menuText, styles.menuTextActive]}>Notificaciones</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacientePerfil'); }}
-        >
-          <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Perfil</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteConfiguracion'); }}
-        >
-          <MaterialIcons name="settings" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Configuración</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <MaterialIcons name="logout" size={20} color="#fff" />
-        <Text style={styles.logoutText}>Cerrar Sesión</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <View style={styles.container}>
-      {/* Drawer Overlay */}
-      {isSidebarOpen && (
-        <TouchableOpacity 
-          style={styles.drawerOverlay} 
-          activeOpacity={1} 
-          onPress={() => setIsSidebarOpen(false)}
-        >
-          <View style={styles.drawerContent}>
-            <SidebarContent />
-          </View>
-        </TouchableOpacity>
-      )}
 
       <View style={styles.main}>
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.hamburgerBtn} 
-            onPress={() => setIsSidebarOpen(true)}
-          >
-            <MaterialIcons name="menu" size={26} color={colors.dark} />
-          </TouchableOpacity>
+          {!isSidebarOpen && (
+            <TouchableOpacity 
+              style={styles.hamburgerBtn} 
+              onPress={toggleSidebar}
+            >
+              <MaterialIcons name="menu" size={26} color={colors.dark} />
+            </TouchableOpacity>
+          )}
           <View style={styles.headerLeft}>
             <MaterialIcons name="notifications-none" size={24} color={colors.primary} />
             <Text style={styles.headerTitle}>{t('notif.center')}</Text>

@@ -123,12 +123,6 @@ const RegistroCredencialesMedicoScreen: React.FC = () => {
       const cedulaRaw = String(dm.cedula || draftData?.cedula || '').trim();
       const telefonoRaw = String(dm.telefono || draftData?.telefono || '').trim();
       const fotoUrl = String(dm.fotoUrl || draftData?.fotoUrl || '').trim();
-      const cedulaProfesionalUrl = String(
-        dm.cedulaProfesionalUrl || draftData?.cedulaProfesionalUrl || fotoUrl || ''
-      ).trim();
-      const certificadoEspecialidadUrl = String(
-        dm.certificadoEspecialidadUrl || draftData?.certificadoEspecialidadUrl || fotoUrl || ''
-      ).trim();
       const exequaturValidationToken = String(
         dm.exequaturValidationToken || draftData?.exequaturValidationToken || ''
       ).trim();
@@ -141,10 +135,6 @@ const RegistroCredencialesMedicoScreen: React.FC = () => {
         cedula: String(cedulaRaw || '').replace(/\D/g, '').slice(0, 11),
         telefono: String(telefonoRaw || '').replace(/\D/g, '').slice(0, 15),
         fotoUrl,
-        documentos: {
-          cedulaProfesionalUrl,
-          certificadoEspecialidadUrl,
-        },
         exequaturValidationToken,
         email: emailTrim,
         password: String(password),
@@ -213,7 +203,7 @@ const RegistroCredencialesMedicoScreen: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}>
         <View style={styles.contentWrapper}>
           <View style={styles.progressSection}>
             <Text style={styles.progressTitle}>Credenciales de Acceso (Medico)</Text>

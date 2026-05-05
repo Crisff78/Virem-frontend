@@ -17,7 +17,7 @@ const colors = {
 
 const BlogDetailScreen: React.FC = () => {
   const route = useRoute<BlogDetailRouteProp>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { category, title, description, image } = route.params;
 
   return (

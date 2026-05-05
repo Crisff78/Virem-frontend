@@ -118,8 +118,8 @@ const DashboardPacienteScreen: React.FC = () => {
   const { t } = useLanguage();
   const { isDesktop, isTablet, isMobile, select, fs, rs, wp, hp } = useResponsive();
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
   const [isExpressModalOpen, setIsExpressModalOpen] = useState(true);
   const [user, setUser] = useState<User | null>(() => (ensurePatientSessionUser(sessionUser) as User | null) || null);
   const [loadingCitas, setLoadingCitas] = useState(false);
@@ -371,91 +371,9 @@ const DashboardPacienteScreen: React.FC = () => {
   const primaryCita = upcomingCitas[0] || null;
   const unreadCount = notifications.filter(n => !n.leida).length;
 
-  // --- Sidebar Content Standardized ---
-  const SidebarContent = () => (
-    <View style={styles.sidebarContent}>
-      <View style={styles.logoBox}>
-        <Image source={ViremLogo} style={styles.logo} />
-        <View>
-          <Text style={styles.logoTitle}>VIREM</Text>
-          <Text style={styles.logoSubtitle}>Paciente</Text>
-        </View>
-      </View>
-      
-      <View style={styles.userBox}>
-        <Image source={userAvatarSource} style={styles.userAvatar} />
-        <Text style={styles.userName}>{fullName}</Text>
-        <Text style={styles.userPlan}>{user?.plan || 'Básico'}</Text>
-      </View>
-
-      <ScrollView style={styles.menuScroll} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]}>
-          <MaterialIcons name="grid-view" size={20} color={colors.primary} />
-          <Text style={[styles.menuText, styles.menuTextActive]}>Inicio</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.menuItemRow} onPress={() => { setIsSidebarOpen(false); navigation.navigate('NuevaConsultaPaciente'); }}>
-          <MaterialIcons name="person-search" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Buscar Médico</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItemRow} onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteCitas'); }}>
-          <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Mis Citas</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItemRow} onPress={() => { setIsSidebarOpen(false); navigation.navigate('SalaEsperaVirtualPaciente'); }}>
-          <MaterialIcons name="videocam" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Videollamada</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItemRow} onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteChat'); }}>
-          <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Mensajes</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItemRow} onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteRecetasDocumentos'); }}>
-          <MaterialIcons name="description" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Recetas / Doc.</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItemRow} onPress={() => { setIsSidebarOpen(false); setIsNotificationsOpen(true); }}>
-          <MaterialIcons name="notifications" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Notificaciones</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItemRow} onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacientePerfil'); }}>
-          <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Perfil</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItemRow} onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteConfiguracion'); }}>
-          <MaterialIcons name="settings" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Configuración</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <MaterialIcons name="logout" size={18} color="#fff" />
-        <Text style={styles.logoutText}>Cerrar sesión</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <View style={styles.container}>
-      {/* Standardized Drawer Overlay */}
-      {isSidebarOpen && (
-        <TouchableOpacity 
-          style={styles.drawerOverlay} 
-          activeOpacity={1} 
-          onPress={() => setIsSidebarOpen(false)}
-        >
-          <View style={styles.drawerContent}>
-            <SidebarContent />
-          </View>
-        </TouchableOpacity>
-      )}
 
       {/* Drawer Overlay for Notifications (Optional: keep separate or unify) */}
       {isNotificationsOpen && (
@@ -521,9 +439,11 @@ const DashboardPacienteScreen: React.FC = () => {
         <ScrollView style={[styles.main, !isDesktop && styles.mainMobile]} contentContainerStyle={{ paddingBottom: 40 }}>
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <TouchableOpacity style={styles.menuToggle} onPress={() => setIsSidebarOpen(true)}>
-                <MaterialIcons name="menu" size={24} color={colors.dark} />
-              </TouchableOpacity>
+              {!isSidebarOpen && (
+                <TouchableOpacity style={styles.menuToggle} onPress={toggleSidebar}>
+                  <MaterialIcons name="menu" size={24} color={colors.dark} />
+                </TouchableOpacity>
+              )}
               <Text style={styles.title}>Hola, {fullName.split(' ')[0]}</Text>
             </View>
             <View style={{ flexDirection: 'row', gap: rs(10) }}>

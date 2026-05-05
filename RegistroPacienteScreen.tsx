@@ -250,16 +250,16 @@ const styles = StyleSheet.create({
   modalOption: { paddingVertical: 16, paddingHorizontal: 20, borderRadius: 8, marginBottom: 8, backgroundColor: colors.slate50, borderWidth: 1, borderColor: colors.navyMedium },
   modalOptionText: { fontSize: 16, color: colors.navyDark, textAlign: 'center', fontWeight: '500' },
   inputError: { borderColor: colors.error, borderWidth: 1.5 },
+  modalOptionText: { fontSize: 16, color: colors.navyDark, textAlign: 'center', fontWeight: '500' },
+  inputError: { borderColor: colors.error, borderWidth: 1.5 },
   errorText: { color: colors.error, fontSize: 12, marginTop: 4, fontWeight: '500' },
 });
 
 const RegistroPacienteScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
-  const { isDesktop, isTablet, isMobile, height: viewportHeight } = useResponsive();
+  const { isDesktop, isTablet } = useResponsive();
   const isWideLayout = isDesktop || isTablet;
   const isTabletLayout = isTablet;
-  const isMobileWeb = Platform.OS === 'web' && isMobile;
-  const mobileScrollHeight = Math.max(viewportHeight - 64, 320);
 
   const [names, setNames] = useState('');
   const [lastNames, setLastNames] = useState('');
@@ -370,11 +370,10 @@ const RegistroPacienteScreen: React.FC = () => {
         style={[
           styles.mainContent,
           isWideLayout && styles.mainContentWide,
-          isMobileWeb && ({ flex: 0, height: mobileScrollHeight } as any),
         ]}
         contentContainerStyle={[
           styles.mainContentContainer,
-          isMobileWeb && styles.mainContentContainerMobileWeb,
+          { flexGrow: 1 }
         ]}
         keyboardShouldPersistTaps="handled"
       >

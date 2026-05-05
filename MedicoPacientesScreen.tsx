@@ -18,8 +18,10 @@ import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
+import MedicoHeader from './components/MedicoHeader';
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
+import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 import { useMedicoSessionProfile, type MedicoSessionUser } from './hooks/useMedicoSessionProfile';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
@@ -86,33 +88,24 @@ const formatDateTime = (value: string | null | undefined) => {
 };
 
 const MedicoPacientesScreen: React.FC = () => {
-  const navigation = usePortalAwareMedicoNavigation();
-  const { isInsidePortal } = useMedicoModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
   const { signOut } = useAuth();
-  const { sessionUser, syncProfile } = useMedicoSessionProfile();
-  const [user, setUser] = useState<MedicoSessionUser | null>(sessionUser);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const { loadingUser, refreshUser, doctorName, doctorSpec, fotoUrl } =
+    useMedicoPortalSession({ syncOnMount: true, addDoctorPrefix: true });
+
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [patients, setPatients] = useState<PatientRow[]>([]);
 
-  useEffect(() => {
-    if (sessionUser) {
-      setUser(sessionUser);
-      setLoadingUser(false);
-    }
-  }, [sessionUser]);
+
 
   const loadUser = useCallback(async () => {
     try {
-      const nextUser = (await syncProfile()) as MedicoSessionUser | null;
-      setUser(nextUser);
+      await refreshUser();
     } catch {
-      setUser(null);
-    } finally {
-      setLoadingUser(false);
+      // noop
     }
-  }, [syncProfile]);
+  }, [refreshUser]);
 
   const loadPatients = useCallback(async () => {
     setLoadingPatients(true);
@@ -185,24 +178,10 @@ const MedicoPacientesScreen: React.FC = () => {
     }, [loadPatients, loadUser])
   );
 
-  const doctorName = useMemo(() => {
-    const base = normalizeText(user?.nombreCompleto || user?.medico?.nombreCompleto);
-    if (!base) return 'Doctor';
-    const lowered = base.toLowerCase();
-    if (lowered.startsWith('dr ') || lowered.startsWith('dr.')) return base;
-    return `Dr. ${base}`;
-  }, [user?.medico?.nombreCompleto, user?.nombreCompleto]);
-
-  const doctorSpec = useMemo(
-    () => normalizeText(user?.especialidad || user?.medico?.especialidad) || 'Especialidad no definida',
-    [user?.especialidad, user?.medico?.especialidad]
-  );
-
   const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    const foto = sanitizeFotoUrl(user?.fotoUrl || user?.medico?.fotoUrl);
-    if (foto) return { uri: foto };
+    if (fotoUrl) return { uri: fotoUrl };
     return DefaultAvatar;
-  }, [user?.fotoUrl, user?.medico?.fotoUrl]);
+  }, [fotoUrl]);
 
   const filteredPatients = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
@@ -274,69 +253,9 @@ const MedicoPacientesScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
-      {!isInsidePortal && (
-      <View style={styles.sidebar}>
-        <View>
-          <View style={styles.logoWrap}>
-            <Image source={ViremLogo} style={styles.logo} />
-            <View>
-              <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSub}>Portal Medico</Text>
-            </View>
-          </View>
-
-          <View style={styles.userCard}>
-            <Image source={userAvatarSource} style={styles.userAvatar} />
-            <Text style={styles.userName}>{doctorName}</Text>
-            <Text style={styles.userSpec}>{doctorSpec}</Text>
-          </View>
-
-          <View style={styles.menu}>
-            {sideItems.map((item) => (
-              <TouchableOpacity
-                key={item.label}
-                style={[styles.menuItem, item.active ? styles.menuItemActive : null]}
-                onPress={() => handleSideItemPress(item)}
-              >
-                <MaterialIcons
-                  name={item.icon}
-                  size={20}
-                  color={item.active ? colors.primary : colors.muted}
-                />
-                <Text style={[styles.menuText, item.active ? styles.menuTextActive : null]}>
-                  {item.label}
-                </Text>
-                {item.badge ? (
-                  <View style={[styles.badge, { backgroundColor: item.badge.color }]}>
-                    <Text style={styles.badgeText}>{item.badge.text}</Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Cerrar sesion</Text>
-        </TouchableOpacity>
-      </View>
-      )}
-
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
-        <View style={styles.headerWrap}>
-          <View style={styles.headerRow}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.pageTitle}>Pacientes</Text>
-              <Text style={styles.pageSubtitle}>Visualiza y da seguimiento a tus pacientes activos.</Text>
-            </View>
-            <View style={styles.headerRight}>
-              <Text style={styles.headerDate}>{dateText}</Text>
-              <Text style={styles.headerTime}>{timeText}</Text>
-            </View>
-          </View>
-        </View>
+    <View style={{ flex: 1 }}>
+        <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+          <MedicoHeader title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`} />
 
         <View style={styles.kpiGrid}>
           <View style={styles.kpiCard}>
@@ -422,8 +341,8 @@ const MedicoPacientesScreen: React.FC = () => {
             <Text style={styles.emptyText}>No se encontraron pacientes para mostrar.</Text>
           )}
         </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
   );
 };
 

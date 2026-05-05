@@ -4,6 +4,8 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
 import { useWindowDimensions } from 'react-native';
+import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
+import MedicoHeader from './components/MedicoHeader';
 
 const colors = {
   primary: '#137fec',
@@ -23,13 +25,17 @@ const DUMMY_TRANSACTIONS = [
 ];
 
 const MedicoFinanzasScreen: React.FC = () => {
-  const { isInsidePortal } = useMedicoModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
+  const { doctorName } = useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
   const navigation = usePortalAwareMedicoNavigation();
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
   return (
     <View style={styles.container}>
+      <View style={{ paddingHorizontal: 24, paddingTop: 18 }}>
+        <MedicoHeader title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`} />
+      </View>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
         <View style={styles.header}>

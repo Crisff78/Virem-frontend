@@ -18,6 +18,8 @@ import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import MedicoHeader from './components/MedicoHeader';
+import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 
 import type { RootStackParamList } from './navigation/types';
 import { useSocketEvent } from './hooks/useSocketEvent';
@@ -96,13 +98,13 @@ const formatDateTime = (value: string | null | undefined) => {
 };
 
 const MedicoChatScreen: React.FC = () => {
-  const navigation = usePortalAwareMedicoNavigation();
-  const { isInsidePortal } = useMedicoModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
   const route = useRoute<RouteProp<RootStackParamList, 'MedicoChat'>>();
-  const { user: sessionUser, updateUser, signOut } = useAuth<SessionUser>();
+  const { user: sessionUser, signOut } = useAuth<SessionUser>();
+  const { loadingUser, refreshUser, doctorName, doctorSpec, fotoUrl: doctorFotoUrl } =
+    useMedicoPortalSession({ syncOnMount: true, addDoctorPrefix: true });
   const { width: viewportWidth } = useWindowDimensions();
 
-  const [loadingUser, setLoadingUser] = useState(true);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -116,33 +118,12 @@ const MedicoChatScreen: React.FC = () => {
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
   const loadUser = useCallback(async () => {
-    setLoadingUser(true);
     try {
-      let nextUser = sessionUser || null;
-      const dashboardPayload = await apiClient.get<any>('/api/users/me/dashboard-medico', {
-        authenticated: true,
-      });
-
-      if (dashboardPayload?.success && dashboardPayload?.dashboard?.profile) {
-        const profile = dashboardPayload.dashboard.profile;
-        nextUser = {
-          ...(nextUser || {}),
-          nombreCompleto: normalizeText(profile?.nombreCompleto || nextUser?.nombreCompleto),
-          especialidad: normalizeText(profile?.especialidad || nextUser?.especialidad),
-          fotoUrl: sanitizeFotoUrl(profile?.fotoUrl || nextUser?.fotoUrl),
-        };
-        if (nextUser) {
-          await updateUser(nextUser);
-        }
-      }
-
-      setUser(nextUser);
+      await refreshUser();
     } catch {
-      setUser(sessionUser || null);
-    } finally {
-      setLoadingUser(false);
+      // noop
     }
-  }, [sessionUser, updateUser]);
+  }, [refreshUser]);
 
   const loadContacts = useCallback(async () => {
     setLoadingContacts(true);
@@ -364,24 +345,10 @@ const MedicoChatScreen: React.FC = () => {
 
   const currentMessages = messagesByChat[selectedChatId] || [];
 
-  const doctorName = useMemo(() => {
-    const base = normalizeText(user?.nombreCompleto);
-    if (!base) return 'Doctor';
-    const lowered = base.toLowerCase();
-    if (lowered.startsWith('dr ') || lowered.startsWith('dr.')) return base;
-    return `Dr. ${base}`;
-  }, [user?.nombreCompleto]);
-
-  const doctorSpec = useMemo(
-    () => normalizeText(user?.especialidad) || 'Especialidad no definida',
-    [user?.especialidad]
-  );
-
   const doctorAvatarSource: ImageSourcePropType = useMemo(() => {
-    const foto = sanitizeFotoUrl(user?.fotoUrl);
-    if (foto) return { uri: foto };
+    if (doctorFotoUrl) return { uri: doctorFotoUrl };
     return DefaultAvatar;
-  }, [user?.fotoUrl]);
+  }, [doctorFotoUrl]);
 
   const dateText = useMemo(
     () =>
@@ -469,69 +436,9 @@ const MedicoChatScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.container, isInsidePortal ? null : (!isDesktopLayout && styles.containerMobile)]}>
-      {!isInsidePortal && (
-      <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
-        <View>
-          <View style={styles.logoWrap}>
-            <Image source={ViremLogo} style={styles.logo} />
-            <View>
-              <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSub}>Portal Medico</Text>
-            </View>
-          </View>
-
-          <View style={styles.userCard}>
-            <Image source={doctorAvatarSource} style={styles.userAvatar} />
-            <Text style={styles.userName}>{doctorName}</Text>
-            <Text style={styles.userSpec}>{doctorSpec}</Text>
-          </View>
-
-          <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
-            {sideItems.map((item) => (
-              <TouchableOpacity
-                key={item.label}
-                style={[styles.menuItem, item.active ? styles.menuItemActive : null]}
-                onPress={() => handleSideItemPress(item)}
-                activeOpacity={0.85}
-              >
-                <MaterialIcons
-                  name={item.icon}
-                  size={20}
-                  color={item.active ? colors.primary : colors.muted}
-                />
-                <Text style={[styles.menuText, item.active ? styles.menuTextActive : null]}>
-                  {item.label}
-                </Text>
-                {item.badge ? (
-                  <View style={[styles.badge, { backgroundColor: item.badge.color }]}>
-                    <Text style={styles.badgeText}>{item.badge.text}</Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Cerrar sesion</Text>
-        </TouchableOpacity>
-      </View>
-      )}
-
       <View style={styles.main}>
         <View style={styles.headerWrap}>
-          <View style={[styles.headerRow, !isDesktopLayout && styles.headerRowMobile]}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.pageTitle}>Mensajeria Medica</Text>
-              <Text style={styles.pageSubtitle}>Comunicate rapido con pacientes agendados.</Text>
-            </View>
-            <View style={[styles.headerRight, !isDesktopLayout && styles.headerRightMobile]}>
-              <Text style={styles.headerDate}>{dateText}</Text>
-              <Text style={styles.headerTime}>{timeText}</Text>
-            </View>
-          </View>
+          <MedicoHeader title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`} />
         </View>
 
         <View style={[styles.chatShell, !isDesktopLayout && styles.chatShellMobile]}>
@@ -637,7 +544,6 @@ const MedicoChatScreen: React.FC = () => {
             )}
           </View>
         </View>
-      </View>
     </View>
   );
 };

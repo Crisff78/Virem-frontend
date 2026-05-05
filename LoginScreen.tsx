@@ -139,14 +139,24 @@ const LoginScreen: React.FC = () => {
   const handleForgotPassword = () => navigation.navigate('RecuperarContrasena');
   const handleGoToRegister = () => navigation.navigate('SeleccionPerfil');
 
-  const { isDesktop, isTablet, isMobile, select } = useResponsive();
+  const { isDesktop, isTablet, isMobile, select, width } = useResponsive();
 
   return (
     <View style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
 
       <View style={styles.container}>
-        <View style={[styles.card, { padding: select({ mobile: 20, tablet: 30, desktop: 40 }) }]}>
+        <View style={[
+          styles.card, 
+          { 
+            padding: select({ mobile: 20, tablet: 30, desktop: 40 }),
+            width: select({ 
+              mobile: Math.max(280, Math.min(400, width - 40)), 
+              tablet: 400, 
+              desktop: 400 
+            })
+          }
+        ]}>
           <View style={styles.logoSectionHorizontal}>
             <Image source={ViremLogo} style={styles.logoSmallOriginal} />
             <Text style={styles.appNameHorizontal}>VIREM</Text>

@@ -175,7 +175,7 @@ const VerificarEmailScreen: React.FC = () => {
                 <Text style={styles.emailText}>{recipient}</Text>
 
                 <View style={styles.otpContainer}>
-                    {otp.map((digit, index) => (
+                    {otp.map((digit: string, index: number) => (
                         <TextInput
                             key={index}
                             ref={inputRefs.current[index]}
@@ -185,8 +185,8 @@ const VerificarEmailScreen: React.FC = () => {
                                 digit ? styles.otpInputFilled : null
                             ]}
                             value={digit}
-                            onChangeText={(text) => handleOtpChange(text, index)}
-                            onKeyPress={(e) => handleKeyPress(e, index)}
+                            onChangeText={(text: string) => handleOtpChange(text, index)}
+                            onKeyPress={(e: any) => handleKeyPress(e, index)}
                             keyboardType="numeric"
                             maxLength={1}
                             autoFocus={index === 0}

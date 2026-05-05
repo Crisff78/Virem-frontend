@@ -288,7 +288,7 @@ const RegistroCredencialesScreen: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}>
         <View style={styles.contentWrapper}>
           <View style={styles.progressSection}>
             <Text style={styles.progressTitle}>Credenciales de Acceso</Text>

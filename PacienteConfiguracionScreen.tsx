@@ -237,119 +237,21 @@ const PacienteConfiguracionScreen: React.FC = () => {
     );
   };
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
 
-  const SidebarContent = () => (
-    <View style={styles.sidebarContent}>
-      <View style={styles.logoBox}>
-        <Image source={ViremLogo} style={styles.logo} />
-        <View>
-          <Text style={styles.logoTitle}>VIREM</Text>
-          <Text style={styles.logoSubtitle}>Portal Paciente</Text>
-        </View>
-      </View>
-
-      <View style={styles.userBox}>
-        <Image source={avatarSource} style={styles.userAvatar} />
-        <Text style={styles.userName}>{fullName}</Text>
-        <Text style={styles.userPlan}>{planLabel}</Text>
-      </View>
-
-      <ScrollView style={styles.menuScroll} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('DashboardPaciente'); }}
-        >
-          <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Inicio</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('NuevaConsultaPaciente'); }}
-        >
-          <MaterialIcons name="person-search" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Nueva Consulta</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteCitas'); }}
-        >
-          <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Mis Citas</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('SalaEsperaVirtualPaciente'); }}
-        >
-          <MaterialIcons name="videocam" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Sala de Espera</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteChat'); }}
-        >
-          <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Chat</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacienteRecetasDocumentos'); }}
-        >
-          <MaterialIcons name="description" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Recetas y Documentos</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuItemRow} 
-          onPress={() => { setIsSidebarOpen(false); navigation.navigate('PacientePerfil'); }}
-        >
-          <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Mi Perfil</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.menuItemRow, styles.menuItemActive]} 
-          onPress={() => { setIsSidebarOpen(false); }}
-        >
-          <MaterialIcons name="settings" size={20} color={colors.primary} />
-          <Text style={[styles.menuText, styles.menuTextActive]}>Configuración</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <MaterialIcons name="logout" size={20} color="#fff" />
-        <Text style={styles.logoutText}>Cerrar Sesión</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <View style={styles.container}>
-      {/* Drawer Overlay */}
-      {isSidebarOpen && (
-        <TouchableOpacity 
-          style={styles.drawerOverlay} 
-          activeOpacity={1} 
-          onPress={() => setIsSidebarOpen(false)}
-        >
-          <View style={styles.drawerContent}>
-            <SidebarContent />
-          </View>
-        </TouchableOpacity>
-      )}
 
       <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
-        <TouchableOpacity 
-          style={styles.hamburgerBtn} 
-          onPress={() => setIsSidebarOpen(true)}
-        >
-          <MaterialIcons name="menu" size={26} color={colors.dark} />
-        </TouchableOpacity>
+        {!isSidebarOpen && (
+          <TouchableOpacity 
+            style={styles.hamburgerBtn} 
+            onPress={toggleSidebar}
+          >
+            <MaterialIcons name="menu" size={26} color={colors.dark} />
+          </TouchableOpacity>
+        )}
         <Text style={styles.title}>{t('config.title')}</Text>
         <Text style={styles.subtitle}>{t('config.subtitle')}</Text>
 

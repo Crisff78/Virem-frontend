@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   Image,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -29,7 +30,7 @@ type MenuItem = {
 };
 
 const MENU_ITEMS: MenuItem[] = [
-  { module: 'DashboardMedico', icon: 'dashboard', label: 'Dashboard' },
+  { module: 'DashboardMedico', icon: 'grid-view', label: 'Inicio' },
   { module: 'MedicoCitas', icon: 'calendar-today', label: 'Agenda' },
   { module: 'MedicoHorarios', icon: 'schedule', label: 'Horarios' },
   { module: 'MedicoPacientes', icon: 'group', label: 'Pacientes' },
@@ -75,7 +76,7 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
   );
 
   const handleModulePress = (module: MedicoPortalModule) => {
-    onCloseMobileMenu();
+    // Keep sidebar open on selection as per user request for consistency
     setActiveModule(module);
   };
 
@@ -85,75 +86,80 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
+  const sidebarContent = (
+    <>
+      <View style={styles.sidebarHeader}>
+        <View style={styles.logoBox}>
+          <Image source={ViremLogo} style={styles.logo} />
+          <View>
+            <Text style={styles.logoTitle}>VIREM</Text>
+            <Text style={styles.logoSubtitle}>Portal Médico</Text>
+          </View>
+        </View>
+        {!isDesktopLayout && (
+          <TouchableOpacity onPress={onCloseMobileMenu} style={styles.closeBtn}>
+            <MaterialIcons name="close" size={24} color={colors.dark} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.userBox}>
+        <Image source={userAvatarSource} style={styles.userAvatar} />
+        <Text style={styles.userName} numberOfLines={1}>{doctorName}</Text>
+        <Text style={styles.userSpec} numberOfLines={1}>{doctorSpec}</Text>
+      </View>
+
+      <ScrollView style={{ flex: 1, marginTop: 10 }}>
+        {MENU_ITEMS.map((item) => {
+          const isActive = activeModule === item.module;
+          return (
+            <Pressable
+              key={item.module}
+              onPress={() => handleModulePress(item.module)}
+              style={({ pressed, hovered }: any) => [
+                styles.menuItem,
+                isActive && styles.menuItemActive,
+                hovered && !isActive && styles.menuItemHover,
+                pressed && styles.menuItemPressed,
+              ]}
+            >
+              <MaterialIcons
+                name={item.icon}
+                size={20}
+                color={isActive ? colors.primary : colors.muted}
+              />
+              <Text style={[styles.menuText, isActive && styles.menuTextActive]}>
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <MaterialIcons name="logout" size={18} color="#fff" />
+        <Text style={styles.logoutText}>Cerrar sesión</Text>
+      </TouchableOpacity>
+    </>
+  );
+
   return (
     <>
-      {/* Mobile hamburger bar */}
-      {!isDesktopLayout ? (
-        <View style={styles.mobileMenuBar}>
-          <TouchableOpacity style={styles.mobileMenuButton} onPress={onToggleMobileMenu}>
-            <MaterialIcons
-              name={isMobileMenuOpen ? 'close' : 'menu'}
-              size={22}
-              color={colors.dark}
-            />
-          </TouchableOpacity>
-        </View>
-      ) : null}
-
-      {/* Sidebar panel */}
-      {(isDesktopLayout || isMobileMenuOpen) && (
-        <View
-          style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : styles.sidebarMobile]}
+      {!isDesktopLayout && isMobileMenuOpen && (
+        <TouchableOpacity
+          style={styles.drawerOverlay}
+          activeOpacity={1}
+          onPress={onCloseMobileMenu}
         >
-          <View>
-            {/* Logo */}
-            <View style={styles.logoBox}>
-              <Image source={ViremLogo} style={styles.logo} />
-              <View>
-                <Text style={styles.logoTitle}>VIREM</Text>
-                <Text style={styles.logoSubtitle}>Portal Médico</Text>
-              </View>
-            </View>
-
-            {/* User mini */}
-            <View style={styles.userBox}>
-              <Image source={userAvatarSource} style={styles.userAvatar} />
-              <Text style={styles.userName} numberOfLines={1}>{doctorName}</Text>
-              <Text style={styles.userSpec} numberOfLines={1}>{doctorSpec}</Text>
-            </View>
-
-            {/* Menu */}
-            {MENU_ITEMS.map((item) => {
-              const isActive = activeModule === item.module;
-              return (
-                <Pressable
-                  key={item.module}
-                  onPress={() => handleModulePress(item.module)}
-                  style={({ pressed, hovered }: any) => [
-                    styles.menuItem,
-                    isActive && styles.menuItemActive,
-                    hovered && !isActive && styles.menuItemHover,
-                    pressed && styles.menuItemPressed,
-                  ]}
-                >
-                  <MaterialIcons
-                    name={item.icon}
-                    size={20}
-                    color={isActive ? colors.primary : colors.muted}
-                  />
-                  <Text style={[styles.menuText, isActive && styles.menuTextActive]}>
-                    {item.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          <View style={styles.drawerContent} onStartShouldSetResponder={() => true}>
+            {sidebarContent}
           </View>
+        </TouchableOpacity>
+      )}
 
-          {/* Logout */}
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <MaterialIcons name="logout" size={18} color="#fff" />
-            <Text style={styles.logoutText}>Cerrar sesión</Text>
-          </TouchableOpacity>
+      {isDesktopLayout && (
+        <View style={styles.sidebarDesktop}>
+          {sidebarContent}
         </View>
       )}
     </>
@@ -163,43 +169,44 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
 export default MedicoSidebar;
 
 const styles = StyleSheet.create({
-  mobileMenuBar: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 8,
-    backgroundColor: colors.bg,
+  drawerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    zIndex: 2000,
   },
-  mobileMenuButton: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d8e4f0',
-    backgroundColor: colors.white,
-  },
-  mobileMenuButtonText: { color: colors.dark, fontWeight: '700', fontSize: 13 },
-
-  sidebar: {
-    backgroundColor: colors.white,
-    justifyContent: 'space-between',
+  drawerContent: {
+    width: 280,
+    height: '100%',
+    backgroundColor: '#fff',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 10,
   },
   sidebarDesktop: {
     width: 280,
+    height: '100%',
+    backgroundColor: '#fff',
+    padding: 20,
     borderRightWidth: 1,
     borderRightColor: '#eef2f7',
-    padding: 20,
   },
-  sidebarMobile: {
-    width: '100%',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eef2f7',
-    padding: 14,
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-
+  closeBtn: {
+    padding: 8,
+    borderRadius: 10,
+    backgroundColor: '#f8fafc',
+  },
   logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
   logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
@@ -228,8 +235,6 @@ const styles = StyleSheet.create({
   },
   menuItemActive: {
     backgroundColor: 'rgba(19,127,236,0.10)',
-    borderRightWidth: 3,
-    borderRightColor: colors.primary,
   },
   menuItemHover: { backgroundColor: '#f4f8fc' },
   menuItemPressed: { opacity: 0.7, transform: [{ scale: 0.985 }] },
@@ -244,6 +249,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.blue,
     paddingVertical: 12,
     borderRadius: 12,
+    marginTop: 20,
   },
   logoutText: { color: '#fff', fontWeight: '800' },
 });

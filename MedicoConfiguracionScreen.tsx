@@ -22,6 +22,7 @@ import { useTheme } from "./providers/ThemeContext";
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage } from './localization/LanguageContext';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
+import MedicoHeader from './components/MedicoHeader';
 import { resolveRemoteImageSource } from './utils/imageSources';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
@@ -31,10 +32,10 @@ const SETTINGS_KEY = 'medicoSettings';
 
 const MedicoConfiguracionScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = useMedicoModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
   const { language: appLanguage, setLanguage, t, tx } = useLanguage();
-  const { user, refreshUser, signOut, fotoUrl } =
-    useMedicoPortalSession({ syncOnMount: false });
+  const { user, refreshUser, signOut, fotoUrl, doctorName } =
+    useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
 
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -168,9 +169,11 @@ const MedicoConfiguracionScreen: React.FC = () => {
         </View>
       )}
 
-      <ScrollView style={styles.main}>
-        <Text style={styles.title}>Configuración</Text>
-        <Text style={styles.subtitle}>Gestiona las preferencias de tu portal médico</Text>
+      <View style={styles.main}>
+        <MedicoHeader title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`} />
+        <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+          <Text style={styles.title}>Configuración</Text>
+          <Text style={styles.subtitle}>Gestiona las preferencias de tu portal médico</Text>
 
         <View style={styles.grid}>
           {/* Cuenta */}
@@ -305,7 +308,8 @@ const MedicoConfiguracionScreen: React.FC = () => {
             </View>
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       <Modal visible={selectorOpen} transparent animationType="fade">
         <View style={styles.modalOverlay}>

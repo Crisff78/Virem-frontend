@@ -48,13 +48,15 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   mainContentWide: { paddingHorizontal: 24 },
-  mainContentContainer: { paddingBottom: 32 },
-  mainContentContainerMobileWeb: { paddingBottom: 120 },
+  mainContentContainer: { 
+    flexGrow: 1,
+    paddingBottom: 40,
+  },
   contentWrapper: {
     maxWidth: 960,
     alignSelf: "center",
     width: "100%",
-    gap: 24,
+    paddingBottom: 24,
   },
   breadcrumbs: {
     flexDirection: "row",

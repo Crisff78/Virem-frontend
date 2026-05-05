@@ -10,7 +10,6 @@ import {
 } from "react-native";
 
 import {
-  RegistroMedicoDocumentField,
   RegistroMedicoFormController,
 } from "../../hooks/useRegistroMedicoForm";
 import { colors, styles } from "./styles";
@@ -19,48 +18,6 @@ type RegistroMedicoFormCardProps = {
   controller: RegistroMedicoFormController;
   isWideLayout: boolean;
   isTabletLayout: boolean;
-};
-
-type DocumentoFieldProps = {
-  label: string;
-  field: RegistroMedicoDocumentField;
-  value: string;
-  showError: boolean;
-  errorText: string;
-  onPick: (field: RegistroMedicoDocumentField) => Promise<void>;
-};
-
-const DocumentoField: React.FC<DocumentoFieldProps> = ({
-  label,
-  field,
-  value,
-  showError,
-  errorText,
-  onPick,
-}) => {
-  return (
-    <View style={styles.inputWrapper}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <TouchableOpacity
-        style={[styles.selectInput, showError && styles.inputError]}
-        onPress={() => {
-          void onPick(field);
-        }}
-        activeOpacity={0.85}
-      >
-        <View style={styles.docUploadContent}>
-          <Text
-            numberOfLines={1}
-            style={{ color: value ? colors.navyDark : colors.blueGray, flex: 1 }}
-          >
-            {value ? "Documento cargado" : "Subir documento"}
-          </Text>
-          <MaterialIcons name="upload-file" size={18} color={colors.blueGray} />
-        </View>
-      </TouchableOpacity>
-      {showError ? <Text style={styles.errorText}>{errorText}</Text> : null}
-    </View>
-  );
 };
 
 export const RegistroMedicoFormCard: React.FC<RegistroMedicoFormCardProps> = ({
@@ -230,27 +187,6 @@ export const RegistroMedicoFormCard: React.FC<RegistroMedicoFormCardProps> = ({
               <Text style={styles.errorText}>Debe seleccionar una especialidad</Text>
             )}
           </View>
-
-          <DocumentoField
-            label="Cédula profesional"
-            field="cedulaProfesionalUri"
-            value={values.cedulaProfesionalUri}
-            showError={errors.showErrors && !values.cedulaProfesionalUri}
-            errorText="Debe subir la cédula profesional"
-            onPick={controller.pickSupportingDocument}
-          />
-        </View>
-
-        <View style={[styles.formRow, isWideLayout && styles.formRowWide]}>
-          <DocumentoField
-            label="Certificado de especialidad"
-            field="certificadoEspecialidadUri"
-            value={values.certificadoEspecialidadUri}
-            showError={errors.showErrors && !values.certificadoEspecialidadUri}
-            errorText="Debe subir el certificado de especialidad"
-            onPick={controller.pickSupportingDocument}
-          />
-
           <View style={styles.inputWrapper} />
         </View>
       </View>

@@ -21,6 +21,7 @@ import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
+import MedicoHeader from './components/MedicoHeader';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 import { useSocketEvent } from './hooks/useSocketEvent';
 import { apiClient } from './utils/api';
@@ -104,10 +105,10 @@ const formatPrice = (value: number | null | undefined) => {
 
 const MedicoCitasScreen: React.FC = () => {
   const navigation = usePortalAwareMedicoNavigation();
-  const { isInsidePortal } = useMedicoModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
   const { loadingUser, refreshUser, signOut, doctorName, doctorSpec, fotoUrl } =
     useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
-  const { isDesktop, isTablet, isMobile, select } = useResponsive();
+  const { isDesktop, isTablet, isMobile, rs, select } = useResponsive();
   const isDesktopLayout = isDesktop;
   const [loadingCitas, setLoadingCitas] = useState(false);
   const [workingCitaId, setWorkingCitaId] = useState('');
@@ -392,69 +393,9 @@ const MedicoCitasScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.container, isInsidePortal ? null : (!isDesktop && (isTablet ? styles.containerTablet : styles.containerMobile))]}>
-      {!isInsidePortal && (
-        <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : (isTablet ? styles.sidebarTablet : styles.sidebarMobile)]}>
-          <View>
-            <View style={styles.logoWrap}>
-              <Image source={ViremLogo} style={styles.logo} resizeMode="contain" />
-              <View>
-                <Text style={styles.logoTitle}>VIREM</Text>
-                <Text style={styles.logoSub}>Portal Medico</Text>
-              </View>
-            </View>
-
-            <View style={styles.userCard}>
-              <Image source={userAvatarSource} style={styles.userAvatar} />
-              <Text style={styles.userName}>{doctorName}</Text>
-              <Text style={styles.userSpec}>{doctorSpec}</Text>
-            </View>
-
-            <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
-              {sideItems.map((item) => (
-                <TouchableOpacity
-                  key={item.label}
-                  style={[styles.menuItem, item.active ? styles.menuItemActive : null]}
-                  onPress={() => handleSideItemPress(item)}
-                >
-                  <MaterialIcons
-                    name={item.icon}
-                    size={20}
-                    color={item.active ? colors.primary : colors.muted}
-                  />
-                  <Text style={[styles.menuText, item.active ? styles.menuTextActive : null]}>
-                    {item.label}
-                  </Text>
-                  {item.badge ? (
-                    <View style={[styles.badge, { backgroundColor: item.badge.color }]}>
-                      <Text style={styles.badgeText}>{item.badge.text}</Text>
-                    </View>
-                  ) : null}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <MaterialIcons name="logout" size={20} color="#fff" />
-            <Text style={styles.logoutText}>Cerrar sesion</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
-        <View style={styles.headerWrap}>
-          <View style={[styles.headerRow, !isDesktop && styles.headerRowMobile]}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.pageTitle}>Agenda Medica</Text>
-              <Text style={styles.pageSubtitle}>Administra tus citas y acciones de seguimiento.</Text>
-            </View>
-            <View style={[styles.headerRight, !isDesktop && styles.headerRightMobile]}>
-              <Text style={styles.headerDate}>{dateText}</Text>
-              <Text style={styles.headerTime}>{timeText}</Text>
-            </View>
-          </View>
-        </View>
+    <View style={{ flex: 1 }}>
+        <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+          <MedicoHeader title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`} />
 
         <View style={styles.searchWrap}>
           <MaterialIcons name="search" size={19} color={colors.muted} />
@@ -615,8 +556,8 @@ const MedicoCitasScreen: React.FC = () => {
             <Text style={styles.emptyText}>No hay historial para mostrar.</Text>
           )}
         </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
   );
 };
 

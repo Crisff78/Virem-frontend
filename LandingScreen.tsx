@@ -8,7 +8,7 @@ import type { RootStackParamList } from './navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 
-const ViremLogo = require('./assets/imagenes/Virem.png');
+const ViremLogo = require('./assets/imagenes/descarga.png');
 const EquipoVirem = require('./assets/imagenes/equipo_virem.png');
 const HeartImg = require('./assets/imagenes/Heart.png');
 const HeartHQImg = require('./assets/imagenes/Heart_HQ.png');
@@ -46,7 +46,7 @@ const FadeInView = ({ children, delay = 0, style }: any) => {
 };
 
 const ShrinkingLine = ({ delay = 0, trigger = true }) => {
-  const widthAnim = useRef(new Animated.Value(250)).current; 
+  const widthAnim = useRef(new Animated.Value(250)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -54,16 +54,16 @@ const ShrinkingLine = ({ delay = 0, trigger = true }) => {
       Animated.sequence([
         Animated.delay(delay),
         Animated.parallel([
-          Animated.timing(widthAnim, { 
-            toValue: 60, 
-            duration: 1200, 
-            easing: Easing.out(Easing.exp), 
-            useNativeDriver: false 
+          Animated.timing(widthAnim, {
+            toValue: 60,
+            duration: 1200,
+            easing: Easing.out(Easing.exp),
+            useNativeDriver: false
           }),
-          Animated.timing(opacity, { 
-            toValue: 1, 
-            duration: 800, 
-            useNativeDriver: false 
+          Animated.timing(opacity, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: false
           }),
         ])
       ]).start();
@@ -71,13 +71,13 @@ const ShrinkingLine = ({ delay = 0, trigger = true }) => {
   }, [delay, trigger]);
 
   return (
-    <Animated.View style={{ 
-      width: widthAnim, 
-      height: 4, 
-      backgroundColor: colors.primary, 
-      marginBottom: 16, 
+    <Animated.View style={{
+      width: widthAnim,
+      height: 4,
+      backgroundColor: colors.primary,
+      marginBottom: 16,
       borderRadius: 2,
-      opacity 
+      opacity
     }} />
   );
 };
@@ -91,38 +91,38 @@ const MessageBadge = ({ trigger }: { trigger: boolean }) => {
     if (trigger) {
       // Pop in effect
       Animated.spring(scale, { toValue: 1, friction: 6, tension: 40, useNativeDriver: true }).start();
-      
+
       // After 2 seconds, show the blue checks
       const timer = setTimeout(() => {
         setShowChecks(true);
         Animated.timing(checkAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
       }, 2000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [trigger]);
 
   return (
-    <Animated.View style={{ 
-      position: 'absolute', 
-      top: 40, 
-      left: -20, 
-      backgroundColor: 'rgba(255, 255, 255, 0.7)', 
-      padding: 16, 
-      borderRadius: 20, 
-      shadowColor: '#000', 
-      shadowOpacity: 0.15, 
-      shadowRadius: 20, 
-      elevation: 20, 
-      zIndex: 3, 
-      flexDirection: 'row', 
-      alignItems: 'center', 
-      gap: 16, 
+    <Animated.View style={{
+      position: 'absolute',
+      top: 40,
+      left: -20,
+      backgroundColor: 'rgba(255, 255, 255, 0.7)',
+      padding: 16,
+      borderRadius: 20,
+      shadowColor: '#000',
+      shadowOpacity: 0.15,
+      shadowRadius: 20,
+      elevation: 20,
+      zIndex: 3,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
       minWidth: 220,
       transform: [{ scale }],
-      ...Platform.select({
+      ...(Platform.select({
         web: { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }
-      } as any)
+      }) || {} as any)
     }}>
       <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#EBF5FB', justifyContent: 'center', alignItems: 'center' }}>
         <MaterialIcons name="person-pin" size={26} color={colors.primary} />
@@ -161,7 +161,7 @@ const HoverCard = ({ children, style }: any) => {
   };
 
   return (
-    <Animated.View 
+    <Animated.View
       style={[style, { transform: [{ scale }], shadowOpacity }]}
       {...Platform.select({
         web: { onMouseEnter: handleMouseEnter, onMouseLeave: handleMouseLeave }
@@ -184,11 +184,11 @@ const HoverButton = ({ children, onPress, style }: any) => {
   };
 
   return (
-    <Animated.View 
+    <Animated.View
       style={[{ transform: [{ scale }] }]}
     >
-      <Pressable 
-        onPress={onPress} 
+      <Pressable
+        onPress={onPress}
         style={({ pressed }) => [style, { opacity: pressed ? 0.7 : 1 }]}
         {...Platform.select({
           web: { onMouseEnter: handleMouseEnter, onMouseLeave: handleMouseLeave }
@@ -383,7 +383,7 @@ const HoverCountCard = ({ children, count, style }: { children: any; count: stri
 const HoverServiceCard = ({ title, description, image, style }: any) => {
   const scale = useRef(new Animated.Value(1)).current;
   const shadowOpacity = useRef(new Animated.Value(0.15)).current;
-  const overlayY = useRef(new Animated.Value(120)).current; 
+  const overlayY = useRef(new Animated.Value(120)).current;
   const [hovered, setHovered] = useState(false);
 
   const handleMouseEnter = () => {
@@ -416,7 +416,7 @@ const HoverServiceCard = ({ title, description, image, style }: any) => {
       </View>
       <View style={{ position: 'relative', overflow: 'hidden' }}>
         <Image source={image} style={{ width: '100%', height: 250, resizeMode: 'cover' }} />
-        
+
         {/* Overlay Concept - Slides up on hover */}
         <Animated.View style={{
           position: 'absolute',
@@ -426,7 +426,7 @@ const HoverServiceCard = ({ title, description, image, style }: any) => {
           backgroundColor: 'rgba(26, 54, 93, 0.9)', // Azul marino de la marca, más integrado
           padding: 20,
           transform: [{ translateY: overlayY }],
-          ...Platform.select({ web: { backdropFilter: 'blur(8px)' } } as any)
+          ...(Platform.select({ web: { backdropFilter: 'blur(8px)' } }) || {} as any)
         }}>
           <Text style={{ color: '#fff', fontSize: 14, lineHeight: 20, textAlign: 'center', fontWeight: '500' }}>
             {description}
@@ -470,7 +470,7 @@ const HoverSpecialtyCard = ({ icon, title, context, image, detailedInfo, whenToG
         <MaterialIcons name={icon} size={32} color={colors.secondary} />
       </View>
       <Text style={{ fontSize: 18, fontWeight: "900", color: colors.dark, textAlign: "center" }}>{title}</Text>
-      
+
       {/* Context Overlay */}
       <Animated.View style={{
         position: 'absolute',
@@ -482,17 +482,17 @@ const HoverSpecialtyCard = ({ icon, title, context, image, detailedInfo, whenToG
         alignItems: 'center',
         opacity: overlayOpacity,
         transform: [{ translateY: overlayTranslateY }],
-        ...Platform.select({ web: { backdropFilter: 'blur(4px)' } } as any)
+        ...(Platform.select({ web: { backdropFilter: 'blur(4px)' } }) || {} as any)
       }}>
         <Text style={{ color: '#fff', fontSize: 14, textAlign: 'center', lineHeight: 20, fontWeight: '500' }}>
           {context}
         </Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={{ marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#fff' }}
-          onPress={() => (navigation as any).navigate('EspecialidadDetalle', { 
-            title, 
-            description: context, 
-            icon, 
+          onPress={() => (navigation as any).navigate('EspecialidadDetalle', {
+            title,
+            description: context,
+            icon,
             image,
             detailedInfo,
             whenToGo,
@@ -549,8 +549,8 @@ const HoverBlogCard = ({ category, title, description, image, onPress, style }: 
     <Animated.View
       style={[style, { transform: [{ scale }], shadowOpacity, backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden' }]}
       {...Platform.select({
-        web: { 
-          onMouseEnter: handleMouseEnter, 
+        web: {
+          onMouseEnter: handleMouseEnter,
           onMouseLeave: handleMouseLeave,
           className: hovered ? 'blog-card-hovered' : ''
         }
@@ -558,29 +558,29 @@ const HoverBlogCard = ({ category, title, description, image, onPress, style }: 
     >
       <Pressable onPress={onPress} style={{ flex: 1 }}>
         <View style={{ height: 240, overflow: 'hidden' }}>
-          <Image 
-            source={{ uri: image }} 
-            style={[{ width: '100%', height: '100%' }, Platform.OS === 'web' && { className: 'blog-card-img' } as any]} 
+          <Image
+            source={{ uri: image }}
+            style={[{ width: '100%', height: '100%' }, Platform.OS === 'web' && { className: 'blog-card-img' } as any]}
             resizeMode="cover"
           />
-          <View style={{ 
-            position: 'absolute', 
-            top: 20, 
-            left: 20, 
-            backgroundColor: 'rgba(255, 255, 255, 0.9)', 
-            paddingHorizontal: 12, 
-            paddingVertical: 6, 
+          <View style={{
+            position: 'absolute',
+            top: 20,
+            left: 20,
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            paddingHorizontal: 12,
+            paddingVertical: 6,
             borderRadius: 12,
-            ...Platform.select({ web: { backdropFilter: 'blur(4px)' } } as any)
+            ...(Platform.select({ web: { backdropFilter: 'blur(4px)' } }) || {} as any)
           }}>
             <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{category}</Text>
           </View>
         </View>
-        
+
         <View style={{ padding: 30 }}>
           <Text style={{ color: colors.dark, fontSize: 22, fontWeight: '800', marginBottom: 12, lineHeight: 28 }}>{title}</Text>
           <Text style={{ color: colors.muted, fontSize: 15, lineHeight: 24, marginBottom: 20 }}>{description}</Text>
-          
+
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>Leer más</Text>
             <Animated.View style={{ transform: [{ translateX: hovered ? 5 : 0 }] }}>
@@ -607,8 +607,9 @@ const LandingScreen: React.FC = () => {
   const navigateToLogin = () => navigation.navigate('Login');
   const navigateToRegister = () => navigation.navigate('SeleccionPerfil');
 
-  // Navbar sticky state
   const [navScrolled, setNavScrolled] = useState(false);
+  const [showNavLinksMobile, setShowNavLinksMobile] = useState(false);
+  const lastScrollY = useRef(0);
   const [nosotrosVisible, setNosotrosVisible] = useState(false);
 
   // Inject sticky navbar CSS once
@@ -618,13 +619,13 @@ const LandingScreen: React.FC = () => {
       style.id = 'stickyNavCSS';
       style.textContent = `
         .nav-sticky {
-          transition: all 0.3s ease;
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .nav-scrolled {
-          background-color: rgba(255, 255, 255, 0.85) !important;
+          background-color: rgba(255, 255, 255, 0.95) !important;
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
-          box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08) !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
         }
       `;
       document.head.appendChild(style);
@@ -649,13 +650,18 @@ const LandingScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       {/* TOP NAVBAR - STICKY WITH BLUR */}
-      <View ref={navRef} style={[styles.navbar, isDesktop && styles.navbarDesktop, navScrolled && { paddingVertical: 10 }]}>
+      <View ref={navRef} style={[
+        styles.navbar,
+        isDesktop && styles.navbarDesktop,
+        navScrolled && { paddingVertical: 10 },
+        isMobile && { paddingHorizontal: 12 }
+      ]}>
         <View style={styles.navLeft}>
-          <Image source={ViremLogo} style={styles.logoImage} resizeMode="contain" />
-          <Text style={styles.logoText}>VIREM</Text>
+          <Image source={ViremLogo} style={[styles.logoImage, isMobile && { width: 24, height: 24 }]} resizeMode="contain" />
+          <Text style={[styles.logoText, isMobile && { fontSize: 20 }]}>VIREM</Text>
         </View>
-        
-        {isDesktop && (
+
+        {isDesktop ? (
           <View style={styles.navLinksCenter}>
             <TouchableOpacity onPress={() => scrollTo(layoutY.plataforma)}>
               <Text style={styles.navLinkCenterText}>Plataforma</Text>
@@ -673,50 +679,104 @@ const LandingScreen: React.FC = () => {
               <Text style={styles.navLinkCenterText}>Contacto</Text>
             </TouchableOpacity>
           </View>
+        ) : (
+          isMobile && showNavLinksMobile && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.navLinksCenter, { paddingLeft: 10, paddingRight: 20, gap: 16 }]}
+              style={{ flexGrow: 0 }}
+            >
+              <TouchableOpacity onPress={() => scrollTo(layoutY.plataforma)}>
+                <Text style={styles.navLinkCenterText}>Plataforma</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => scrollTo(layoutY.especialidades)}>
+                <Text style={styles.navLinkCenterText}>Especialidades</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => scrollTo(layoutY.nosotros)}>
+                <Text style={styles.navLinkCenterText}>Nosotros</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => scrollTo(layoutY.blog)}>
+                <Text style={styles.navLinkCenterText}>Blog</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => scrollTo(layoutY.contacto)}>
+                <Text style={styles.navLinkCenterText}>Contacto</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )
         )}
 
-        <View style={styles.navRight}>
-          <HoverButton style={[styles.navBtn, { backgroundColor: colors.primary, marginRight: 10 }]} onPress={navigateToRegister}>
-            <Text style={styles.navBtnText}>REGISTRARSE</Text>
-          </HoverButton>
-          <HoverButton style={[styles.navBtn, { backgroundColor: colors.primary }]} onPress={navigateToLogin}>
-            <Text style={styles.navBtnText}>INICIAR SESIÓN</Text>
-          </HoverButton>
-        </View>
+        {(!isMobile || !showNavLinksMobile) && (
+          <View style={[styles.navRight, isMobile && { gap: 4 }]}>
+            <HoverButton style={[styles.navBtn, { backgroundColor: colors.primary, marginRight: isMobile ? 4 : 10 }, isMobile && { paddingHorizontal: 10, paddingVertical: 6 }]} onPress={navigateToRegister}>
+              <Text style={[styles.navBtnText, isMobile && { fontSize: 11 }]}>REGISTRARSE</Text>
+            </HoverButton>
+            <HoverButton style={[styles.navBtn, { backgroundColor: colors.primary }, isMobile && { paddingHorizontal: 10, paddingVertical: 6 }]} onPress={navigateToLogin}>
+              <Text style={[styles.navBtnText, isMobile && { fontSize: 11 }]}>INICIAR SESIÓN</Text>
+            </HoverButton>
+          </View>
+        )}
       </View>
 
-      <ScrollView 
-        ref={scrollViewRef} 
+      <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         onScroll={(event: any) => {
           const y = event.nativeEvent.contentOffset.y;
+          const isScrollingUp = y < lastScrollY.current;
+
           scrollY.setValue(y);
           setNavScrolled(y > 50);
-          
-          // Trigger nosotros animation when close to it (e.g., 600px before)
+
+          if (isMobile) {
+            // If scrolling down and past 100px, show nav links and hide auth
+            if (y > 100 && !isScrollingUp) {
+              setShowNavLinksMobile(true);
+            }
+            // If scrolling up or near top, show auth buttons again
+            else if (isScrollingUp || y < 50) {
+              setShowNavLinksMobile(false);
+            }
+          }
+
+          lastScrollY.current = y;
+
           if (!nosotrosVisible && y > layoutY.nosotros - 800) {
             setNosotrosVisible(true);
           }
         }}
         scrollEventThrottle={16}
       >
-        
+
         {/* HERO SECTION */}
-        <AnimatedGradientBg style={[styles.heroSection, isDesktop && styles.heroDesktop]}>
-          
+        <AnimatedGradientBg style={[styles.heroSection, isDesktop && styles.heroDesktop, !isDesktop && { paddingVertical: 60, paddingHorizontal: 20 }]}>
+
           {/* Text on the Left */}
-          <View style={[styles.heroTextContainer, isDesktop && styles.heroTextDesktop]}>
+          <View style={[styles.heroTextContainer, isDesktop && styles.heroTextDesktop, !isDesktop && { maxWidth: '100%', alignItems: 'center' }]}>
             <FadeInView delay={100}>
-              <Text style={[styles.heroTitle, { fontSize: select({ mobile: 36, tablet: 48, desktop: 56 }), lineHeight: select({ mobile: 44, tablet: 56, desktop: 64 }) }]}>
+              <Text style={[
+                styles.heroTitle,
+                {
+                  fontSize: select({ mobile: 28, tablet: 48, desktop: 56 }),
+                  lineHeight: select({ mobile: 36, tablet: 56, desktop: 64 }),
+                  textAlign: isDesktop ? 'left' : 'center'
+                }
+              ]}>
                 ¡TU SALUD ES NUESTRA <Text style={{ color: colors.primary }}>PRIORIDAD</Text>!
               </Text>
             </FadeInView>
             <FadeInView delay={300}>
-              <Text style={[styles.heroSubtitle, { fontSize: select({ mobile: 16, tablet: 18, desktop: 18 }) }]}>
+              <Text style={[
+                styles.heroSubtitle,
+                {
+                  fontSize: select({ mobile: 15, tablet: 18, desktop: 18 }),
+                  textAlign: isDesktop ? 'left' : 'center'
+                }
+              ]}>
                 Somos líderes en atención primaria en salud. Nos enfocamos en prestar un servicio de salud integral destinado a proteger tu salud y bienestar, desde la comodidad de tu hogar.
               </Text>
             </FadeInView>
-            <FadeInView delay={500} style={{ flexDirection: 'row', gap: 16, flexWrap: 'wrap' }}>
+            <FadeInView delay={500} style={{ flexDirection: 'row', gap: 16, flexWrap: 'wrap', justifyContent: isDesktop ? 'flex-start' : 'center' }}>
               <HoverButton style={styles.heroActionBtn} onPress={navigateToRegister}>
                 <Text style={styles.heroActionBtnText}>AGENDAR UNA CITA</Text>
               </HoverButton>
@@ -724,24 +784,24 @@ const LandingScreen: React.FC = () => {
           </View>
 
           {/* Image on the Right */}
-          <FadeInView delay={400} style={[styles.heroImageContainer, !isDesktop && { marginTop: 40 }]}>
-            <Animated.View style={[styles.heroImage, { 
-                width: select({ mobile: '100%', tablet: '90%', desktop: 750 }), 
-                height: select({ mobile: 400, tablet: 550, desktop: 650 }),
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 0,
-                transform: [{
-                  translateY: scrollY.interpolate({
-                    inputRange: [0, 500],
-                    outputRange: [0, 80],
-                    extrapolate: 'clamp'
-                  })
-                }, { translateX: 100 }] // Pushing the image to the right to touch the edge
-              } as any]}>
-              <Image 
-                source={HeartImg} 
-                style={{ width: '100%', height: '100%' }} 
+          <FadeInView delay={400} style={[styles.heroImageContainer, isDesktop ? { position: 'absolute' } : { position: 'relative', width: '100%', marginTop: 40, alignItems: 'center' }]}>
+            <Animated.View style={[styles.heroImage, {
+              width: select({ mobile: '100%', tablet: '90%', desktop: 750 }),
+              height: select({ mobile: 300, tablet: 550, desktop: 650 }),
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              transform: [{
+                translateY: scrollY.interpolate({
+                  inputRange: [0, 500],
+                  outputRange: [0, 80],
+                  extrapolate: 'clamp'
+                })
+              }, { translateX: isDesktop ? 100 : 0 }]
+            } as any]}>
+              <Image
+                source={HeartImg}
+                style={{ width: '100%', height: '100%' }}
                 resizeMode="contain"
               />
             </Animated.View>
@@ -750,42 +810,42 @@ const LandingScreen: React.FC = () => {
         </AnimatedGradientBg>
 
         {/* HOW IT WORKS */}
-        <View onLayout={(e) => setLayoutY(prev => ({...prev, plataforma: e.nativeEvent.layout.y}))} style={[styles.howItWorksSection, isDesktop && styles.howItWorksDesktop]}>
+        <View onLayout={(e) => setLayoutY(prev => ({ ...prev, plataforma: e.nativeEvent.layout.y }))} style={[styles.howItWorksSection, isDesktop && styles.howItWorksDesktop]}>
           {isDesktop && (
             <View style={[styles.howItWorksImgContainer, { paddingRight: 40 }]}>
               <View style={{ position: 'relative' }}>
                 {/* Decorative background shapes */}
                 <View style={{ position: 'absolute', top: -20, left: -20, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(43, 108, 176, 0.1)' }} />
                 <View style={{ position: 'absolute', bottom: -30, right: -30, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(26, 54, 93, 0.05)' }} />
-                
+
                 {/* Main image */}
-                <Image 
+                <Image
                   source={VcImg}
                   style={{ width: 400, height: 460, borderRadius: 30, borderWidth: 6, borderColor: '#fff' }}
                   resizeMode="cover"
                 />
                 <View style={{ position: 'absolute', top: 0, left: 0, width: 400, height: 460, borderRadius: 30, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 30, elevation: 15, pointerEvents: 'none' }} />
-                
+
                 {/* Floating info card with Glassmorphism */}
-                <View style={{ 
-                  position: 'absolute', 
-                  bottom: 40, 
-                  left: -40, 
-                  backgroundColor: 'rgba(255, 255, 255, 0.7)', 
-                  padding: 16, 
-                  borderRadius: 20, 
-                  shadowColor: '#000', 
-                  shadowOpacity: 0.15, 
-                  shadowRadius: 20, 
-                  elevation: 20, 
-                  zIndex: 3, 
-                  flexDirection: 'row', 
-                  alignItems: 'center', 
-                  gap: 16, 
+                <View style={{
+                  position: 'absolute',
+                  bottom: 40,
+                  left: -40,
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  padding: 16,
+                  borderRadius: 20,
+                  shadowColor: '#000',
+                  shadowOpacity: 0.15,
+                  shadowRadius: 20,
+                  elevation: 20,
+                  zIndex: 3,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 16,
                   minWidth: 200,
-                  ...Platform.select({
+                  ...(Platform.select({
                     web: { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }
-                  } as any)
+                  }) || {} as any)
                 }}>
                   <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#EBF5FB', justifyContent: 'center', alignItems: 'center' }}>
                     <MaterialIcons name="videocam" size={26} color="#2B6CB0" />
@@ -816,43 +876,43 @@ const LandingScreen: React.FC = () => {
           <Text style={{ fontSize: 16, color: colors.muted, textAlign: 'center', maxWidth: 800, marginBottom: 50, paddingHorizontal: 20 }}>
             Desde consultas virtuales con especialistas hasta la descarga inmediata de tus recetas médicas, en VIREM contamos con todas las herramientas necesarias para brindarte una atención integral y precisa.
           </Text>
-          
-          <View style={{ 
-            flexDirection: select({ mobile: 'column', tablet: 'row', desktop: 'row' }), 
-            gap: 30, 
-            maxWidth: 1200, 
+
+          <View style={{
+            flexDirection: select({ mobile: 'column', tablet: 'row', desktop: 'row' }),
+            gap: 30,
+            maxWidth: 1200,
             paddingHorizontal: 20,
             flexWrap: 'wrap',
             justifyContent: 'center'
           }}>
-            
-            <HoverServiceCard 
-              title="Consultas Virtuales" 
+
+            <HoverServiceCard
+              title="Consultas Virtuales"
               description="Atención médica especializada por videollamada segura, estés donde estés."
               image={require('./assets/imagenes/Videoconsulta.png')}
-              style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowRadius: 15, elevation: 5 }} 
+              style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowRadius: 15, elevation: 5 }}
             />
 
-            <HoverServiceCard 
-              title="Recetas Digitales" 
+            <HoverServiceCard
+              title="Recetas Digitales"
               description="Recibe tus prescripciones médicas oficiales directamente en tu perfil al instante."
               image={require('./assets/imagenes/RecetasM.png')}
-              style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowRadius: 15, elevation: 5 }} 
+              style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowRadius: 15, elevation: 5 }}
             />
 
-            <HoverServiceCard 
-              title="Historial Clínico" 
+            <HoverServiceCard
+              title="Historial Clínico"
               description="Accede a tus reportes, estudios y antecedentes médicos de forma segura y organizada."
               image={require('./assets/imagenes/HistorialC.png')}
-              style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowRadius: 15, elevation: 5 }} 
+              style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowRadius: 15, elevation: 5 }}
             />
 
           </View>
         </View>
 
         {/* ESPECIALIDADES GRID */}
-        <View onLayout={(e) => setLayoutY(prev => ({...prev, especialidades: e.nativeEvent.layout.y}))} style={[styles.servicesSection, { backgroundColor: "#FFFFFF", paddingVertical: 80, alignItems: "center", width: "100%", borderTopWidth: 1, borderTopColor: "#E2E8F0" }]}>
-          
+        <View onLayout={(e) => setLayoutY(prev => ({ ...prev, especialidades: e.nativeEvent.layout.y }))} style={[styles.servicesSection, { backgroundColor: "#FFFFFF", paddingVertical: 80, alignItems: "center", width: "100%", borderTopWidth: 1, borderTopColor: "#E2E8F0" }]}>
+
           <View style={{ width: "100%", maxWidth: 1200, marginBottom: 40, paddingHorizontal: 20 }}>
             <Text style={{ fontSize: 36, fontWeight: "900", color: colors.dark, marginBottom: 16, textAlign: isDesktop ? "left" : "center" }}>Especialidades Médicas</Text>
             <Text style={{ fontSize: 18, color: colors.muted, lineHeight: 28, maxWidth: 700, textAlign: isDesktop ? "left" : "center" }}>
@@ -869,75 +929,75 @@ const LandingScreen: React.FC = () => {
             paddingHorizontal: select({ mobile: 16, tablet: 24, desktop: 40 })
           }}>
             {[
-              { 
-                icon: "medical-services", 
-                title: "Medicina General", 
-                context: "La medicina general es la especialidad encargada de brindar atención médica primaria, enfocándose en la prevención, diagnóstico inicial y tratamiento de enfermedades comunes en pacientes de todas las edades.", 
+              {
+                icon: "medical-services",
+                title: "Medicina General",
+                context: "La medicina general es la especialidad encargada de brindar atención médica primaria, enfocándose en la prevención, diagnóstico inicial y tratamiento de enfermedades comunes en pacientes de todas las edades.",
                 detailedInfo: "La medicina general ofrece atención integral para evaluar síntomas comunes, realizar chequeos médicos y orientar al paciente sobre su estado de salud. El médico general puede diagnosticar enfermedades frecuentes, controlar condiciones básicas y referir al paciente a otras especialidades si es necesario. Esta especialidad es fundamental para mantener un seguimiento preventivo y detectar problemas de salud a tiempo.",
                 whenToGo: ["Malestar general persistente", "Fiebre frecuente", "Dolores corporales", "Síntomas nuevos o desconocidos", "Chequeos médicos preventivos"],
                 importance: "La medicina general es esencial porque representa el primer nivel de atención médica. Permite detectar enfermedades de forma temprana, prevenir complicaciones y brindar orientación profesional para mantener una buena salud física y bienestar general.",
-                img: require('./assets/imagenes/MedicinaGeneral.png') 
+                img: require('./assets/imagenes/MedicinaGeneral.png')
               },
-              { 
-                icon: "psychology", 
-                title: "Psicología", 
-                context: "Acompañamiento profesional para tu salud mental, manejo de estrés y bienestar emocional.", 
+              {
+                icon: "psychology",
+                title: "Psicología",
+                context: "Acompañamiento profesional para tu salud mental, manejo de estrés y bienestar emocional.",
                 detailedInfo: "La psicología clínica en VIREM ofrece un espacio seguro para el abordaje de trastornos emocionales, del estado de ánimo y del comportamiento. Nuestros profesionales utilizan herramientas terapéuticas basadas en evidencia para ayudarte a procesar situaciones de duelo, mejorar tu inteligencia emocional y fortalecer tu resiliencia ante los desafíos cotidianos de la vida personal y laboral.",
                 whenToGo: ["Ansiedad o estrés persistente", "Dificultad para manejar emociones", "Problemas en relaciones interpersonales", "Duelos o pérdidas difíciles", "Deseo de autoconocimiento y crecimiento"],
                 importance: "Cuidar la mente es tan vital como el cuerpo; un bienestar emocional sólido mejora la calidad de vida, la productividad y la salud física general.",
-                img: require('./assets/imagenes/Psicologia.png') 
+                img: require('./assets/imagenes/Psicologia.png')
               },
-              { 
-                icon: "favorite-border", 
-                title: "Cardiología", 
-                context: "Especialistas en el cuidado del corazón y prevención de enfermedades cardiovasculares.", 
+              {
+                icon: "favorite-border",
+                title: "Cardiología",
+                context: "Especialistas en el cuidado del corazón y prevención de enfermedades cardiovasculares.",
                 detailedInfo: "Nuestra área de cardiología se centra en la prevención, diagnóstico y tratamiento de patologías del corazón y del sistema circulatorio. Brindamos seguimiento especializado para la hipertensión arterial, arritmias y prevención de infartos, utilizando la telemedicina para monitorear factores de riesgo y ajustar tratamientos de forma oportuna y precisa.",
                 whenToGo: ["Dolor o presión en el pecho", "Palpitaciones o ritmo cardíaco irregular", "Fatiga extrema al realizar esfuerzo", "Antecedentes familiares de cardiopatías", "Control de presión arterial elevada"],
                 importance: "Las enfermedades cardiovasculares son la principal causa de riesgo global; su detección temprana es la herramienta más poderosa para salvar vidas.",
-                img: require('./assets/imagenes/Cardiologia.png') 
+                img: require('./assets/imagenes/Cardiologia.png')
               },
-              { 
-                icon: "face", 
-                title: "Dermatología", 
-                context: "Diagnóstico y tratamiento para afecciones de la piel, cabello y uñas.", 
+              {
+                icon: "face",
+                title: "Dermatología",
+                context: "Diagnóstico y tratamiento para afecciones de la piel, cabello y uñas.",
                 detailedInfo: "La dermatología en nuestra plataforma abarca desde el tratamiento del acné y dermatitis hasta el monitoreo de lesiones cutáneas sospechosas. Los especialistas evalúan la salud de la piel, el cabello y las uñas bajo un enfoque clínico integral, proporcionando regímenes de cuidado personalizados para mantener la barrera cutánea sana y detectar afecciones de forma precoz.",
                 whenToGo: ["Cambios en forma o color de lunares", "Erupciones cutáneas persistentes", "Pérdida inusual de cabello", "Acné que no responde a cuidados básicos", "Piel extremadamente seca o irritada"],
                 importance: "La piel es el órgano más extenso y nuestra primera línea de defensa; su salud refleja directamente el bienestar interno de nuestro organismo.",
-                img: require('./assets/imagenes/Dermatologia.png') 
+                img: require('./assets/imagenes/Dermatologia.png')
               },
-              { 
-                icon: "medication", 
-                title: "Endocrinología", 
-                context: "Control de hormonas, diabetes, tiroides y trastornos metabólicos.", 
+              {
+                icon: "medication",
+                title: "Endocrinología",
+                context: "Control de hormonas, diabetes, tiroides y trastornos metabólicos.",
                 detailedInfo: "Nuestros endocrinólogos se especializan en el complejo sistema hormonal que regula el metabolismo, el crecimiento y la reproducción. Ofrecemos un manejo experto de la diabetes, trastornos de la tiroides, desajustes hormonales y problemas metabólicos, enfocándonos en restaurar el equilibrio químico del cuerpo para optimizar tu energía y salud general.",
                 whenToGo: ["Niveles de azúcar elevados (Diabetes)", "Problemas de tiroides conocidos", "Cambios bruscos de peso sin causa clara", "Fatiga crónica o falta de energía", "Desajustes hormonales o metabólicos"],
                 importance: "El equilibrio hormonal es el regulador silencioso de casi todas las funciones vitales; su control adecuado previene enfermedades crónicas graves.",
-                img: require('./assets/imagenes/Endocrinologia.png') 
+                img: require('./assets/imagenes/Endocrinologia.png')
               },
-              { 
-                icon: "pregnant-woman", 
-                title: "Ginecología", 
-                context: "Salud integral para la mujer en todas sus etapas y cuidado reproductivo.", 
+              {
+                icon: "pregnant-woman",
+                title: "Ginecología",
+                context: "Salud integral para la mujer en todas sus etapas y cuidado reproductivo.",
                 detailedInfo: "La ginecología ofrece una atención sensible y profesional para la salud reproductiva femenina en todas las etapas de la vida. Desde la adolescencia hasta la menopausia, nuestros especialistas brindan orientación en anticoncepción, manejo de trastornos menstruales y prevención de patologías mediante chequeos periódicos, asegurando un acompañamiento integral y preventivo.",
                 whenToGo: ["Chequeo ginecológico preventivo anual", "Irregularidades en el ciclo menstrual", "Deseo de asesoría anticonceptiva", "Síntomas relacionados con la menopausia", "Molestias pélvicas o infecciones"],
                 importance: "La prevención y el control ginecológico periódico son fundamentales para la detección temprana de enfermedades y el empoderamiento de la salud femenina.",
-                img: require('./assets/imagenes/Ginecologia.png') 
+                img: require('./assets/imagenes/Ginecologia.png')
               },
             ].map((esp, i) => (
-              <TouchableOpacity 
-                key={i} 
+              <TouchableOpacity
+                key={i}
                 style={{ width: select({ mobile: "100%", tablet: "45%", desktop: 350 }) }}
-                onPress={() => navigation.navigate('EspecialidadDetalle', { 
-                  title: esp.title, 
-                  description: esp.context, 
-                  icon: esp.icon, 
+                onPress={() => navigation.navigate('EspecialidadDetalle', {
+                  title: esp.title,
+                  description: esp.context,
+                  icon: esp.icon,
                   image: esp.img,
                   detailedInfo: esp.detailedInfo,
                   whenToGo: esp.whenToGo,
                   importance: esp.importance
                 })}
               >
-                <HoverSpecialtyCard 
+                <HoverSpecialtyCard
                   icon={esp.icon}
                   title={esp.title}
                   context={esp.context}
@@ -945,19 +1005,19 @@ const LandingScreen: React.FC = () => {
                   detailedInfo={esp.detailedInfo}
                   whenToGo={esp.whenToGo}
                   importance={esp.importance}
-                  style={{ width: "100%", backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: "#E2E8F0", padding: 30, alignItems: "center", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 1, height: 200, overflow: 'hidden' }} 
+                  style={{ width: "100%", backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: "#E2E8F0", padding: 30, alignItems: "center", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 1, height: 200, overflow: 'hidden' }}
                 />
               </TouchableOpacity>
             ))}
           </View>
 
-          <HoverButton 
+          <HoverButton
             onPress={() => navigation.navigate('Especialidades')}
-            style={{ 
-              marginTop: 50, 
-              backgroundColor: colors.primary, 
-              paddingHorizontal: 40, 
-              paddingVertical: 20, 
+            style={{
+              marginTop: 50,
+              backgroundColor: colors.primary,
+              paddingHorizontal: 40,
+              paddingVertical: 20,
               borderRadius: 18,
               flexDirection: 'row',
               alignItems: 'center',
@@ -966,7 +1026,7 @@ const LandingScreen: React.FC = () => {
               shadowOpacity: 0.3,
               shadowRadius: 15,
               elevation: 8
-            }} 
+            }}
           >
             <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900', marginRight: 10 }}>
               VER TODAS LAS ESPECIALIDADES
@@ -976,37 +1036,37 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* NUEVA SECCIÓN: ACCESO EN LÍNEA */}
-        <View style={{ 
-          flexDirection: select({ mobile: 'column', tablet: 'column', desktop: 'row' }), 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          paddingVertical: 80, 
-          backgroundColor: '#F8FAFC', 
+        <View style={{
+          flexDirection: select({ mobile: 'column', tablet: 'column', desktop: 'row' }),
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: 80,
+          backgroundColor: '#F8FAFC',
           paddingHorizontal: 20,
           borderTopWidth: 1,
           borderTopColor: '#E2E8F0'
         }}>
-          
-          <View style={{ 
-            flex: select({ mobile: 1, tablet: 1, desktop: 0.4 }), 
-            alignItems: 'center', 
-            marginBottom: select({ mobile: 40, tablet: 60, desktop: 0 }) 
+
+          <View style={{
+            flex: select({ mobile: 1, tablet: 1, desktop: 0.4 }),
+            alignItems: 'center',
+            marginBottom: select({ mobile: 40, tablet: 60, desktop: 0 })
           }}>
             {/* Phone/App Graphic representation - Floating animation */}
             <FloatingPhone>
-              <View style={{ 
-                width: 220, 
-                height: 380, 
-                backgroundColor: colors.primary, 
-                borderRadius: 30, 
-                justifyContent: 'center', 
-                alignItems: 'center', 
-                shadowColor: colors.primary, 
-                shadowOpacity: 0.4, 
-                shadowRadius: 30, 
-                elevation: 10, 
-                borderWidth: 10, 
-                borderColor: '#EBF5FB' 
+              <View style={{
+                width: 220,
+                height: 380,
+                backgroundColor: colors.primary,
+                borderRadius: 30,
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: colors.primary,
+                shadowOpacity: 0.4,
+                shadowRadius: 30,
+                elevation: 10,
+                borderWidth: 10,
+                borderColor: '#EBF5FB'
               }}>
                 <MaterialIcons name="fact-check" size={80} color="#fff" style={{ marginBottom: 20 }} />
                 <View style={{ width: 140, height: 12, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 6, marginBottom: 15 }} />
@@ -1018,25 +1078,25 @@ const LandingScreen: React.FC = () => {
               </View>
             </FloatingPhone>
           </View>
-          
-          <View style={{ 
-            flex: select({ mobile: 1, tablet: 1, desktop: 0.5 }), 
+
+          <View style={{
+            flex: select({ mobile: 1, tablet: 1, desktop: 0.5 }),
             paddingLeft: select({ mobile: 0, tablet: 0, desktop: 60 }),
             alignItems: select({ mobile: 'center', tablet: 'center', desktop: 'flex-start' })
           }}>
-            <Text style={{ 
-              fontSize: select({ mobile: 28, tablet: 32, desktop: 32 }), 
-              fontWeight: '300', 
-              color: colors.secondary, 
+            <Text style={{
+              fontSize: select({ mobile: 28, tablet: 32, desktop: 32 }),
+              fontWeight: '300',
+              color: colors.secondary,
               marginBottom: 20,
               textAlign: select({ mobile: 'center', tablet: 'center', desktop: 'left' })
             }}>
               GESTIONA TU SALUD EN LÍNEA
             </Text>
-            <Text style={{ 
-              fontSize: 16, 
-              color: colors.muted, 
-              lineHeight: 28, 
+            <Text style={{
+              fontSize: 16,
+              color: colors.muted,
+              lineHeight: 28,
               marginBottom: 30,
               textAlign: select({ mobile: 'center', tablet: 'center', desktop: 'left' })
             }}>
@@ -1046,13 +1106,13 @@ const LandingScreen: React.FC = () => {
               <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>INGRESAR A LA PLATAFORMA</Text>
             </HoverButton>
           </View>
-          
+
         </View>
 
         {/* NOSOTROS - ENHANCED */}
-        <View onLayout={(e) => setLayoutY(prev => ({...prev, nosotros: e.nativeEvent.layout.y}))} style={[styles.howItWorksSection, { backgroundColor: '#FFFFFF', paddingVertical: 100, borderTopWidth: 1, borderTopColor: '#E2E8F0' }, isDesktop && styles.howItWorksDesktop]}>
+        <View onLayout={(e) => setLayoutY(prev => ({ ...prev, nosotros: e.nativeEvent.layout.y }))} style={[styles.howItWorksSection, { backgroundColor: '#FFFFFF', paddingVertical: 100, borderTopWidth: 1, borderTopColor: '#E2E8F0' }, isDesktop && styles.howItWorksDesktop]}>
           <View style={[styles.howItWorksTextContainer, isDesktop && { paddingRight: 60 }, (isTablet || isMobile) && { alignItems: 'center' }]}>
-            
+
             <FadeInView delay={200}>
               <ShrinkingLine delay={200} trigger={nosotrosVisible} />
               <Text style={[styles.sectionHeadingLeft, (isTablet || isMobile) && { textAlign: 'center' }]}>SOBRE NOSOTROS</Text>
@@ -1088,23 +1148,23 @@ const LandingScreen: React.FC = () => {
             <FadeInView delay={400} style={styles.howItWorksImgContainer}>
               <View style={{ position: 'relative', width: 400, height: 400, justifyContent: 'center', alignItems: 'center' }}>
                 {/* Single Image with Deep Shadow */}
-                <View style={{ 
-                  width: 360, 
-                  height: 380, 
-                  borderRadius: 30, 
-                  backgroundColor: '#fff', 
-                  shadowColor: '#000', 
-                  shadowOpacity: 0.25, 
-                  shadowRadius: 30, 
-                  elevation: 20, 
+                <View style={{
+                  width: 360,
+                  height: 380,
+                  borderRadius: 30,
+                  backgroundColor: '#fff',
+                  shadowColor: '#000',
+                  shadowOpacity: 0.25,
+                  shadowRadius: 30,
+                  elevation: 20,
                   overflow: 'hidden',
                   borderWidth: 1,
                   borderColor: 'rgba(255,255,255,0.2)'
                 }}>
-                  <Image 
-                    source={{ uri: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?q=80&w=600&auto=format&fit=crop' }} 
-                    style={{ width: '100%', height: '100%' }} 
-                    resizeMode="cover" 
+                  <Image
+                    source={{ uri: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?q=80&w=600&auto=format&fit=crop' }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
                   />
                 </View>
 
@@ -1116,15 +1176,15 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* BLOG */}
-        <View onLayout={(e) => setLayoutY(prev => ({...prev, blog: e.nativeEvent.layout.y}))} style={[styles.servicesSection, { backgroundColor: '#F0F9FF', paddingVertical: 100, borderTopWidth: 1, borderTopColor: '#E2E8F0' }]}>
+        <View onLayout={(e) => setLayoutY(prev => ({ ...prev, blog: e.nativeEvent.layout.y }))} style={[styles.servicesSection, { backgroundColor: '#F0F9FF', paddingVertical: 100, borderTopWidth: 1, borderTopColor: '#E2E8F0' }]}>
           <FadeInView delay={100} style={{ alignItems: 'center', marginBottom: 60 }}>
             <View style={{ width: 40, height: 4, backgroundColor: colors.primary, borderRadius: 2, marginBottom: 16 }} />
             <Text style={[styles.sectionHeadingCenter, { fontSize: 36, fontWeight: '900', color: colors.dark }]}>NUESTRO BLOG</Text>
             <Text style={[styles.sectionBodyCenter, { fontSize: 17, maxWidth: 600 }]}>Explora artículos escritos por expertos para cuidar lo más valioso: tu salud.</Text>
           </FadeInView>
-          
+
           <View style={[styles.cardsGrid, isDesktop && styles.cardsGridDesktop, { maxWidth: 1200, gap: 32 }]}>
-            <HoverBlogCard 
+            <HoverBlogCard
               category="SALUD MENTAL"
               title="Grupos de Apoyo y Psicología"
               description="Descubre cómo nuestras reuniones virtuales con especialistas están ayudando a cientos de pacientes a manejar el estrés diario."
@@ -1137,7 +1197,7 @@ const LandingScreen: React.FC = () => {
               })}
               style={{ flex: 1, maxWidth: isDesktop ? 550 : '100%', shadowRadius: 20, elevation: 10 }}
             />
-            <HoverBlogCard 
+            <HoverBlogCard
               category="PREVENCIÓN"
               title="La importancia del chequeo anual"
               description="Por qué no debes esperar a sentirte mal para agendar una cita con tu médico de confianza. Hábitos saludables que puedes iniciar hoy mismo."
@@ -1154,7 +1214,7 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* FOOTER */}
-        <View onLayout={(e) => setLayoutY(prev => ({...prev, contacto: e.nativeEvent.layout.y}))} style={[styles.footerContainer, isDesktop && { borderTopLeftRadius: 150 }]}>
+        <View onLayout={(e) => setLayoutY(prev => ({ ...prev, contacto: e.nativeEvent.layout.y }))} style={[styles.footerContainer, isDesktop && { borderTopLeftRadius: 150 }]}>
           <View style={[styles.footer, isDesktop && styles.footerDesktop]}>
             <View style={[styles.footerBrandSection, (isTablet || isMobile) && { alignItems: 'center', maxWidth: '100%' }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
@@ -1195,14 +1255,14 @@ const LandingScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   scrollContent: { flexGrow: 1 },
-  
+
   // NAVBAR
   navbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: colors.white, zIndex: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
   navbarDesktop: { paddingHorizontal: 40, paddingVertical: 16 },
   navLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logoImage: { width: 32, height: 32 },
-  logoText: { fontSize: 26, fontWeight: '900', color: colors.dark, letterSpacing: 0 },
-  
+  logoText: { fontSize: 26, fontWeight: '600', color: colors.dark, letterSpacing: 0.5 },
+
   navLinksCenter: { flexDirection: 'row', gap: 24 },
   navLinkCenterText: { color: colors.primary, fontWeight: '600', fontSize: 15 },
 
@@ -1217,9 +1277,9 @@ const styles = StyleSheet.create({
   heroTextDesktop: { paddingRight: 40, flex: 1 },
   heroTitle: { fontSize: 48, fontWeight: '900', color: colors.dark, marginBottom: 16, lineHeight: 56 },
   heroSubtitle: { fontSize: 18, color: colors.muted, lineHeight: 28, marginBottom: 30, fontWeight: '400' },
-  heroActionBtn: { backgroundColor: colors.primary, paddingHorizontal: 36, paddingVertical: 16, borderRadius: 8, alignSelf: 'flex-start', shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 },
+  heroActionBtn: { backgroundColor: colors.primary, paddingHorizontal: 36, paddingVertical: 16, borderRadius: 8, shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 },
   heroActionBtnText: { color: colors.white, fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
-  
+
   heroImageContainer: { position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%', alignItems: 'flex-end', justifyContent: 'center' },
   heroImage: { width: 650, height: 550, backgroundColor: 'transparent' },
 
@@ -1229,7 +1289,7 @@ const styles = StyleSheet.create({
   howItWorksImgContainer: { flex: 0.8, alignItems: 'center', justifyContent: 'center' },
   greenCircle: { width: 380, height: 380, borderRadius: 190, backgroundColor: colors.secondary, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   doctorCircleImage: { width: '90%', height: '90%', borderRadius: 200 },
-  
+
   howItWorksTextContainer: { flex: 1 },
   howItWorksTextDesktop: { paddingLeft: 60 },
   sectionHeadingLeft: { fontSize: 28, fontWeight: '300', color: '#1A5276', marginBottom: 20 },
@@ -1251,7 +1311,7 @@ const styles = StyleSheet.create({
   footerContainer: { backgroundColor: colors.primary, marginTop: 40 },
   footer: { padding: 60, flexDirection: 'column', gap: 30 },
   footerDesktop: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-start' },
-  
+
   footerBrandSection: { alignItems: 'flex-start', maxWidth: 300 },
   footerLogoContainer: { backgroundColor: '#fff', padding: 6, borderRadius: 8, marginRight: 12 },
   footerLogoImage: { width: 28, height: 28 },

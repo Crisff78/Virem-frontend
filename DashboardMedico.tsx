@@ -28,6 +28,7 @@ import { useResponsive } from './hooks/useResponsive';
 
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import MedicoHeader from './components/MedicoHeader';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 type MaterialIconName = any;
@@ -439,14 +440,7 @@ const DashboardMedico: React.FC = () => {
     main: { flex: 1, paddingHorizontal: rs(24), paddingTop: rs(18) },
     mainMobile: { paddingHorizontal: rs(14), paddingTop: rs(12) },
 
-    header: { 
-      flexDirection: 'row', 
-      alignItems: 'center', 
-      justifyContent: 'space-between', 
-      gap: rs(12), 
-      marginBottom: rs(10), 
-      flexWrap: 'wrap' 
-    },
+    header: { marginBottom: rs(2) },
     notifBtn: { 
       width: rs(44), 
       height: rs(44), 
@@ -476,7 +470,7 @@ const DashboardMedico: React.FC = () => {
       fontSize: fs(22), 
       fontWeight: '900', 
       color: colors.dark, 
-      marginTop: rs(8), 
+      marginTop: 0, 
       letterSpacing: -0.3 
     },
     subtitle: { 
@@ -856,76 +850,9 @@ const DashboardMedico: React.FC = () => {
   const bannerPatientName = nextCita ? nextCita.paciente.nombreCompleto : '';
   const bannerPatientAvatar = resolveAvatarSource(nextCita?.paciente?.fotoUrl);
   
-  return (
-    <View style={[styles.container, isInsidePortal ? null : (isDesktopLayout ? styles.containerDesktop : (isTablet ? styles.containerTablet : styles.containerMobile))]}>
-
-      {/* ===================== SIDEBAR ===================== */}
-      {!isInsidePortal && (isDesktopLayout || isTablet || isMobileMenuOpen) && (
-      <View style={[styles.sidebar, isDesktopLayout ? styles.sidebarDesktop : (isTablet ? styles.sidebarTablet : styles.sidebarMobile)]}>
-        <View>
-          {/* Logo */}
-          <View style={styles.logoBox}>
-            <Image source={ViremLogo} style={styles.logo} />
-            <View>
-              <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSubtitle}>Portal Médico</Text>
-            </View>
-          </View>
-
-          {/* User mini */}
-          <View style={styles.userBox}>
-            <Image source={doctorAvatar} style={styles.userAvatar} />
-            <Text style={styles.userName}>{doctorName}</Text>
-            <Text style={styles.userPlan}>{doctorSpec}</Text>
-          </View>
-
-          {/* Menú */}
-          <View style={[styles.menu, isDesktopLayout ? styles.menuDesktop : styles.menuMobile]}>
-            <TouchableOpacity
-              style={[styles.menuItemRow, styles.menuItemActive]}
-              onPress={() => handleSidebarNavigation('DashboardMedico')}
-            >
-              <MaterialIcons name="grid-view" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>Inicio</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => handleSidebarNavigation('MedicoCitas')}>
-              <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Agenda</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => handleSidebarNavigation('MedicoPacientes')}>
-              <MaterialIcons name="group" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Pacientes</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => handleSidebarNavigation('MedicoChat')}>
-              <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Mensajes</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => handleSidebarNavigation('MedicoPerfil')}>
-              <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Perfil</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => handleSidebarNavigation('MedicoConfiguracion')}>
-              <MaterialIcons name="settings" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Configuración</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Cerrar sesión */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={18} color="#fff" />
-          <Text style={styles.logoutText}>Cerrar sesión</Text>
-        </TouchableOpacity>
-      </View>
-      )}
-
-      {/* ===================== MAIN ===================== */}
-      {isInCall && roomInfo ? (
+  if (isInCall && roomInfo) {
+    return (
+      <View style={{ flex: 1 }}>
         <View style={styles.mainCallContainer}>
           <VideoCallFrame
             roomName={roomInfo.roomName}
@@ -935,141 +862,137 @@ const DashboardMedico: React.FC = () => {
             jitsiDomain={roomInfo.jitsiDomain}
           />
         </View>
-      ) : (
-        <ScrollView style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]} contentContainerStyle={{ paddingBottom: 40 }}>
-          
-          {/* Header simple */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Panel Médico</Text>
-            <TouchableOpacity style={styles.notifBtn}>
-              <MaterialIcons name="notifications-none" size={24} color={colors.dark} />
-              {dashboardData.stats.mensajesPendientes > 0 && <View style={styles.notifDot} />}
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.subtitle}>Aquí tienes un resumen de tu jornada y próximos pacientes.</Text>
+      </View>
+    );
+  }
 
-          {/* Hero Card (Big Card) */}
-          <View style={styles.bigCard}>
-            <View style={styles.bigCardLeft}>
-              <View style={styles.liveRow}>
-                <View style={[styles.liveDot, { backgroundColor: nextCita ? '#22c55e' : colors.primary }]} />
-                <Text style={[styles.liveText, { color: nextCita ? '#22c55e' : colors.primary }]}>
-                  {nextCita ? 'PRÓXIMA CITA' : 'JORNADA ACTIVA'}
-                </Text>
-              </View>
-              <Text style={styles.bigCardTitle}>Bienvenido de nuevo, {doctorName}</Text>
-              <Text style={styles.bigCardSub}>
-                {nextCita 
-                  ? `Tienes una videollamada programada con ${bannerPatientName} para las ${formatDateTime(nextCita.fechaHoraInicio)}.` 
-                  : 'No tienes citas virtuales programadas para este momento.'}
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]} contentContainerStyle={{ paddingBottom: 40 }}>
+        <MedicoHeader 
+          title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`}
+          hasNotifications={dashboardData.stats.mensajesPendientes > 0}
+        />
+        <Text style={styles.subtitle}>Aquí tienes un resumen de tu jornada y próximos pacientes.</Text>
+
+        <View style={styles.bigCard}>
+          <View style={styles.bigCardLeft}>
+            <View style={styles.liveRow}>
+              <View style={[styles.liveDot, { backgroundColor: nextCita ? '#22c55e' : colors.primary }]} />
+              <Text style={[styles.liveText, { color: nextCita ? '#22c55e' : colors.primary }]}>
+                {nextCita ? 'PRÓXIMA CITA' : 'JORNADA ACTIVA'}
               </Text>
+            </View>
+            <Text style={styles.bigCardTitle}>Bienvenido de nuevo, {doctorName}</Text>
+            <Text style={styles.bigCardSub}>
+              {nextCita 
+                ? `Tienes una videollamada programada con ${bannerPatientName} para las ${formatDateTime(nextCita.fechaHoraInicio)}.` 
+                : 'No tienes citas virtuales programadas para este momento.'}
+            </Text>
 
-              <View style={styles.bigCardActions}>
-                <TouchableOpacity 
-                  style={[styles.primaryBtn, (!nextCita || openingCitaId) && { opacity: 0.6 }]} 
-                  onPress={() => handleVideoCall()}
-                  disabled={!nextCita || !!openingCitaId}
-                >
-                  <MaterialIcons name="videocam" size={20} color="#fff" />
-                  <Text style={styles.primaryBtnText}>
-                    {openingCitaId ? 'Iniciando...' : 'Entrar a consulta'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryBtn} onPress={() => handleSidebarNavigation('MedicoCitas')}>
-                  <Text style={styles.secondaryBtnText}>Ver agenda completa</Text>
-                </TouchableOpacity>
-              </View>
+            <View style={styles.bigCardActions}>
+              <TouchableOpacity 
+                style={[styles.primaryBtn, (!nextCita || openingCitaId) && { opacity: 0.6 }]} 
+                onPress={() => handleVideoCall()}
+                disabled={!nextCita || !!openingCitaId}
+              >
+                <MaterialIcons name="videocam" size={20} color="#fff" />
+                <Text style={styles.primaryBtnText}>
+                  {openingCitaId ? 'Iniciando...' : 'Entrar a consulta'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryBtn} onPress={() => handleSidebarNavigation('MedicoCitas')}>
+                <Text style={styles.secondaryBtnText}>Ver agenda completa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {isDesktopLayout && (
+            <View style={styles.bigCardRight}>
+              <Image source={bannerPatientAvatar} style={styles.bigCardImage} />
+            </View>
+          )}
+        </View>
+
+        {/* Quick Stats */}
+        <View style={styles.quickRow}>
+          <StatPill 
+            title="Citas hoy" 
+            value={String(dashboardData.stats.citasHoy)} 
+            icon="today" 
+            trendText="+2" 
+          />
+          <StatPill 
+            title="Completadas" 
+            value={String(dashboardData.stats.citasCompletadas)} 
+            icon="check-circle" 
+            trendText="80%" 
+          />
+          <StatPill 
+            title="Pacientes Mes" 
+            value={String(dashboardData.stats.nuevosPacientesMes)} 
+            icon="people" 
+            trendText="+12%" 
+          />
+          <StatPill 
+            title="Mensajes" 
+            value={String(dashboardData.stats.mensajesPendientes)} 
+            icon="chat" 
+            trendText="Pendientes" 
+            trendUp={false}
+          />
+        </View>
+
+        <View style={styles.twoCols}>
+          <View style={styles.colLeft}>
+            <View style={styles.rowBetween}>
+              <Text style={styles.sectionTitle}>Próximas consultas virtuales</Text>
+              <TouchableOpacity onPress={() => handleSidebarNavigation('MedicoCitas')}>
+                <Text style={styles.link}>Ver todas</Text>
+              </TouchableOpacity>
             </View>
 
-            {isDesktopLayout && (
-              <View style={styles.bigCardRight}>
-                <Image source={bannerPatientAvatar} style={styles.bigCardImage} />
+            {upcomingCitas.length > 0 ? (
+              upcomingCitas.map((cita) => (
+                <AppointmentCard
+                  key={cita.citaid}
+                  patient={cita.paciente.nombreCompleto}
+                  detail={formatDateTime(cita.fechaHoraInicio)}
+                  avatar={resolveAvatarSource(cita.paciente.fotoUrl)}
+                  onVideoCall={() => handleVideoCall(cita.citaid)}
+                  onDetails={() => {}}
+                  videoCallDisabled={!!openingCitaId}
+                />
+              ))
+            ) : (
+              <View style={styles.emptyCard}>
+                <MaterialCommunityIcons name="calendar-blank" size={40} color={colors.muted} />
+                <Text style={styles.emptyText}>No hay citas virtuales hoy</Text>
               </View>
             )}
           </View>
 
-          {/* Quick Stats */}
-          <View style={styles.quickRow}>
-            <StatPill 
-              title="Citas hoy" 
-              value={String(dashboardData.stats.citasHoy)} 
-              icon="today" 
-              trendText="+2" 
-            />
-            <StatPill 
-              title="Completadas" 
-              value={String(dashboardData.stats.citasCompletadas)} 
-              icon="check-circle" 
-              trendText="80%" 
-            />
-            <StatPill 
-              title="Pacientes Mes" 
-              value={String(dashboardData.stats.nuevosPacientesMes)} 
-              icon="people" 
-              trendText="+12%" 
-            />
-            <StatPill 
-              title="Mensajes" 
-              value={String(dashboardData.stats.mensajesPendientes)} 
-              icon="chat" 
-              trendText="Pendientes" 
-              trendUp={false}
-            />
-          </View>
-
-          <View style={styles.twoCols}>
-            {/* Columna Izquierda: Agenda */}
-            <View style={styles.colLeft}>
-              <View style={styles.rowBetween}>
-                <Text style={styles.sectionTitle}>Próximas consultas virtuales</Text>
-                <TouchableOpacity onPress={() => handleSidebarNavigation('MedicoCitas')}>
-                  <Text style={styles.link}>Ver todas</Text>
-                </TouchableOpacity>
-              </View>
-
-              {upcomingCitas.length > 0 ? (
-                upcomingCitas.map((cita) => (
-                  <AppointmentCard
-                    key={cita.citaid}
-                    patient={cita.paciente.nombreCompleto}
-                    detail={formatDateTime(cita.fechaHoraInicio)}
-                    avatar={resolveAvatarSource(cita.paciente.fotoUrl)}
-                    onVideoCall={() => handleVideoCall(cita.citaid)}
-                    onDetails={() => {}}
-                    videoCallDisabled={!!openingCitaId}
+          <View style={styles.colRight}>
+            <Text style={styles.sectionTitle}>Expedientes recientes</Text>
+            <View style={{ backgroundColor: '#fff', borderRadius: rs(20), padding: rs(10) }}>
+              {dashboardData.expedientesRecientes.length > 0 ? (
+                dashboardData.expedientesRecientes.map((exp) => (
+                  <FileCard
+                    key={exp.id}
+                    name={exp.name}
+                    id={exp.code}
+                    lastSeen={exp.lastSeenText}
                   />
                 ))
               ) : (
-                <View style={styles.emptyCard}>
-                  <MaterialCommunityIcons name="calendar-blank" size={40} color={colors.viremMuted} />
-                  <Text style={styles.emptyText}>No hay citas virtuales hoy</Text>
-                </View>
+                <Text style={{ padding: rs(20), color: colors.muted, textAlign: 'center' }}>
+                  Sin actividad reciente
+                </Text>
               )}
             </View>
-
-            {/* Columna Derecha: Expedientes */}
-            <View style={styles.colRight}>
-              <Text style={styles.sectionTitle}>Expedientes recientes</Text>
-              <View style={{ backgroundColor: '#fff', borderRadius: rs(20), padding: rs(10) }}>
-                {dashboardData.expedientesRecientes.length > 0 ? (
-                  dashboardData.expedientesRecientes.map((exp) => (
-                    <FileCard
-                      key={exp.id}
-                      name={exp.name}
-                      id={exp.code}
-                      lastSeen={exp.lastSeenText}
-                    />
-                  ))
-                ) : (
-                  <Text style={{ padding: rs(20), color: colors.muted, textAlign: 'center' }}>
-                    Sin actividad reciente
-                  </Text>
-                )}
-              </View>
-            </View>
           </View>
-        </ScrollView>
-      )}
+        </View>
+      </ScrollView>
     </View>
   );
 };

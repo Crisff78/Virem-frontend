@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useCallback, useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
+import { Platform } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 
@@ -33,6 +34,9 @@ type MedicoModuleContextValue = {
    * Otherwise, push onto the stack as usual.
    */
   portalNavigate: (route: string, params?: Record<string, unknown>) => void;
+  /** Global sidebar toggle state (Desktop & Mobile) */
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
 };
 
 const fallbackCtx: MedicoModuleContextValue = {
@@ -40,6 +44,8 @@ const fallbackCtx: MedicoModuleContextValue = {
   activeModule: 'DashboardMedico',
   setActiveModule: () => undefined,
   portalNavigate: () => undefined,
+  isSidebarOpen: true,
+  toggleSidebar: () => undefined,
 };
 
 export const MedicoModuleContext = createContext<MedicoModuleContextValue>(fallbackCtx);
@@ -65,6 +71,16 @@ export const MedicoModuleProvider: React.FC<ProviderProps> = ({
   children,
 }) => {
   const [activeModule, setActiveModuleRaw] = useState<MedicoPortalModule>(initialModule);
+  
+  // Initial state: closed on mobile devices or small screens, open on desktop web
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (Platform.OS !== 'web') return false;
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return true;
+  });
+
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const setActiveModule = useCallback((mod: MedicoPortalModule) => {
@@ -81,6 +97,10 @@ export const MedicoModuleProvider: React.FC<ProviderProps> = ({
     },
     [navigation]
   );
+  
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen((prev) => !prev);
+  }, []);
 
   const value = useMemo<MedicoModuleContextValue>(
     () => ({
@@ -88,8 +108,10 @@ export const MedicoModuleProvider: React.FC<ProviderProps> = ({
       activeModule,
       setActiveModule,
       portalNavigate,
+      isSidebarOpen,
+      toggleSidebar,
     }),
-    [activeModule, portalNavigate, setActiveModule]
+    [activeModule, portalNavigate, setActiveModule, isSidebarOpen, toggleSidebar]
   );
 
   return (

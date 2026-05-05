@@ -20,10 +20,8 @@ const colors = {
 
 const SeleccionPerfil: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
-  const { isDesktop, isTablet, isMobile, select, height: viewportHeight } = useResponsive();
-  const isMobileLayout = isMobile;
-  const isMobileWeb = Platform.OS === 'web' && isMobile;
-
+  const { select, width, rs, fs } = useResponsive();
+  
   const handleRegister = (profile: 'Medico' | 'Paciente') => {
     navigation.navigate(profile === 'Paciente' ? 'RegistroPaciente' : 'RegistroMedico');
   };
@@ -34,177 +32,170 @@ const SeleccionPerfil: React.FC = () => {
 
   const content = (
     <View style={styles.contentWrapper}>
-      <Text style={styles.title}>Elige cómo quieres registrarte</Text>
-      <Text style={styles.subtitle}>
-        Selecciona tu perfil para acceder a las herramientas y funciones diseñadas específicamente para ti.
-      </Text>
+      <View style={styles.headerSection}>
+        <Text style={[styles.title, { fontSize: fs(32) }]}>Elige cómo quieres registrarte</Text>
+        <Text style={[styles.subtitle, { fontSize: fs(16) }]}>
+          Selecciona tu perfil para acceder a las herramientas y funciones diseñadas específicamente para ti.
+        </Text>
+      </View>
 
-      <View style={[styles.cardsGrid, isMobileLayout ? styles.cardsGridMobile : styles.cardsGridDesktop]}>
-        <View style={[styles.card, isMobileLayout && styles.cardMobile]}>
+      <View style={styles.cardsGrid}>
+        <TouchableOpacity 
+          style={[styles.card, { width: select({ mobile: '100%', tablet: 320, desktop: 340 }) }]}
+          activeOpacity={0.9}
+          onPress={() => handleRegister('Medico')}
+        >
           <View style={styles.iconWrapper}>
-            <MaterialCommunityIcons name="stethoscope" size={50} color={colors.blueDark} />
+            <MaterialCommunityIcons name="stethoscope" size={rs(48)} color={colors.blueDark} />
           </View>
-          <Text style={styles.cardTitle}>Médico</Text>
-          <TouchableOpacity
-            style={[styles.registerButton, styles.buttonMedico]}
-            onPress={() => handleRegister('Medico')}
-          >
-            <Text style={styles.buttonText}>Registrarme</Text>
-          </TouchableOpacity>
-        </View>
+          <Text style={[styles.cardTitle, { fontSize: fs(22) }]}>Médico</Text>
+          <Text style={[styles.cardDesc, { fontSize: fs(14) }]}>Accede a tu panel de consultas, pacientes y gestión médica.</Text>
+          <View style={[styles.registerButton, styles.buttonMedico]}>
+            <Text style={[styles.buttonText, { fontSize: fs(16) }]}>Registrarme</Text>
+          </View>
+        </TouchableOpacity>
 
-        <View style={[styles.card, isMobileLayout && styles.cardMobile]}>
+        <TouchableOpacity 
+          style={[styles.card, { width: select({ mobile: '100%', tablet: 320, desktop: 340 }) }]}
+          activeOpacity={0.9}
+          onPress={() => handleRegister('Paciente')}
+        >
           <View style={styles.iconWrapper}>
-            <MaterialCommunityIcons name="account" size={50} color={colors.blueDark} />
+            <MaterialCommunityIcons name="account" size={rs(48)} color={colors.blueDark} />
           </View>
-          <Text style={styles.cardTitle}>Paciente</Text>
-          <TouchableOpacity
-            style={[styles.registerButton, styles.buttonPaciente]}
-            onPress={() => handleRegister('Paciente')}
-          >
-            <Text style={styles.buttonText}>Registrarme</Text>
-          </TouchableOpacity>
-        </View>
+          <Text style={[styles.cardTitle, { fontSize: fs(22) }]}>Paciente</Text>
+          <Text style={[styles.cardDesc, { fontSize: fs(14) }]}>Gestiona tus citas, recetas y comunícate con tus doctores.</Text>
+          <View style={[styles.registerButton, styles.buttonPaciente]}>
+            <Text style={[styles.buttonText, { fontSize: fs(16) }]}>Registrarme</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.footerWrapper}>
-        <Text style={styles.footerText}>
+        <Text style={[styles.footerText, { fontSize: fs(15) }]}>
           ¿Ya tienes una cuenta?{' '}
           <Text style={styles.footerLink} onPress={handleLogin}>
-            Inicia sesión aquí.
+            Inicia sesión aquí
           </Text>
         </Text>
       </View>
     </View>
   );
 
-  if (isMobileWeb) {
-    return (
-      <ScrollView
-        style={styles.mainContainer}
-        contentContainerStyle={styles.mainContainerMobileContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        {content}
-      </ScrollView>
-    );
-  }
-
-  return <View style={[styles.mainContainer, styles.mainContainerCentered]}>{content}</View>;
+  return (
+    <ScrollView 
+      style={styles.mainContainer} 
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {content}
+    </ScrollView>
+  );
 };
 
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    width: '100%',
     backgroundColor: colors.pageBg,
-    padding: 16,
   },
-  mainContainerCentered: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mainContainerMobileContent: {
+  scrollContent: {
     flexGrow: 1,
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 24,
-    paddingBottom: 140,
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
   },
   contentWrapper: {
     width: '100%',
-    maxWidth: 768,
+    maxWidth: 800,
     alignItems: 'center',
+  },
+  headerSection: {
+    alignItems: 'center',
+    marginBottom: 48,
   },
   title: {
     color: colors.blueDeep,
-    fontSize: 32,
-    fontWeight: 'bold',
-    paddingTop: 24,
-    paddingBottom: 16,
+    fontWeight: '800',
     textAlign: 'center',
+    marginBottom: 16,
   },
   subtitle: {
     color: colors.blueMedium,
-    fontSize: 16,
-    maxWidth: 430,
     textAlign: 'center',
-    marginBottom: 42,
-    lineHeight: 23,
+    maxWidth: 500,
+    lineHeight: 24,
+    fontWeight: '500',
   },
   cardsGrid: {
     width: '100%',
+    flexDirection: Platform.select({ web: 'row', default: 'column' }) as any,
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 28,
-    paddingHorizontal: 16,
+    gap: 24,
   },
-  cardsGridDesktop: { flexDirection: 'row' },
-  cardsGridMobile: { flexDirection: 'column' },
   card: {
-    flex: 1,
     backgroundColor: colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.blueLight,
+    borderRadius: 24,
     padding: 32,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  cardMobile: {
-    flex: 0,
-    width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(179, 207, 229, 0.5)',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 12 },
+      android: { elevation: 8 },
+      web: { boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }
+    }),
   },
   iconWrapper: {
-    height: 80,
-    width: 80,
+    height: 90,
+    width: 90,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 40,
-    backgroundColor: 'rgba(179, 207, 229, 0.3)',
+    borderRadius: 30,
+    backgroundColor: 'rgba(26, 61, 99, 0.08)',
     marginBottom: 24,
   },
   cardTitle: {
     color: colors.blueDeep,
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  cardDesc: {
+    color: colors.blueMedium,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 28,
+    minHeight: 40,
   },
   registerButton: {
-    marginTop: 24,
-    minWidth: 180,
-    height: 48,
-    borderRadius: 8,
+    width: '100%',
+    height: 52,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
   },
   buttonMedico: {
     backgroundColor: colors.blueDark,
   },
   buttonPaciente: {
-    backgroundColor: colors.blueMedium,
+    backgroundColor: colors.blueDark,
   },
   buttonText: {
     color: colors.white,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
   footerWrapper: {
-    marginTop: 48,
+    marginTop: 56,
+    paddingBottom: 20,
   },
   footerText: {
     color: colors.blueMedium,
-    fontSize: 14,
-    textAlign: 'center',
+    fontWeight: '600',
   },
   footerLink: {
     color: colors.blueDark,
-    fontWeight: 'bold',
+    fontWeight: '800',
     textDecorationLine: 'underline',
   },
 });
