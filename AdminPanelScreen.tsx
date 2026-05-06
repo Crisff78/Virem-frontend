@@ -1348,7 +1348,7 @@ const AdminPanelScreen: React.FC = () => {
         <ITStatCard label="System Health" value={`${systemHealth.toFixed(1)}%`} icon="favorite" color={systemHealth > 95 ? '#238636' : systemHealth === 0 ? '#F85149' : '#D29922'} />
         <ITStatCard label="Avg Latency" value={`${apiLatency.toFixed(0)}ms`} icon="speed" color={apiLatency < 100 ? '#58A6FF' : '#F85149'} />
         <ITStatCard label="Active Sessions" value={String(activeSessions)} icon="wifi" color="#58A6FF" />
-        <ITStatCard label="DB Load" value={`${dbLoad}%`} icon="storage" color="#238636" />
+        <ITStatCard label="DB Load" value={`${dbLoad.toFixed(1)}%`} icon="storage" color="#238636" />
       </View>
       
       <View style={styles.itSection}>

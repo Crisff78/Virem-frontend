@@ -170,14 +170,14 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
           activeOpacity={1}
           onPress={onCloseMobileMenu}
         >
-          <View style={styles.drawerContent} onStartShouldSetResponder={() => true}>
+          <View style={[styles.drawerContent, isTech && { backgroundColor: '#0D1117' }]} onStartShouldSetResponder={() => true}>
             {sidebarContent}
           </View>
         </TouchableOpacity>
       )}
 
       {isDesktopLayout && isMobileMenuOpen && (
-        <View style={styles.sidebarDesktop}>
+        <View style={[styles.sidebarDesktop, isTech && { backgroundColor: '#0D1117', borderRightColor: '#30363D' }]}>
           {sidebarContent}
         </View>
       )}
@@ -201,7 +201,6 @@ const styles = StyleSheet.create({
     width: 280,
     height: '100%',
     backgroundColor: '#fff',
-    padding: 20,
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -215,7 +214,7 @@ const styles = StyleSheet.create({
     borderRightColor: '#eef2f7',
   },
   sidebarInner: { flex: 1, padding: 20 },
-  sidebarInnerTech: { backgroundColor: '#161B22', borderRightColor: '#30363D' },
+  sidebarInnerTech: { backgroundColor: '#0D1117', borderRightColor: '#30363D' },
   sidebarHeader: {
     flexDirection: 'row',
     alignItems: 'center',
