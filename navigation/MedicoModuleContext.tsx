@@ -37,6 +37,9 @@ type MedicoModuleContextValue = {
   /** Global sidebar toggle state (Desktop & Mobile) */
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
+  /** Global notification drawer toggle state */
+  isNotificationOpen: boolean;
+  toggleNotification: () => void;
 };
 
 const fallbackCtx: MedicoModuleContextValue = {
@@ -46,6 +49,8 @@ const fallbackCtx: MedicoModuleContextValue = {
   portalNavigate: () => undefined,
   isSidebarOpen: true,
   toggleSidebar: () => undefined,
+  isNotificationOpen: false,
+  toggleNotification: () => undefined,
 };
 
 export const MedicoModuleContext = createContext<MedicoModuleContextValue>(fallbackCtx);
@@ -81,6 +86,8 @@ export const MedicoModuleProvider: React.FC<ProviderProps> = ({
     return true;
   });
 
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const setActiveModule = useCallback((mod: MedicoPortalModule) => {
@@ -91,6 +98,10 @@ export const MedicoModuleProvider: React.FC<ProviderProps> = ({
     (route: string, params?: Record<string, unknown>) => {
       if (isMedicoPortalModule(route)) {
         setActiveModuleRaw(route);
+        // On mobile/tablet, close sidebar after navigating
+        if (Platform.OS !== 'web' || (typeof window !== 'undefined' && window.innerWidth < 1024)) {
+          setIsSidebarOpen(false);
+        }
       } else {
         (navigation.navigate as any)(route, params);
       }
@@ -100,7 +111,13 @@ export const MedicoModuleProvider: React.FC<ProviderProps> = ({
   
   const toggleSidebar = useCallback(() => {
     setIsSidebarOpen((prev) => !prev);
-  }, []);
+    if (!isSidebarOpen) setIsNotificationOpen(false); // Close notifications if sidebar opens
+  }, [isSidebarOpen]);
+
+  const toggleNotification = useCallback(() => {
+    setIsNotificationOpen((prev) => !prev);
+    if (!isNotificationOpen) setIsSidebarOpen(false); // Close sidebar if notifications open on mobile
+  }, [isNotificationOpen]);
 
   const value = useMemo<MedicoModuleContextValue>(
     () => ({
@@ -110,8 +127,10 @@ export const MedicoModuleProvider: React.FC<ProviderProps> = ({
       portalNavigate,
       isSidebarOpen,
       toggleSidebar,
+      isNotificationOpen,
+      toggleNotification,
     }),
-    [activeModule, portalNavigate, setActiveModule, isSidebarOpen, toggleSidebar]
+    [activeModule, portalNavigate, setActiveModule, isSidebarOpen, toggleSidebar, isNotificationOpen, toggleNotification]
   );
 
   return (

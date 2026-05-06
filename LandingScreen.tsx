@@ -827,7 +827,7 @@ const LandingScreen: React.FC = () => {
                     borderBottomColor: '#E2E8F0' 
                   }}
                 >
-                  <Text style={{ fontSize: 18, color: colors.secondary, fontWeight: '900', letterSpacing: -0.5 }}>{link.label}</Text>
+                  <Text style={{ fontSize: 18, color: colors.secondary, fontWeight: '500', letterSpacing: -0.5 }}>{link.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -1373,7 +1373,7 @@ const styles = StyleSheet.create({
   logoText: { fontSize: 26, fontWeight: '900', color: colors.dark, letterSpacing: 0.5 },
 
   navLinksCenter: { flexDirection: 'row', gap: 24 },
-  navLinkCenterText: { color: colors.primary, fontWeight: '900', fontSize: 15, letterSpacing: -0.5 },
+  navLinkCenterText: { color: colors.primary, fontWeight: '500', fontSize: 15, letterSpacing: -0.5 },
 
   navRight: { flexDirection: 'row', alignItems: 'center' },
   navBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },

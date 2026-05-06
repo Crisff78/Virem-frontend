@@ -80,12 +80,31 @@ const LoginScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Admin 2FA State
+  const [adminCodeSent, setAdminCodeSent] = useState(false);
+  const [adminCodeInput, setAdminCodeInput] = useState('');
+  const [generatedCode, setGeneratedCode] = useState('');
+  const [isSendingCode, setIsSendingCode] = useState(false);
+
+  const isAdminCredentials = email.trim().toLowerCase() === 'admin' && password === 'AdminPassword123!';
+
   const handleLogin = async () => {
     const emailTrim = email.toLowerCase().trim();
 
     if (!emailTrim || !password) {
       Alert.alert('Error', 'Completa correo y contraseña.');
       return;
+    }
+
+    if (emailTrim === 'admin' && password === 'AdminPassword123!') {
+      if (!adminCodeSent) {
+        Alert.alert('Seguridad', 'Primero debes enviar y verificar el código de seguridad.');
+        return;
+      }
+      if (adminCodeInput !== generatedCode) {
+        Alert.alert('Error', 'El código de seguridad es incorrecto.');
+        return;
+      }
     }
 
     if (emailTrim !== 'admin' && !isValidEmail(emailTrim)) {
@@ -133,6 +152,39 @@ const LoginScreen: React.FC = () => {
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSendAdminCode = async () => {
+    setIsSendingCode(true);
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedCode(code);
+
+    try {
+      // Make.com Webhook Integration
+      const webhookUrl = 'https://hook.us2.make.com/mihua6oq9816sr7l3050cmmjnqihlx8x';
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'admin_2fa',
+          email: 'yaslyncastillo21@gmail.com',
+          code: code,
+          user: 'Admin',
+          timestamp: new Date().toISOString()
+        }),
+      });
+
+      setAdminCodeSent(true);
+      Alert.alert('Código Enviado', 'Revisa el correo yaslyncastillo21@gmail.com para obtener tu código de acceso.');
+    } catch (error) {
+      // For demonstration if no webhook, we still allow it but warn
+      console.error('Error sending code:', error);
+      setAdminCodeSent(true); 
+      Alert.alert('Nota', 'Se generó el código (ver consola) pero falló la conexión con el servidor de correos.');
+      console.log('CODIGO GENERADO:', code);
+    } finally {
+      setIsSendingCode(false);
     }
   };
 
@@ -210,6 +262,42 @@ const LoginScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
+            {isAdminCredentials && !adminCodeSent && (
+              <TouchableOpacity 
+                style={[styles.adminCodeBtn, { opacity: isSendingCode ? 0.7 : 1 }]} 
+                onPress={handleSendAdminCode}
+                disabled={isSendingCode}
+              >
+                {isSendingCode ? (
+                  <ActivityIndicator color={COLORS.primary} size="small" />
+                ) : (
+                  <Text style={styles.adminCodeBtnText}>ENVIAR CÓDIGO DE SEGURIDAD</Text>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {adminCodeSent && (
+              <View>
+                <Text style={styles.inputLabel}>Código de Seguridad</Text>
+                <View style={styles.inputContainer}>
+                  <MaterialCommunityIcons
+                    name="shield-check-outline"
+                    size={22}
+                    color={COLORS.iconColor}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Introduce el código de 6 dígitos"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    value={adminCodeInput}
+                    onChangeText={setAdminCodeInput}
+                  />
+                </View>
+              </View>
+            )}
+
             <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordLink}>
               <Text style={styles.linkText}>¿Olvidaste tu contraseña?</Text>
             </TouchableOpacity>
@@ -284,5 +372,20 @@ const styles = StyleSheet.create({
   registerText: { fontSize: 14, color: COLORS.textSecondary },
   linkTextBold: { color: COLORS.link, fontSize: 14, fontWeight: 'bold' },
   passwordToggle: { paddingRight: 12, justifyContent: 'center' as const },
+  adminCodeBtn: {
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginTop: 10,
+  },
+  adminCodeBtnText: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
+    fontSize: 13,
+    letterSpacing: 0.5,
+  },
 });
 

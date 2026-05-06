@@ -23,8 +23,16 @@ const MedicoHeader: React.FC<MedicoHeaderProps> = ({
   onNotificationPress,
   hasNotifications = false,
 }) => {
-  const { isSidebarOpen, toggleSidebar } = useMedicoModule();
+  const { isSidebarOpen, toggleSidebar, portalNavigate, toggleNotification } = useMedicoModule();
   const { rs, fs } = useResponsive();
+
+  const handleNotificationPress = () => {
+    if (onNotificationPress) {
+      onNotificationPress();
+    } else {
+      toggleNotification();
+    }
+  };
 
   return (
     <View style={styles.header}>
@@ -43,7 +51,7 @@ const MedicoHeader: React.FC<MedicoHeaderProps> = ({
       {showNotification && (
         <TouchableOpacity 
           style={[styles.notifBtn, { width: rs(44), height: rs(44), borderRadius: rs(14) }]} 
-          onPress={onNotificationPress}
+          onPress={handleNotificationPress}
         >
           <MaterialIcons name="notifications-none" size={24} color={colors.dark} />
           {hasNotifications && <View style={[styles.notifDot, { width: rs(10), height: rs(10), borderRadius: rs(10), top: rs(10), right: rs(10) }]} />}

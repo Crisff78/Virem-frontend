@@ -64,7 +64,7 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { activeModule, setActiveModule } = useMedicoModule();
+  const { activeModule, setActiveModule, isSidebarOpen } = useMedicoModule();
   const { doctorName, doctorSpec, fotoUrl, signOut } = useMedicoPortalSession({
     syncOnMount: true,
     addDoctorPrefix: true,
@@ -157,7 +157,7 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
         </TouchableOpacity>
       )}
 
-      {isDesktopLayout && (
+      {isDesktopLayout && isSidebarOpen && (
         <View style={styles.sidebarDesktop}>
           {sidebarContent}
         </View>

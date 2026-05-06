@@ -14,6 +14,7 @@ import MedicoHorariosScreen from './MedicoHorariosScreen';
 import MedicoFinanzasScreen from './MedicoFinanzasScreen';
 import MedicoRecetasScreen from './MedicoRecetasScreen';
 import MedicoConfiguracionScreen from './MedicoConfiguracionScreen';
+import MedicoNotificationDrawer from './components/MedicoNotificationDrawer';
 
 const MODULE_COMPONENTS: Record<MedicoPortalModule, React.ComponentType<any>> = {
   DashboardMedico: DashboardMedico,
@@ -49,6 +50,8 @@ const MedicoPortalInner: React.FC = () => {
           <ModuleSlot key={moduleName} moduleName={moduleName} />
         ))}
       </View>
+
+      <MedicoNotificationDrawer />
     </View>
   );
 };
