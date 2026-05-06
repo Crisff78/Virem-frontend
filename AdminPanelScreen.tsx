@@ -20,6 +20,9 @@ import { useAuth } from './providers/AuthProvider';
 import { ApiError, apiClient } from './utils/api';
 import { getApiErrorMessage } from './utils/apiErrors';
 import AdminSidebar from './components/AdminSidebar';
+import { useSocket } from './providers/SocketProvider';
+import { useSocketEvent } from './hooks/useSocketEvent';
+import { FlatList } from 'react-native';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'AdminPanel'>;
 type AdminMode = 'operational' | 'technical';
@@ -371,8 +374,10 @@ const AdminPanelScreen: React.FC = () => {
   const [activeSessions, setActiveSessions] = useState(0);
   const [dbLoad, setDbLoad] = useState(0);
   const [infra, setInfra] = useState<any[]>([]);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const [itError, setItError] = useState<string | null>(null);
+  const logScrollRef = useRef<ScrollView>(null);
+  const { joinAdminMonitoring, leaveAdminMonitoring } = useSocket();
 
   const [panel, setPanel] = useState<PanelStats | null>(null);
   const [pendingDoctors, setPendingDoctors] = useState<PendingMedico[]>([]);
@@ -480,7 +485,7 @@ const AdminPanelScreen: React.FC = () => {
         setItError(null);
         // Map logs
         if (res.stats.logs) {
-          setLogs(res.stats.logs.map((l: any) => l.text));
+          setLogs(res.stats.logs);
         }
       }
     } catch (err) {
@@ -496,6 +501,34 @@ const AdminPanelScreen: React.FC = () => {
       refresh();
     }, [isReady, refresh])
   );
+
+  // Join admin monitoring room
+  useEffect(() => {
+    if (adminMode !== 'technical' || !isAuthenticated) return;
+    
+    let active = true;
+    joinAdminMonitoring().then(res => {
+      if (active && !res.ok) {
+        console.warn('Could not join admin monitoring room:', res.code);
+      }
+    });
+
+    return () => {
+      active = false;
+      leaveAdminMonitoring();
+    };
+  }, [adminMode, isAuthenticated, joinAdminMonitoring, leaveAdminMonitoring]);
+
+  // Real-time log listener
+  useSocketEvent('system_log', (log: any) => {
+    setLogs(prev => {
+      const newLogs = [...prev, log];
+      if (newLogs.length > 100) return newLogs.slice(newLogs.length - 100);
+      return newLogs;
+    });
+    
+    // Auto-scroll logic if needed (handled in the component)
+  }, adminMode === 'technical');
 
   // Real IT updates
   useEffect(() => {
@@ -1285,6 +1318,7 @@ const AdminPanelScreen: React.FC = () => {
   const renderActiveTab = () => {
     if (adminMode === 'technical') {
       if (activeTab === 'it-overview') return renderITOverview();
+      if (activeTab === 'it-infra') return renderITInfra();
       if (activeTab === 'it-logs') return renderITLogs();
       return (
         <View style={styles.itPlaceholder}>
@@ -1319,21 +1353,15 @@ const AdminPanelScreen: React.FC = () => {
       
       <View style={styles.itSection}>
         <View style={styles.itSectionHeaderRow}>
-          <Text style={styles.itSectionTitle}>Infrastructure Status</Text>
-          <View style={styles.itLiveDotRow}>
-            <View style={[styles.itLiveDot, { backgroundColor: itError ? '#F85149' : '#3FB950' }]} />
-            <Text style={styles.itLiveText}>{itError ? 'Backend Down' : 'Backend Running'}</Text>
-          </View>
+          <Text style={styles.itSectionTitle}>Quick View: Infrastructure</Text>
+          <TouchableOpacity onPress={() => setActiveTab('it-infra')}>
+             <Text style={styles.itLinkText}>Ver detalles</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.itInfraList}>
-          {infra.length > 0 ? infra.map((item, idx) => (
-            <ITInfraItem key={idx} name={item.name} status={item.status} uptime={item.uptime} warning={item.status !== 'Healthy'} />
-          )) : (
-            <View style={styles.itPlaceholderCompact}>
-              <ActivityIndicator size="small" color="#58A6FF" />
-              <Text style={styles.itPlaceholderTextSmall}>Cargando infraestructura...</Text>
-            </View>
-          )}
+          {infra.slice(0, 3).map((item, idx) => (
+            <ITInfraItem key={idx} name={item.name} status={item.status} uptime={item.uptime} warning={item.status !== 'Healthy' && item.status !== 'Active' && item.status !== 'Ready' && item.status !== 'Running' && item.status !== 'Operational'} />
+          ))}
         </View>
       </View>
 
@@ -1345,32 +1373,113 @@ const AdminPanelScreen: React.FC = () => {
           </View>
         </View>
         <View style={styles.itTerminalShort}>
-          {logs.length > 0 ? logs.map((log, idx) => (
-            <Text key={idx} style={[
+          {logs.length > 0 ? logs.slice(-10).map((log, idx) => (
+            <Text key={log.id || idx} style={[
               styles.itTerminalText,
-              log.includes('[ERROR]') && styles.itTerminalTextError,
-              log.includes('[SERVER]') && styles.itTerminalTextServer
+              log.text.includes('[ERROR]') && styles.itTerminalTextError,
+              log.text.includes('[SERVER]') && styles.itTerminalTextServer,
+              log.text.includes('[SUCCESS]') && styles.itTerminalTextSuccess
             ]}>
-              {log}
+              {log.text}
             </Text>
           )) : (
             <Text style={styles.itTerminalTextMuted}>Waiting for system events...</Text>
           )}
         </View>
+        <TouchableOpacity style={styles.itLogsExpandBtn} onPress={() => setActiveTab('it-logs')}>
+          <MaterialIcons name="terminal" size={16} color="#58A6FF" />
+          <Text style={styles.itLogsExpandText}>Abrir Consola Completa</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 
+  const renderITInfra = () => {
+    // Group components
+    const database = infra.filter(i => i.name.toLowerCase().includes('database') || i.name.toLowerCase().includes('supabase'));
+    const platform = infra.filter(i => i.name.toLowerCase().includes('render') || i.name.toLowerCase().includes('vercel') || i.name.toLowerCase().includes('local'));
+    const apis = infra.filter(i => !database.includes(i) && !platform.includes(i));
+
+    const renderInfraGroup = (title: string, items: any[]) => (
+      <View style={{ marginBottom: 32 }}>
+        <Text style={[styles.itSectionTitle, { fontSize: 18, marginBottom: 8 }]}>{title}</Text>
+        <View style={styles.itInfraGrid}>
+          {items.map((item, idx) => (
+            <View key={idx} style={styles.infraCard}>
+              <View style={styles.infraCardHeader}>
+                <View style={styles.infraIconWrap}>
+                   <MaterialIcons 
+                     name={item.name.toLowerCase().includes('database') || item.name.toLowerCase().includes('supabase') ? 'storage' : 
+                           item.name.toLowerCase().includes('make') ? 'auto-fix-high' :
+                           item.name.toLowerCase().includes('phone') || item.name.toLowerCase().includes('veriphone') ? 'phonelink-setup' :
+                           item.name.toLowerCase().includes('exequatur') ? 'verified' :
+                           item.name.toLowerCase().includes('cedula') || item.name.toLowerCase().includes('cédula') ? 'badge' :
+                           item.name.toLowerCase().includes('media') || item.name.toLowerCase().includes('livekit') ? 'videocam' : 'cloud'} 
+                     size={24} 
+                     color="#58A6FF" 
+                   />
+                </View>
+                <View style={[styles.statusIndicator, { backgroundColor: (item.status === 'Healthy' || item.status === 'Active' || item.status === 'Ready' || item.status === 'Running' || item.status === 'Operational') ? '#238636' : '#D29922' }]} />
+              </View>
+              <Text style={styles.infraCardName}>{item.name}</Text>
+              <Text style={styles.infraCardStatus}>{item.status}</Text>
+              <View style={styles.infraCardFooter}>
+                 <Text style={styles.infraCardUptime}>{item.uptime}</Text>
+                 {item.latency && <Text style={styles.infraCardLatency}>{item.latency}</Text>}
+              </View>
+              {item.details && <Text style={styles.infraCardDetails} numberOfLines={2}>{item.details}</Text>}
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+
+    return (
+      <View style={styles.itTabContent}>
+        <View style={styles.itSection}>
+          <Text style={styles.itSectionTitleLarge}>System Infrastructure</Text>
+          <Text style={styles.itSectionSubtitle}>Real-time status of all backend and cloud-managed components.</Text>
+          
+          {renderInfraGroup("Core Infrastructure", [...database, ...platform])}
+          {renderInfraGroup("Integrated Services & APIs", apis)}
+        </View>
+      </View>
+    );
+  };
+
   const renderITLogs = () => (
     <View style={styles.itLogsContainer}>
       <View style={styles.itLogsHeader}>
-        <Text style={styles.itLogsTitle}>system_stdout_stream.log</Text>
+        <View style={styles.itLogsHeaderLeft}>
+          <MaterialIcons name="terminal" size={20} color="#58A6FF" />
+          <Text style={styles.itLogsTitle}>system_stdout_stream.log</Text>
+        </View>
+        <TouchableOpacity onPress={() => setLogs([])}>
+          <Text style={styles.itLinkText}>Clear console</Text>
+        </TouchableOpacity>
       </View>
-      <ScrollView style={styles.itLogsScroll} inverted>
-        {logs.map((log, idx) => (
-          <Text key={idx} style={styles.itTerminalTextLarge}>{log}</Text>
-        ))}
-      </ScrollView>
+      <View style={styles.itTerminalLargeBox}>
+        <FlatList
+          data={[...logs].reverse()}
+          keyExtractor={(item, index) => item.id || String(index)}
+          renderItem={({ item }) => (
+            <View style={styles.logLine}>
+               <Text style={[
+                styles.itTerminalTextLarge,
+                item.text.includes('[ERROR]') && styles.itTerminalTextError,
+                item.text.includes('[SERVER]') && styles.itTerminalTextServer,
+                item.text.includes('[SUCCESS]') && styles.itTerminalTextSuccess
+              ]}>
+                {item.text}
+              </Text>
+            </View>
+          )}
+          contentContainerStyle={styles.itLogsFlatList}
+          removeClippedSubviews={true}
+          initialNumToRender={20}
+          maxToRenderPerBatch={10}
+        />
+      </View>
     </View>
   );
 
@@ -2113,6 +2222,8 @@ const styles = StyleSheet.create({
   itStatValue: { fontSize: 24, fontWeight: '900', color: '#C9D1D9' },
   itSection: { marginTop: 12 },
   itSectionTitle: { color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 16 },
+  itSectionTitleLarge: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 8 },
+  itSectionSubtitle: { color: '#8B949E', fontSize: 14, fontWeight: '500', marginBottom: 24 },
   itInfraList: { gap: 12 },
   itInfraItem: {
     backgroundColor: '#161B22',
@@ -2130,23 +2241,76 @@ const styles = StyleSheet.create({
   itInfraUptime: { color: '#8B949E', fontSize: 12 },
   itStatusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
   itStatusBadgeText: { fontSize: 11, fontWeight: '900' },
+  
+  itInfraGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 20,
+    marginTop: 10,
+  },
+  infraCard: {
+    width: 320,
+    backgroundColor: '#161B22',
+    borderWidth: 1,
+    borderColor: '#30363D',
+    borderRadius: 16,
+    padding: 20,
+    gap: 12,
+  },
+  infraCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infraIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#0D1117',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#30363D',
+  },
+  statusIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#161B22',
+  },
+  infraCardName: { color: '#C9D1D9', fontSize: 18, fontWeight: '800' },
+  infraCardStatus: { color: '#8B949E', fontSize: 14, fontWeight: '600' },
+  infraCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#30363D',
+  },
+  infraCardUptime: { color: '#238636', fontSize: 12, fontWeight: '700' },
+  infraCardLatency: { color: '#58A6FF', fontSize: 12, fontWeight: '700' },
+  infraCardDetails: { color: '#8B949E', fontSize: 11, fontStyle: 'italic', marginTop: 4 },
+
   itTerminalShort: {
     backgroundColor: '#010409',
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#30363D',
-    minHeight: 200,
+    minHeight: 180,
   },
   itTerminalText: {
     color: '#D1D5DA',
     fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 16,
     marginBottom: 2,
   },
   itTerminalTextError: { color: '#F85149' },
   itTerminalTextServer: { color: '#58A6FF', fontWeight: 'bold' },
+  itTerminalTextSuccess: { color: '#3FB950' },
   itTerminalTextMuted: { color: '#484F58', fontStyle: 'italic' },
   itTerminalStatus: {
     backgroundColor: '#21262D',
@@ -2155,6 +2319,22 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   itTerminalStatusText: { color: '#8B949E', fontSize: 10, fontWeight: '700' },
+  
+  itLinkText: { color: '#58A6FF', fontSize: 13, fontWeight: '700' },
+  itLogsExpandBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 8,
+    backgroundColor: '#0D1117',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#30363D',
+  },
+  itLogsExpandText: { color: '#58A6FF', fontSize: 13, fontWeight: '800' },
+
   itLogsContainer: {
     flex: 1,
     backgroundColor: '#010409',
@@ -2162,22 +2342,34 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#30363D',
-    minHeight: 500,
+    minHeight: 600,
   },
   itLogsHeader: {
-    height: 40,
+    height: 48,
     backgroundColor: '#161B22',
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#30363D',
   },
-  itLogsTitle: { color: '#8B949E', fontSize: 12, fontWeight: '700' },
-  itLogsScroll: { padding: 20 },
+  itLogsHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  itLogsTitle: { color: '#C9D1D9', fontSize: 13, fontWeight: '700' },
+  itTerminalLargeBox: { flex: 1, padding: 12 },
+  itLogsFlatList: { paddingBottom: 20 },
+  logLine: { 
+    paddingVertical: 4, 
+    borderBottomWidth: 0.5, 
+    borderBottomColor: '#161B22' 
+  },
   itTerminalTextLarge: {
     color: '#D1D5DA',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    fontSize: 13,
-    marginBottom: 6,
+    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
+    fontSize: 12,
+    lineHeight: 18,
   },
+
   itPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   itPlaceholderText: { color: '#8B949E', fontSize: 16, fontWeight: '700' },
   itPlaceholderCompact: { padding: 20, alignItems: 'center', gap: 8 },
