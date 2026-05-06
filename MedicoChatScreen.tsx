@@ -59,25 +59,10 @@ type ChatContact = {
   timeLabel: string;
 };
 
-type SideItem = {
-  icon: string;
-  label: string;
-  route?: 'DashboardMedico' | 'MedicoCitas' | 'MedicoPacientes' | 'MedicoChat' | 'MedicoPerfil' | 'MedicoConfiguracion';
-  active?: boolean;
-  badge?: { text: string; color: string };
-};
-
 const normalizeText = (value: unknown) =>
   String(value || '')
     .replace(/\s+/g, ' ')
     .trim();
-
-const sanitizeFotoUrl = (value: unknown) => {
-  const clean = normalizeText(value);
-  if (!clean) return '';
-  if (clean.toLowerCase().startsWith('blob:')) return '';
-  return clean;
-};
 
 const parseDateMs = (value: string | null | undefined) => {
   if (!value) return Number.POSITIVE_INFINITY;
@@ -108,12 +93,14 @@ const MedicoChatScreen: React.FC = () => {
 
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [user, setUser] = useState<SessionUser | null>(null);
   const [contacts, setContacts] = useState<ChatContact[]>([]);
   const [searchText, setSearchText] = useState('');
   const [reply, setReply] = useState('');
   const [selectedChatId, setSelectedChatId] = useState('');
   const [messagesByChat, setMessagesByChat] = useState<Record<string, Message[]>>({});
+  const [viewMode, setViewMode] = useState<'list' | 'chat'>('list');
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRefreshRef = useRef(0);
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
@@ -138,29 +125,40 @@ const MedicoChatScreen: React.FC = () => {
         return;
       }
 
-      const sorted = (payload.conversaciones as any[])
-        .map((conversation) => {
-          const conversationId = normalizeText(conversation?.conversacionId);
-          const citaId = normalizeText(conversation?.citaId);
-          if (!conversationId || !citaId) return null;
-          const nextDateMs = parseDateMs(conversation?.cita?.fechaHoraInicio || null);
-          return {
-            id: conversationId,
-            patientId: normalizeText(conversation?.paciente?.pacienteid),
-            name: normalizeText(conversation?.paciente?.nombreCompleto || 'Paciente') || 'Paciente',
-            status: normalizeText(conversation?.cita?.estadoCodigo || 'pendiente') || 'pendiente',
-            citaId,
-            unreadCount: Number(conversation?.unreadCount || 0),
+      const rawConversations = (payload.conversaciones as any[]);
+      
+      // Group by patientId to show one entry per person (WhatsApp style)
+      const groupedMap = new Map<string, ChatContact>();
+      
+      for (const conv of rawConversations) {
+        const pId = normalizeText(conv?.paciente?.pacienteid);
+        if (!pId) continue;
+        
+        const nextDateMs = parseDateMs(conv?.cita?.fechaHoraInicio || null);
+        const current = groupedMap.get(pId);
+        
+        // We keep the one with unread messages, or the most recent/relevant one
+        if (!current || conv.unreadCount > 0 || (current.unreadCount === 0 && nextDateMs < current.nextDateMs)) {
+          groupedMap.set(pId, {
+            id: normalizeText(conv?.conversacionId),
+            patientId: pId,
+            name: normalizeText(conv?.paciente?.nombreCompleto || 'Paciente'),
+            status: normalizeText(conv?.cita?.estadoCodigo || 'pendiente'),
+            citaId: normalizeText(conv?.citaId),
+            unreadCount: Number(conv?.unreadCount || 0),
             nextDateMs,
-            timeLabel: formatDateTime(conversation?.cita?.fechaHoraInicio),
-          } as ChatContact;
-        })
-        .filter((row: ChatContact | null): row is ChatContact => Boolean(row))
-        .sort((a, b) => {
-          if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
-          if (a.nextDateMs === b.nextDateMs) return a.name.localeCompare(b.name);
-          return a.nextDateMs - b.nextDateMs;
-        });
+            timeLabel: formatDateTime(conv?.cita?.fechaHoraInicio),
+          });
+        } else if (current && conv.unreadCount > 0) {
+           current.unreadCount += Number(conv.unreadCount);
+        }
+      }
+
+      const sorted = Array.from(groupedMap.values()).sort((a, b) => {
+        if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
+        return a.nextDateMs - b.nextDateMs;
+      });
+
       setContacts(sorted);
     } catch {
       setContacts([]);
@@ -258,10 +256,11 @@ const MedicoChatScreen: React.FC = () => {
       }
     }
 
-    if (!contacts.some((c) => c.id === selectedChatId)) {
-      setSelectedChatId(contacts[0].id);
+    const exists = contacts.some((c) => c.id === selectedChatId);
+    if (!exists && contacts.length > 0) {
+      if (viewMode === 'chat') setViewMode('list');
     }
-  }, [contacts, route.params?.patientId, route.params?.patientName, selectedChatId]);
+  }, [contacts, route.params?.patientId, route.params?.patientName, selectedChatId, viewMode]);
 
   useEffect(() => {
     if (!selectedChatId) return;
@@ -290,16 +289,7 @@ const MedicoChatScreen: React.FC = () => {
   useSocketEvent('mensaje_nuevo', (payload: any) => {
     const conversationId = normalizeText(payload?.conversacionId);
     if (!conversationId) return;
-    const rawMessage =
-      payload?.mensaje ||
-      (payload?.system && payload?.contenido
-        ? {
-            mensajeId: `system-${conversationId}-${normalizeText(payload.contenido)}`,
-            emisorTipo: 'sistema',
-            contenido: payload.contenido,
-            createdAt: new Date().toISOString(),
-          }
-        : null);
+    const rawMessage = payload?.mensaje;
     if (conversationId === selectedChatId && rawMessage) {
       const sender = normalizeText(rawMessage?.emisorTipo).toLowerCase();
       const from = sender === 'medico' ? 'me' : 'other';
@@ -316,27 +306,29 @@ const MedicoChatScreen: React.FC = () => {
     }
     scheduleContactsReload();
   });
+  
+  useSocketEvent('typing', (payload: any) => {
+    const conversationId = normalizeText(payload?.conversacionId);
+    if (conversationId === selectedChatId && normalizeText(payload?.emisorTipo).toLowerCase() !== 'medico') {
+      setIsTyping(true);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = setTimeout(() => setIsTyping(false), 3000);
+    }
+  });
 
   useSocketEvent('cita_actualizada', () => scheduleContactsReload());
-  useSocketEvent('cita_reprogramada', () => scheduleContactsReload());
 
   useEffect(() => {
     return () => {
-      if (refreshTimerRef.current) {
-        clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = null;
-      }
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     };
   }, []);
 
   const filteredContacts = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
     if (!q) return contacts;
-    return contacts.filter((contact) => {
-      const name = normalizeText(contact.name).toLowerCase();
-      const status = normalizeText(contact.status).toLowerCase();
-      return name.includes(q) || status.includes(q);
-    });
+    return contacts.filter((contact) => normalizeText(contact.name).toLowerCase().includes(q));
   }, [contacts, searchText]);
 
   const selectedContact = useMemo(
@@ -345,30 +337,6 @@ const MedicoChatScreen: React.FC = () => {
   );
 
   const currentMessages = messagesByChat[selectedChatId] || [];
-
-  const doctorAvatarSource: ImageSourcePropType = useMemo(() => {
-    if (doctorFotoUrl) return { uri: doctorFotoUrl };
-    return DefaultAvatar;
-  }, [doctorFotoUrl]);
-
-  const dateText = useMemo(
-    () =>
-      new Intl.DateTimeFormat('es-DO', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-      }).format(new Date()),
-    []
-  );
-
-  const timeText = useMemo(
-    () =>
-      new Intl.DateTimeFormat('es-DO', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(new Date()),
-    []
-  );
 
   const sendMessage = async () => {
     const text = normalizeText(reply);
@@ -379,15 +347,10 @@ const MedicoChatScreen: React.FC = () => {
         `/api/agenda/me/conversaciones/${selectedChatId}/mensajes`,
         {
           authenticated: true,
-          body: {
-            contenido: text,
-            tipo: 'texto',
-          },
+          body: { contenido: text, tipo: 'texto' },
         }
       );
-      if (!payload?.success || !payload?.mensaje) {
-        return;
-      }
+      if (!payload?.success || !payload?.mensaje) return;
 
       const nextMessage: Message = {
         id: normalizeText(payload?.mensaje?.mensajeId || `${Date.now()}`),
@@ -404,29 +367,9 @@ const MedicoChatScreen: React.FC = () => {
     }
   };
 
-  const sideItems: SideItem[] = [
-    { icon: 'dashboard', label: 'Dashboard', route: 'DashboardMedico' },
-    { icon: 'calendar-today', label: 'Agenda', route: 'MedicoCitas' },
-    { icon: 'group', label: 'Pacientes', route: 'MedicoPacientes' },
-    { icon: 'notification-important', label: 'Solicitudes', badge: { text: '5', color: '#ef4444' } },
-    { icon: 'chat-bubble', label: 'Mensajes', route: 'MedicoChat', active: true, badge: { text: '3', color: colors.primary } },
-    { icon: 'person', label: 'Perfil', route: 'MedicoPerfil' },
-    { icon: 'settings', label: 'Configuracion', route: 'MedicoConfiguracion' },
-  ];
-
-  const handleSideItemPress = (item: SideItem) => {
-    if (!item.route) {
-      Alert.alert('Solicitudes', 'Las solicitudes pendientes se integraran en un modulo dedicado.');
-      return;
-    }
-    if (item.route === 'MedicoChat') return;
-    navigation.navigate(item.route);
-  };
-
-  const handleLogout = async () => {
-    await signOut();
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  };
+  useEffect(() => {
+    setIsTyping(false);
+  }, [selectedChatId]);
 
   if (loadingUser) {
     return (
@@ -437,114 +380,154 @@ const MedicoChatScreen: React.FC = () => {
   }
 
   return (
+    <View style={styles.container}>
       <View style={styles.main}>
         <View style={styles.headerWrap}>
           <MedicoHeader title="Mensajes" />
         </View>
 
         <View style={[styles.chatShell, !isDesktopLayout && styles.chatShellMobile]}>
-          <View style={[styles.contactsPane, !isDesktopLayout && styles.contactsPaneMobile]}>
-            <View style={styles.searchRow}>
-              <MaterialIcons name="search" size={18} color={colors.muted} />
-              <TextInput
-                value={searchText}
-                onChangeText={setSearchText}
-                placeholder="Buscar paciente"
-                placeholderTextColor="#8ca7bd"
-                style={styles.searchInput}
-              />
-            </View>
+          {(viewMode === 'list' || isDesktopLayout) && (
+            <View style={[styles.contactsPane, !isDesktopLayout && styles.contactsPaneMobile]}>
+              <View style={styles.searchRow}>
+                <MaterialIcons name="search" size={18} color={colors.muted} />
+                <TextInput
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  placeholder="Buscar paciente"
+                  placeholderTextColor="#8ca7bd"
+                  style={styles.searchInput}
+                />
+              </View>
 
-            <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
-              {loadingContacts ? <Text style={styles.loadingText}>Cargando pacientes...</Text> : null}
-              {!loadingContacts && !filteredContacts.length ? (
-                <Text style={styles.loadingText}>No tienes pacientes para chat aun.</Text>
-              ) : null}
-              {filteredContacts.map((chat) => {
-                const active = chat.id === selectedChatId;
-                return (
-                  <TouchableOpacity
-                    key={chat.id}
-                    style={[styles.contactRow, active && styles.contactRowActive]}
-                    onPress={() => setSelectedChatId(chat.id)}
-                    activeOpacity={0.85}
-                  >
-                    <Image source={DefaultAvatar} style={styles.contactAvatar} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.contactName, active && styles.contactNameActive]}>{chat.name}</Text>
-                      <Text style={styles.contactMeta}>
-                        {chat.status} · {chat.timeLabel}
-                        {chat.unreadCount > 0 ? ` · ${chat.unreadCount} sin leer` : ''}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          <View style={styles.messagesPane}>
-            {selectedContact ? (
-              <>
-                <View style={styles.chatHeader}>
-                  <Image source={DefaultAvatar} style={styles.chatHeaderAvatar} />
-                  <View>
-                    <Text style={styles.chatHeaderName}>{selectedContact.name}</Text>
-                    <Text style={styles.chatHeaderSub}>
-                      Ultima referencia: {selectedContact.status} · {selectedContact.timeLabel}
-                    </Text>
-                  </View>
-                </View>
-
-                <ScrollView style={styles.messagesList} contentContainerStyle={{ paddingBottom: 12 }}>
-                  {loadingMessages ? (
-                    <Text style={styles.emptyConversation}>Cargando mensajes...</Text>
-                  ) : !currentMessages.length ? (
-                    <Text style={styles.emptyConversation}>
-                      Inicia la conversacion con {selectedContact.name}.
-                    </Text>
-                  ) : (
-                    currentMessages.map((message) => (
-                      <View
-                        key={message.id}
-                        style={[styles.messageBubble, message.from === 'me' ? styles.messageMe : styles.messageOther]}
-                      >
-                        <Text style={[styles.messageText, message.from === 'me' ? styles.messageTextMe : null]}>
-                          {message.text}
-                        </Text>
-                        <Text style={[styles.messageTime, message.from === 'me' ? styles.messageTimeMe : null]}>
-                          {message.time}
+              <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
+                {loadingContacts ? <Text style={styles.loadingText}>Cargando pacientes...</Text> : null}
+                {!loadingContacts && !filteredContacts.length ? (
+                  <Text style={styles.loadingText}>No tienes pacientes para chat aun.</Text>
+                ) : null}
+                {filteredContacts.map((chat) => {
+                  const active = chat.id === selectedChatId;
+                  return (
+                    <TouchableOpacity
+                      key={chat.id}
+                      style={[styles.contactRow, active && styles.contactRowActive]}
+                      onPress={() => {
+                        setSelectedChatId(chat.id);
+                        setViewMode('chat');
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <Image source={DefaultAvatar} style={styles.contactAvatar} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.contactName, active && styles.contactNameActive]}>{chat.name}</Text>
+                        <Text style={styles.contactMeta}>
+                          {chat.status} · {chat.timeLabel}
+                          {chat.unreadCount > 0 ? ` · ${chat.unreadCount} sin leer` : ''}
                         </Text>
                       </View>
-                    ))
-                  )}
-                </ScrollView>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
-                <View style={styles.replyRow}>
-                  <TextInput
-                    value={reply}
-                    onChangeText={setReply}
-                    placeholder={selectedContact ? `Escribe a ${selectedContact.name}` : 'Selecciona un paciente'}
-                    placeholderTextColor="#8ca7bd"
-                    style={styles.replyInput}
-                    editable={Boolean(selectedContact)}
-                  />
-                  <TouchableOpacity
-                    style={[styles.sendBtn, !reply.trim().length && styles.sendBtnDisabled]}
-                    onPress={sendMessage}
-                    disabled={!reply.trim().length || !selectedContact}
-                  >
-                    <MaterialIcons name="send" size={18} color="#fff" />
-                  </TouchableOpacity>
+          {(viewMode === 'chat' || isDesktopLayout) && (
+            <View style={styles.messagesPane}>
+              {selectedContact ? (
+                <>
+                  <View style={styles.chatHeader}>
+                    {!isDesktopLayout && (
+                      <TouchableOpacity style={styles.backBtn} onPress={() => setViewMode('list')}>
+                        <MaterialIcons name="arrow-back" size={24} color={colors.dark} />
+                      </TouchableOpacity>
+                    )}
+                    <Image source={DefaultAvatar} style={styles.chatHeaderAvatar} />
+                    <View>
+                      <Text style={styles.chatHeaderName}>{selectedContact.name}</Text>
+                      <Text style={styles.chatHeaderSub}>
+                        Ultima referencia: {selectedContact.status} · {selectedContact.timeLabel}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {isTyping && selectedContact && (
+                    <View style={styles.typingBar}>
+                      <View style={styles.typingDots}>
+                        <View style={styles.typingDot} /><View style={[styles.typingDot, styles.typingDot2]} /><View style={[styles.typingDot, styles.typingDot3]} />
+                      </View>
+                      <Text style={styles.typingText}>{selectedContact.name.split(' ')[0]} está escribiendo…</Text>
+                    </View>
+                  )}
+
+                  <ScrollView style={styles.messagesList} contentContainerStyle={{ paddingBottom: 12 }}>
+                    {loadingMessages ? (
+                      <Text style={styles.emptyConversation}>Cargando mensajes...</Text>
+                    ) : !currentMessages.length ? (
+                      <Text style={styles.emptyConversation}>
+                        Inicia la conversacion con {selectedContact.name}.
+                      </Text>
+                    ) : (
+                      currentMessages.map((message) => (
+                        <View
+                          key={message.id}
+                          style={[styles.msgWrap, message.from === 'me' && styles.msgWrapMe]}
+                        >
+                          <View style={[styles.msgBubble, message.from === 'me' && styles.msgBubbleMe]}>
+                            <Text style={[styles.msgText, message.from === 'me' && styles.msgTextMe]}>
+                              {message.text}
+                            </Text>
+                            <View style={styles.msgMetaRow}>
+                              <Text style={[styles.msgTime, message.from === 'me' && styles.msgTimeMe]}>
+                                {message.time}
+                              </Text>
+                              {message.from === 'me' && (
+                                <MaterialIcons 
+                                  name="done" 
+                                  size={14} 
+                                  color={colors.muted} 
+                                  style={{ marginLeft: 4 }}
+                                />
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      ))
+                    )}
+                  </ScrollView>
+
+                  <View style={styles.inputRow}>
+                    <TouchableOpacity style={styles.attachBtn}>
+                      <MaterialIcons name="insert-emoticon" size={24} color={colors.muted} />
+                    </TouchableOpacity>
+                    <TextInput
+                      value={reply}
+                      onChangeText={setReply}
+                      placeholder={`Escribe a ${selectedContact.name}`}
+                      placeholderTextColor="#8ca7bd"
+                      style={styles.replyInput}
+                      editable={Boolean(selectedContact)}
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={[styles.sendBtn, !reply.trim().length && styles.sendBtnDisabled]}
+                      onPress={sendMessage}
+                      disabled={!reply.trim().length || !selectedContact}
+                    >
+                      <MaterialIcons name="send" size={18} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.emptyChatState}>
+                  <MaterialIcons name="chat" size={48} color="#e1edf8" />
+                  <Text style={styles.loadingText}>Selecciona un paciente para iniciar chat.</Text>
                 </View>
-              </>
-            ) : (
-              <View style={styles.emptyChatState}>
-                <Text style={styles.loadingText}>Selecciona un paciente para iniciar chat.</Text>
-              </View>
-            )}
-          </View>
+              )}
+            </View>
+          )}
         </View>
+      </View>
     </View>
   );
 };
@@ -556,16 +539,15 @@ const colors = {
   blue: '#1A3D63',
   muted: '#4A7FA7',
   white: '#FFFFFF',
+  bubbleMe: '#137fec',
+  bubbleOther: '#E1EDF8',
+  chatBg: '#F8FBFF',
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
-  },
-  containerMobile: {
-    flexDirection: 'column',
   },
   loaderWrap: {
     flex: 1,
@@ -574,90 +556,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   loadingText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
-  sidebar: {
-    width: Platform.OS === 'web' ? 280 : '100%',
-    backgroundColor: colors.white,
-    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-    borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
-    borderRightColor: '#eef2f7',
-    borderBottomColor: '#eef2f7',
-    padding: Platform.OS === 'web' ? 20 : 14,
-    justifyContent: 'space-between',
-  },
-  sidebarMobile: {
-    width: '100%',
-    borderRightWidth: 0,
-    borderBottomWidth: 1,
-    padding: 14,
-  },
-  logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, resizeMode: 'contain' },
-  logoTitle: { color: colors.dark, fontSize: 20, fontWeight: '800' },
-  logoSub: { color: colors.muted, fontSize: 11, fontWeight: '700' },
-  userCard: { marginTop: 18, marginBottom: 10, alignItems: 'center' },
-  userAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 80,
-    borderWidth: 4,
-    borderColor: '#f1f5fb',
-    marginBottom: 10,
-  },
-  userName: { color: colors.dark, fontSize: 15, fontWeight: '900', textAlign: 'center' },
-  userSpec: { color: colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 2 },
-  menu: { marginTop: 10, gap: 6 },
-  menuMobile: { flexDirection: 'row', flexWrap: 'wrap' },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  menuItemActive: { backgroundColor: 'rgba(19,127,236,0.12)' },
-  menuText: { color: colors.muted, fontSize: 14, fontWeight: '700' },
-  menuTextActive: { color: colors.primary, fontWeight: '800' },
-  badge: {
-    marginLeft: 'auto',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  logoutBtn: {
-    marginTop: 14,
-    backgroundColor: colors.blue,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  logoutText: { color: '#fff', fontWeight: '800' },
   main: { flex: 1, paddingHorizontal: 20 },
   headerWrap: {
     paddingTop: Platform.OS === 'web' ? 32 : 14,
     paddingBottom: 12,
   },
-  headerRow: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-    justifyContent: 'space-between',
-    alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-start',
-    gap: 12,
-  },
-  headerRowMobile: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-  },
-  headerLeft: { flex: 1 },
-  headerRight: { alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-start' },
-  headerRightMobile: { alignItems: 'flex-start' },
-  headerDate: { color: colors.dark, fontSize: 14, fontWeight: '800' },
-  headerTime: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  pageTitle: { color: colors.dark, fontSize: 30, fontWeight: '900' },
-  pageSubtitle: { color: colors.muted, fontSize: 16, fontWeight: '500', marginTop: 3 },
   chatShell: {
     flex: 1,
     marginBottom: 20,
@@ -667,13 +570,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#fff',
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-    minHeight: 500,
   },
   chatShellMobile: {
     flexDirection: 'column',
   },
   contactsPane: {
     width: Platform.OS === 'web' ? 320 : '100%',
+    flex: 1,
     borderRightWidth: Platform.OS === 'web' ? 1 : 0,
     borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
     borderRightColor: '#e4edf7',
@@ -685,7 +588,6 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRightWidth: 0,
     borderBottomWidth: 1,
-    maxHeight: 320,
   },
   searchRow: {
     flexDirection: 'row',
@@ -710,13 +612,17 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 8,
     backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.02,
+    shadowRadius: 5,
+    elevation: 1,
   },
-  contactRowActive: { borderColor: '#137fec', backgroundColor: '#eef6ff' },
+  contactRowActive: { borderColor: colors.primary, backgroundColor: '#eef6ff' },
   contactAvatar: { width: 42, height: 42, borderRadius: 42 },
   contactName: { color: colors.dark, fontSize: 14, fontWeight: '800' },
   contactNameActive: { color: colors.primary },
   contactMeta: { color: colors.muted, fontSize: 11, marginTop: 2, fontWeight: '600' },
-  messagesPane: { flex: 1, padding: 12, backgroundColor: '#fbfdff' },
+  messagesPane: { flex: 1, padding: 12, backgroundColor: colors.chatBg },
   chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -732,43 +638,83 @@ const styles = StyleSheet.create({
   chatHeaderSub: { color: colors.muted, fontSize: 12, marginTop: 2, fontWeight: '600' },
   messagesList: { flex: 1, marginTop: 10 },
   emptyConversation: { color: colors.muted, fontSize: 13, fontWeight: '700', marginTop: 8 },
-  messageBubble: {
-    maxWidth: '84%',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 8,
+  msgWrap: { maxWidth: '85%', marginBottom: 6, alignSelf: 'flex-start' },
+  msgWrapMe: { alignSelf: 'flex-end', alignItems: 'flex-end' },
+  msgBubble: { 
+    backgroundColor: colors.bubbleOther, 
+    borderRadius: 16, 
+    borderTopLeftRadius: 4, 
+    paddingHorizontal: 14, 
+    paddingVertical: 10, 
+    shadowColor: '#000', 
+    shadowOpacity: 0.03, 
+    shadowRadius: 3, 
+    elevation: 1 
   },
-  messageMe: { alignSelf: 'flex-end', backgroundColor: colors.primary },
-  messageOther: { alignSelf: 'flex-start', backgroundColor: '#e9f1fb' },
-  messageText: { color: colors.dark, fontSize: 13, fontWeight: '600' },
-  messageTextMe: { color: '#fff' },
-  messageTime: { color: '#6e89a1', fontSize: 10, marginTop: 4, textAlign: 'right', fontWeight: '700' },
-  messageTimeMe: { color: '#d9e9ff' },
-  replyRow: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
+  msgBubbleMe: { 
+    backgroundColor: colors.bubbleMe, 
+    borderTopLeftRadius: 16, 
+    borderTopRightRadius: 4,
+  },
+  msgText: { color: colors.dark, fontSize: 14, fontWeight: '500', lineHeight: 20 },
+  msgTextMe: { color: '#fff' },
+  msgMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 },
+  msgTime: { color: colors.muted, fontSize: 10, fontWeight: '600' },
+  msgTimeMe: { color: 'rgba(255,255,255,0.8)' },
+  inputRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 10, 
+    backgroundColor: '#fff', 
     gap: 8,
+    borderRadius: 14,
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: '#d9e6f4',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: '#fff',
+    borderColor: '#e1edf8'
   },
-  replyInput: { flex: 1, color: colors.dark, fontSize: 14, fontWeight: '600', paddingVertical: 4 },
-  sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 9,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  replyInput: { 
+    flex: 1, 
+    backgroundColor: '#f1f5fb', 
+    borderRadius: 20, 
+    paddingHorizontal: 16, 
+    paddingVertical: 8, 
+    fontSize: 14, 
+    color: colors.dark, 
+    maxHeight: 100 
   },
-  sendBtnDisabled: { opacity: 0.55 },
-  emptyChatState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { 
+    width: 44, 
+    height: 44, 
+    borderRadius: 22, 
+    backgroundColor: colors.primary, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    elevation: 2 
+  },
+  sendBtnDisabled: { opacity: 0.6, backgroundColor: '#8aa7bf' },
+  attachBtn: { padding: 8 },
+  typingBar: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8, 
+    paddingHorizontal: 14, 
+    paddingVertical: 6, 
+    backgroundColor: 'rgba(255,255,255,0.8)', 
+    borderBottomWidth: 1, 
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 8,
+    marginTop: 4
+  },
+  typingDots: { flexDirection: 'row', gap: 3, alignItems: 'center' },
+  typingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, opacity: 0.5 },
+  typingDot2: { opacity: 0.7 },
+  typingDot3: { opacity: 0.9 },
+  typingText: { fontSize: 11, fontWeight: '700', color: colors.muted, fontStyle: 'italic' },
+  backBtn: {
+    padding: 4,
+    marginRight: 6,
+  },
+  emptyChatState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
 });
 
 export default MedicoChatScreen;
-
