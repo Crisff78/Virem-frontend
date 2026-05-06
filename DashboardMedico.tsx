@@ -437,8 +437,8 @@ const DashboardMedico: React.FC = () => {
     },
     logoutText: { color: '#fff', fontWeight: '800', fontSize: fs(14) },
 
-    main: { flex: 1, paddingHorizontal: rs(24), paddingTop: rs(18) },
-    mainMobile: { paddingHorizontal: rs(14), paddingTop: rs(12) },
+    main: { flex: 1, paddingHorizontal: 20, paddingTop: 18 },
+    mainMobile: { paddingHorizontal: 20, paddingTop: 12 },
 
     header: { marginBottom: rs(2) },
     notifBtn: { 

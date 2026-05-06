@@ -549,14 +549,12 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
 
   const currentCalculatedPrice = useMemo(() => {
     if (!selectedSlot) return 0;
-    if (selectedSlot.modalidad !== 'virtual') {
-      return Number(backendDoctor?.precio || 1000);
-    }
-    if (virtualSubtype === 'chat') {
-      return 0;
-    }
-    return Number(backendDoctor?.precio_videollamada || 1000);
-  }, [backendDoctor, selectedSlot, virtualSubtype]);
+    
+    // Usamos el precio que se muestra en el perfil para que coincida exactamente
+    const displayedPrice = Number(String(doctor.price || '0').replace(/[^\d.]/g, ''));
+    
+    return displayedPrice;
+  }, [doctor, selectedSlot]);
 
   const commissionAmount = useMemo(() => {
     return Number((currentCalculatedPrice * 0.15).toFixed(2));
@@ -984,41 +982,18 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
               >
                 <View style={styles.paymentCard}>
                   <View style={styles.paymentHeader}>
-                    <Text style={styles.paymentTitle}>Confirmar Pago</Text>
+                    <View style={{ flex: 1 }} />
                     <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
                       <MaterialIcons name="close" size={24} color={colors.dark} />
                     </TouchableOpacity>
                   </View>
 
-                  {selectedSlot?.modalidad === 'virtual' && (
-                    <View style={styles.modalidadSelector}>
-                      <Text style={styles.selectorLabel}>Selecciona tipo de atención</Text>
-                      <View style={styles.selectorRow}>
-                        <TouchableOpacity
-                          style={[styles.selectorBtn, virtualSubtype === 'chat' && styles.selectorBtnActive]}
-                          onPress={() => setVirtualSubtype('chat')}
-                        >
-                          <MaterialIcons name="chat" size={20} color={virtualSubtype === 'chat' ? '#fff' : colors.muted} />
-                          <View>
-                            <Text style={[styles.selectorBtnText, virtualSubtype === 'chat' && styles.selectorBtnActiveText]}>Chat</Text>
-                            <Text style={[styles.selectorBtnSubtext, virtualSubtype === 'chat' && styles.selectorBtnActiveText]}>Coordinación</Text>
-                          </View>
-                          <Text style={[styles.selectorPrice, virtualSubtype === 'chat' && styles.selectorBtnActiveText]}>GRATIS</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.selectorBtn, virtualSubtype === 'videollamada' && styles.selectorBtnActive]}
-                          onPress={() => setVirtualSubtype('videollamada')}
-                        >
-                          <MaterialIcons name="videocam" size={20} color={virtualSubtype === 'videollamada' ? '#fff' : colors.muted} />
-                          <View>
-                            <Text style={[styles.selectorBtnText, virtualSubtype === 'videollamada' && styles.selectorBtnActiveText]}>Video</Text>
-                            <Text style={[styles.selectorBtnSubtext, virtualSubtype === 'videollamada' && styles.selectorBtnActiveText]}>Consulta Médica</Text>
-                          </View>
-                          <Text style={[styles.selectorPrice, virtualSubtype === 'videollamada' && styles.selectorBtnActiveText]}>${backendDoctor?.precio_videollamada || 1000}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
+                  <View style={{ marginBottom: 20, alignItems: 'center' }}>
+                    <MaterialIcons name="info-outline" size={20} color={colors.primary} />
+                    <Text style={[styles.selectorBtnSubtext, { marginTop: 4, fontSize: 12 }]}>
+                      El servicio de Chat de coordinación está incluido con tu consulta.
+                    </Text>
+                  </View>
 
                   <View style={styles.paymentBreakdown}>
                     <View style={styles.breakdownRow}>
@@ -1057,7 +1032,11 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                       placeholder="0000 0000 0000 0000"
                       keyboardType="numeric"
                       value={cardNumber}
-                      onChangeText={setCardNumber}
+                      onChangeText={(t) => {
+                        const digits = t.replace(/\D/g, '');
+                        const formatted = digits.replace(/(.{4})/g, '$1 ').trim().slice(0, 19);
+                        setCardNumber(formatted);
+                      }}
                       maxLength={19}
                     />
                   </View>
@@ -1068,8 +1047,16 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                       <TextInput
                         style={styles.paymentInput}
                         placeholder="MM/AA"
+                        keyboardType="numeric"
                         value={cardExpiry}
-                        onChangeText={setCardExpiry}
+                        onChangeText={(t) => {
+                          const digits = t.replace(/\D/g, '');
+                          if (digits.length <= 2) {
+                            setCardExpiry(digits);
+                          } else {
+                            setCardExpiry(`${digits.slice(0, 2)}/${digits.slice(2, 4)}`);
+                          }
+                        }}
                         maxLength={5}
                       />
                     </View>
@@ -1081,8 +1068,10 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                         keyboardType="numeric"
                         secureTextEntry
                         value={cardCVV}
-                        onChangeText={setCardCVV}
-                        maxLength={4}
+                        onChangeText={(t) => {
+                          setCardCVV(t.replace(/\D/g, '').slice(0, 3));
+                        }}
+                        maxLength={3}
                       />
                     </View>
                   </View>

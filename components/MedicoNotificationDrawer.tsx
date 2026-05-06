@@ -21,7 +21,7 @@ import { getAuthToken } from '../utils/session';
 import { useResponsive } from '../hooks/useResponsive';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const DRAWER_WIDTH = Platform.OS === 'web' ? 400 : SCREEN_WIDTH * 0.85;
+const DRAWER_WIDTH = Platform.OS === 'web' ? 280 : SCREEN_WIDTH * 0.85;
 
 type NotificationItem = {
   id: string;
@@ -233,9 +233,14 @@ const MedicoNotificationDrawer: React.FC = () => {
       <Animated.View style={[styles.drawer, { transform: [{ translateX: slideAnim }] }]}>
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { fontSize: fs(20) }]}>{t('notif.center')}</Text>
-          <TouchableOpacity onPress={toggleNotification} style={styles.closeBtn}>
-            <MaterialIcons name="close" size={24} color="#0A1931" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <TouchableOpacity onPress={markAllRead} style={styles.markAllHeaderBtn}>
+              <Text style={styles.markAllHeaderText}>Marcar leído</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={toggleNotification} style={styles.closeBtn}>
+              <MaterialIcons name="close" size={24} color="#0A1931" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.controls}>
@@ -273,12 +278,6 @@ const MedicoNotificationDrawer: React.FC = () => {
                   group.section === 'AYER' ? 'Ayer' :
                   group.section === 'ESTA SEMANA' ? 'Esta semana' : 'Anterior'
                 }</Text>
-                {/* Show mark all in the first non-empty section for quick access */}
-                {grouped.find(g => g.items.length > 0)?.section === group.section && (
-                  <TouchableOpacity onPress={markAllRead} style={styles.markSectionBtn}>
-                    <Text style={styles.markSectionText}>Marcar todo</Text>
-                  </TouchableOpacity>
-                )}
               </View>
               {group.items.map((item) => (
                 <TouchableOpacity 
@@ -375,8 +374,8 @@ const styles = StyleSheet.create({
     marginBottom: 12 
   },
   sectionTitle: { fontSize: 13, fontWeight: '900', color: '#9bb1c7', letterSpacing: 1 },
-  markSectionBtn: { backgroundColor: '#137fec15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
-  markSectionText: { fontSize: 11, fontWeight: '800', color: '#137fec' },
+  markAllHeaderBtn: { backgroundColor: '#137fec15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  markAllHeaderText: { fontSize: 11, fontWeight: '800', color: '#137fec' },
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,

@@ -250,8 +250,6 @@ const styles = StyleSheet.create({
   modalOption: { paddingVertical: 16, paddingHorizontal: 20, borderRadius: 8, marginBottom: 8, backgroundColor: colors.slate50, borderWidth: 1, borderColor: colors.navyMedium },
   modalOptionText: { fontSize: 16, color: colors.navyDark, textAlign: 'center', fontWeight: '500' },
   inputError: { borderColor: colors.error, borderWidth: 1.5 },
-  modalOptionText: { fontSize: 16, color: colors.navyDark, textAlign: 'center', fontWeight: '500' },
-  inputError: { borderColor: colors.error, borderWidth: 1.5 },
   errorText: { color: colors.error, fontSize: 12, marginTop: 4, fontWeight: '500' },
 });
 

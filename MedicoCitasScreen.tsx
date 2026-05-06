@@ -395,7 +395,7 @@ const MedicoCitasScreen: React.FC = () => {
   return (
     <View style={{ flex: 1 }}>
         <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
-          <MedicoHeader title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`} />
+          <MedicoHeader title="Mi Agenda" />
 
         <View style={styles.searchWrap}>
           <MaterialIcons name="search" size={19} color={colors.muted} />
@@ -655,9 +655,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoutText: { color: '#fff', fontWeight: '800' },
-  main: { flex: 1 },
+  main: { flex: 1, paddingHorizontal: 20 },
   headerWrap: {
-    paddingHorizontal: Platform.OS === 'web' ? 32 : 14,
     paddingTop: Platform.OS === 'web' ? 32 : 14,
     paddingBottom: 12,
   },
@@ -679,7 +678,6 @@ const styles = StyleSheet.create({
   pageTitle: { color: colors.dark, fontSize: 30, fontWeight: '900' },
   pageSubtitle: { color: colors.muted, fontSize: 16, marginTop: 4, fontWeight: '500' },
   searchWrap: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
@@ -693,7 +691,6 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, color: colors.dark, fontSize: 14, fontWeight: '600', paddingVertical: 4 },
   sectionHead: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     marginTop: 12,
     marginBottom: 8,
     flexDirection: 'row',
@@ -703,7 +700,6 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.dark, fontSize: 20, fontWeight: '900' },
   sectionCount: { color: colors.muted, fontSize: 13, fontWeight: '800' },
   sectionCard: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     backgroundColor: '#fff',
     borderRadius: 14,
     borderWidth: 1,
@@ -772,7 +768,6 @@ const styles = StyleSheet.create({
 
   statsRow: {
     flexDirection: 'row',
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     gap: 12,
     marginBottom: 20,
     flexWrap: 'wrap',

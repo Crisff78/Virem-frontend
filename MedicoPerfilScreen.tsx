@@ -421,7 +421,9 @@ const MedicoPerfilScreen: React.FC = () => {
   return (
     <View style={{ flex: 1 }}>
         <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 26 }}>
-          <MedicoHeader title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`} />
+          <View style={{ paddingHorizontal: 20 }}>
+            <MedicoHeader title="Mi Perfil" />
+          </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Foto de perfil</Text>
@@ -516,6 +518,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
+    paddingHorizontal: 20,
   },
   loaderWrap: {
     flex: 1,
@@ -599,7 +602,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerWrap: {
-    paddingHorizontal: Platform.OS === 'web' ? 32 : 14,
     paddingTop: Platform.OS === 'web' ? 32 : 14,
     paddingBottom: 12,
   },
@@ -623,7 +625,6 @@ const styles = StyleSheet.create({
   },
   pageSubtitle: { color: colors.muted, fontSize: 16, fontWeight: '500' },
   card: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#dbe8f4',
@@ -678,7 +679,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   successBanner: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

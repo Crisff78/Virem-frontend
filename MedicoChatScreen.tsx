@@ -98,6 +98,7 @@ const formatDateTime = (value: string | null | undefined) => {
 };
 
 const MedicoChatScreen: React.FC = () => {
+  const navigation = usePortalAwareMedicoNavigation();
   const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
   const route = useRoute<RouteProp<RootStackParamList, 'MedicoChat'>>();
   const { user: sessionUser, signOut } = useAuth<SessionUser>();
@@ -438,7 +439,7 @@ const MedicoChatScreen: React.FC = () => {
   return (
       <View style={styles.main}>
         <View style={styles.headerWrap}>
-          <MedicoHeader title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`} />
+          <MedicoHeader title="Mensajes" />
         </View>
 
         <View style={[styles.chatShell, !isDesktopLayout && styles.chatShellMobile]}>
@@ -635,9 +636,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoutText: { color: '#fff', fontWeight: '800' },
-  main: { flex: 1 },
+  main: { flex: 1, paddingHorizontal: 20 },
   headerWrap: {
-    paddingHorizontal: Platform.OS === 'web' ? 32 : 14,
     paddingTop: Platform.OS === 'web' ? 32 : 14,
     paddingBottom: 12,
   },
@@ -660,7 +660,6 @@ const styles = StyleSheet.create({
   pageSubtitle: { color: colors.muted, fontSize: 16, fontWeight: '500', marginTop: 3 },
   chatShell: {
     flex: 1,
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     marginBottom: 20,
     borderRadius: 14,
     borderWidth: 1,

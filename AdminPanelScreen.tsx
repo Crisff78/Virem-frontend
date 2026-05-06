@@ -25,8 +25,7 @@ import { useSocketEvent } from './hooks/useSocketEvent';
 import { FlatList } from 'react-native';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'AdminPanel'>;
-type AdminMode = 'operational' | 'technical';
-type TabKey = 'resumen' | 'usuarios' | 'citas' | 'pagos' | 'moderacion' | 'auditoria' | 'it-overview' | 'it-infra' | 'it-logs';
+type TabKey = 'resumen' | 'usuarios' | 'citas' | 'pagos' | 'moderacion' | 'auditoria';
 type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
 type PendingMedico = {
@@ -366,19 +365,6 @@ const AdminPanelScreen: React.FC = () => {
   const [citaScope, setCitaScope] = useState('all');
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(Platform.OS === 'web' && width >= 1024);
-  const [adminMode, setAdminMode] = useState<AdminMode>('operational');
-
-  // IT States
-  const [systemHealth, setSystemHealth] = useState(98);
-  const [apiLatency, setApiLatency] = useState(42);
-  const [activeSessions, setActiveSessions] = useState(0);
-  const [dbLoad, setDbLoad] = useState(0);
-  const [infra, setInfra] = useState<any[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [itError, setItError] = useState<string | null>(null);
-  const logScrollRef = useRef<ScrollView>(null);
-  const { joinAdminMonitoring, leaveAdminMonitoring } = useSocket();
-
   const [panel, setPanel] = useState<PanelStats | null>(null);
   const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -465,28 +451,6 @@ const AdminPanelScreen: React.FC = () => {
     }
   }, [handleAuthExpired, isAuthenticated, isReady, navigation]);
 
-  const fetchITStats = useCallback(async () => {
-    try {
-      const res = await apiClient.get<any>('/api/admin/it-stats', { authenticated: true });
-      if (res.success && res.stats) {
-        setApiLatency(res.stats.latency);
-        setSystemHealth(res.stats.health);
-        setActiveSessions(res.stats.activeSessions);
-        setDbLoad(res.stats.dbLoad);
-        setInfra(res.stats.infra || []);
-        setItError(null);
-        // Map logs
-        if (res.stats.logs) {
-          setLogs(res.stats.logs);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching IT stats:', err);
-      setItError('Backend connection lost or error occurred.');
-      setSystemHealth(0);
-    }
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       if (!isReady) return;
@@ -494,48 +458,6 @@ const AdminPanelScreen: React.FC = () => {
     }, [isReady, refresh])
   );
 
-  // Join admin monitoring room
-  useEffect(() => {
-    if (adminMode !== 'technical' || !isAuthenticated) return;
-    
-    let active = true;
-    joinAdminMonitoring().then(res => {
-      if (active && !res.ok) {
-        console.warn('Could not join admin monitoring room:', res.code);
-      }
-    });
-
-    return () => {
-      active = false;
-      leaveAdminMonitoring();
-    };
-  }, [adminMode, isAuthenticated, joinAdminMonitoring, leaveAdminMonitoring]);
-
-  // Real-time log listener
-  useSocketEvent('system_log', (log: any) => {
-    setLogs(prev => {
-      const newLogs = [...prev, log];
-      if (newLogs.length > 100) return newLogs.slice(newLogs.length - 100);
-      return newLogs;
-    });
-    
-    // Auto-scroll logic if needed (handled in the component)
-  }, adminMode === 'technical');
-
-  // Real IT updates
-  useEffect(() => {
-    if (adminMode !== 'technical') return;
-    
-    // First fetch
-    fetchITStats();
-
-    // Interval every 10s
-    const interval = setInterval(() => {
-      fetchITStats();
-    }, 10000);
-    
-    return () => clearInterval(interval);
-  }, [adminMode, fetchITStats]);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -1299,17 +1221,6 @@ const AdminPanelScreen: React.FC = () => {
   );
 
   const renderActiveTab = () => {
-    if (adminMode === 'technical') {
-      if (activeTab === 'it-overview') return renderITOverview();
-      if (activeTab === 'it-infra') return renderITInfra();
-      if (activeTab === 'it-logs') return renderITLogs();
-      return (
-        <View style={styles.itPlaceholder}>
-          <Text style={styles.itPlaceholderText}>{activeTab.replace('it-', '').toUpperCase()} Module coming soon...</Text>
-        </View>
-      );
-    }
-
     if (activeTab === 'usuarios') return renderUsuarios();
     if (activeTab === 'citas') return renderCitas();
     if (activeTab === 'pagos') return renderPagos();
@@ -1318,180 +1229,6 @@ const AdminPanelScreen: React.FC = () => {
     return renderResumen();
   };
 
-  const renderITOverview = () => (
-    <View style={styles.itTabContent}>
-      {itError && (
-        <View style={styles.itErrorBanner}>
-          <MaterialIcons name="error-outline" size={20} color="#F85149" />
-          <Text style={styles.itErrorText}>{itError}</Text>
-        </View>
-      )}
-
-      <View style={styles.itStatsGrid}>
-        <ITStatCard label="System Health" value={`${systemHealth.toFixed(1)}%`} icon="favorite" color={systemHealth > 95 ? '#238636' : systemHealth === 0 ? '#F85149' : '#D29922'} />
-        <ITStatCard label="Avg Latency" value={`${apiLatency.toFixed(0)}ms`} icon="speed" color={apiLatency < 100 ? '#58A6FF' : '#F85149'} />
-        <ITStatCard label="Active Sessions" value={String(activeSessions)} icon="wifi" color="#58A6FF" />
-        <ITStatCard label="DB Load" value={`${dbLoad.toFixed(1)}%`} icon="storage" color="#238636" />
-      </View>
-      
-      <View style={styles.itSection}>
-        <View style={styles.itSectionHeaderRow}>
-          <Text style={styles.itSectionTitle}>Quick View: Infrastructure</Text>
-          <TouchableOpacity onPress={() => setActiveTab('it-infra')}>
-             <Text style={styles.itLinkText}>Ver detalles</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.itInfraList}>
-          {infra.slice(0, 3).map((item, idx) => (
-            <ITInfraItem key={idx} name={item.name} status={item.status} uptime={item.uptime} warning={item.status !== 'Healthy' && item.status !== 'Active' && item.status !== 'Ready' && item.status !== 'Running' && item.status !== 'Operational'} />
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.itSection}>
-        <View style={styles.itSectionHeaderRow}>
-          <Text style={styles.itSectionTitle}>System Runtime Logs (Real-time)</Text>
-          <View style={styles.itTerminalStatus}>
-            <Text style={styles.itTerminalStatusText}>STDOUT / STDERR</Text>
-          </View>
-        </View>
-        <View style={styles.itTerminalShort}>
-          {logs.length > 0 ? logs.slice(-10).map((log, idx) => (
-            <Text key={log.id || idx} style={[
-              styles.itTerminalText,
-              log.text.includes('[ERROR]') && styles.itTerminalTextError,
-              log.text.includes('[SERVER]') && styles.itTerminalTextServer,
-              log.text.includes('[SUCCESS]') && styles.itTerminalTextSuccess
-            ]}>
-              {log.text}
-            </Text>
-          )) : (
-            <Text style={styles.itTerminalTextMuted}>Waiting for system events...</Text>
-          )}
-        </View>
-        <TouchableOpacity style={styles.itLogsExpandBtn} onPress={() => setActiveTab('it-logs')}>
-          <MaterialIcons name="terminal" size={16} color="#58A6FF" />
-          <Text style={styles.itLogsExpandText}>Abrir Consola Completa</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderITInfra = () => {
-    // Group components
-    const database = infra.filter(i => i.name.toLowerCase().includes('database') || i.name.toLowerCase().includes('supabase'));
-    const platform = infra.filter(i => i.name.toLowerCase().includes('render') || i.name.toLowerCase().includes('vercel') || i.name.toLowerCase().includes('local'));
-    const apis = infra.filter(i => !database.includes(i) && !platform.includes(i));
-
-    const renderInfraGroup = (title: string, items: any[]) => (
-      <View style={{ marginBottom: 32 }}>
-        <Text style={[styles.itSectionTitle, { fontSize: 18, marginBottom: 8 }]}>{title}</Text>
-        <View style={styles.itInfraGrid}>
-          {items.map((item, idx) => (
-            <View key={idx} style={styles.infraCard}>
-              <View style={styles.infraCardHeader}>
-                <View style={styles.infraIconWrap}>
-                   <MaterialIcons 
-                     name={item.name.toLowerCase().includes('database') || item.name.toLowerCase().includes('supabase') ? 'storage' : 
-                           item.name.toLowerCase().includes('make') ? 'auto-fix-high' :
-                           item.name.toLowerCase().includes('phone') || item.name.toLowerCase().includes('veriphone') ? 'phonelink-setup' :
-                           item.name.toLowerCase().includes('exequatur') ? 'verified' :
-                           item.name.toLowerCase().includes('cedula') || item.name.toLowerCase().includes('cédula') ? 'badge' :
-                           item.name.toLowerCase().includes('media') || item.name.toLowerCase().includes('livekit') ? 'videocam' : 'cloud'} 
-                     size={24} 
-                     color="#58A6FF" 
-                   />
-                </View>
-                <View style={[styles.statusIndicator, { backgroundColor: (item.status === 'Healthy' || item.status === 'Active' || item.status === 'Ready' || item.status === 'Running' || item.status === 'Operational') ? '#238636' : '#D29922' }]} />
-              </View>
-              <Text style={styles.infraCardName}>{item.name}</Text>
-              <Text style={styles.infraCardStatus}>{item.status}</Text>
-              <View style={styles.infraCardFooter}>
-                 <Text style={styles.infraCardUptime}>{item.uptime}</Text>
-                 {item.latency && <Text style={styles.infraCardLatency}>{item.latency}</Text>}
-              </View>
-              {item.details && <Text style={styles.infraCardDetails} numberOfLines={2}>{item.details}</Text>}
-            </View>
-          ))}
-        </View>
-      </View>
-    );
-
-    return (
-      <View style={styles.itTabContent}>
-        <View style={styles.itSection}>
-          <Text style={styles.itSectionTitleLarge}>System Infrastructure</Text>
-          <Text style={styles.itSectionSubtitle}>Real-time status of all backend and cloud-managed components.</Text>
-          
-          {renderInfraGroup("Core Infrastructure", [...database, ...platform])}
-          {renderInfraGroup("Integrated Services & APIs", apis)}
-        </View>
-      </View>
-    );
-  };
-
-  const renderITLogs = () => (
-    <View style={styles.itLogsContainer}>
-      <View style={styles.itLogsHeader}>
-        <View style={styles.itLogsHeaderLeft}>
-          <MaterialIcons name="terminal" size={20} color="#58A6FF" />
-          <Text style={styles.itLogsTitle}>system_stdout_stream.log</Text>
-        </View>
-        <TouchableOpacity onPress={() => setLogs([])}>
-          <Text style={styles.itLinkText}>Clear console</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.itTerminalLargeBox}>
-        <FlatList
-          data={[...logs].reverse()}
-          keyExtractor={(item, index) => item.id || String(index)}
-          renderItem={({ item }) => (
-            <View style={styles.logLine}>
-               <Text style={[
-                styles.itTerminalTextLarge,
-                item.text.includes('[ERROR]') && styles.itTerminalTextError,
-                item.text.includes('[SERVER]') && styles.itTerminalTextServer,
-                item.text.includes('[SUCCESS]') && styles.itTerminalTextSuccess
-              ]}>
-                {item.text}
-              </Text>
-            </View>
-          )}
-          contentContainerStyle={styles.itLogsFlatList}
-          removeClippedSubviews={true}
-          initialNumToRender={20}
-          maxToRenderPerBatch={10}
-        />
-      </View>
-    </View>
-  );
-
-  const ITStatCard = ({ label, value, icon, color }: any) => (
-    <View style={styles.itStatCard}>
-      <View style={[styles.itStatIconBox, { backgroundColor: `${color}15` }]}>
-        <MaterialIcons name={icon} size={20} color={color} />
-      </View>
-      <View>
-        <Text style={styles.itStatLabel}>{label}</Text>
-        <Text style={styles.itStatValue}>{value}</Text>
-      </View>
-    </View>
-  );
-
-  const ITInfraItem = ({ name, status, uptime, warning }: any) => (
-    <View style={styles.itInfraItem}>
-      <View style={styles.itInfraLeft}>
-        <MaterialIcons name={warning ? 'warning' : 'check-circle'} size={18} color={warning ? '#D29922' : '#238636'} />
-        <Text style={styles.itInfraName}>{name}</Text>
-      </View>
-      <View style={styles.itInfraRight}>
-        <Text style={styles.itInfraUptime}>{uptime} Uptime</Text>
-        <View style={[styles.itStatusBadge, { backgroundColor: warning ? '#D2992220' : '#23863620' }]}>
-          <Text style={[styles.itStatusBadgeText, { color: warning ? '#D29922' : '#238636' }]}>{status}</Text>
-        </View>
-      </View>
-    </View>
-  );
 
   if (loading) {
     return (
@@ -1502,10 +1239,8 @@ const AdminPanelScreen: React.FC = () => {
     );
   }
 
-  const isTech = adminMode === 'technical';
-
   return (
-    <View style={[styles.appContainer, isTech && styles.appContainerTech]}>
+    <View style={styles.appContainer}>
       <AdminSidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -1513,15 +1248,13 @@ const AdminPanelScreen: React.FC = () => {
         onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
         adminEmail={panel?.admin?.email}
         onLogout={handleLogout}
-        adminMode={adminMode}
-        setAdminMode={setAdminMode}
       />
       <View style={{ flex: 1 }}>
         <ScrollView
-          style={[styles.screen, isTech && styles.screenTech]}
+          style={styles.screen}
           contentContainerStyle={[styles.content, isWide && styles.contentWide]}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={isTech ? '#58A6FF' : colors.primary} />
+            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />
           }
         >
           <View style={styles.header}>
@@ -1530,28 +1263,20 @@ const AdminPanelScreen: React.FC = () => {
                 {!isMobileMenuOpen && (
                   <TouchableOpacity 
                     onPress={() => setIsMobileMenuOpen(true)} 
-                    style={[styles.menuToggleBtn, isTech && styles.menuToggleBtnTech]}
+                    style={styles.menuToggleBtn}
                   >
-                    <MaterialIcons name="menu" size={26} color={isTech ? '#C9D1D9' : colors.text} />
+                    <MaterialIcons name="menu" size={26} color={colors.text} />
                   </TouchableOpacity>
                 )}
                 <View>
-                  <Text style={[styles.title, isTech && styles.textWhite]}>
-                    {isTech ? 'IT Ops Center' : 'Panel Administrativo'}
-                  </Text>
-                  <View style={styles.itLiveDotRow}>
-                    <View style={[styles.itLiveDot, { backgroundColor: itError ? '#F85149' : '#3FB950' }]} />
-                    <Text style={[styles.itLiveText, isTech && styles.textMuted]}>
-                      {itError ? 'Backend Offline' : 'Backend Online'}
-                    </Text>
-                  </View>
+                  <Text style={styles.title}>Panel Administrativo</Text>
                 </View>
               </View>
             </View>
             <View style={styles.headerActions}>
-              {loading && <ActivityIndicator size="small" color={isTech ? '#58A6FF' : colors.primary} />}
-              <TouchableOpacity style={[styles.headerIconButton, isTech && styles.headerIconButtonTech]} onPress={refresh} disabled={refreshing || loading}>
-                <MaterialIcons name="refresh" size={20} color={isTech ? '#C9D1D9' : colors.text} />
+              {loading && <ActivityIndicator size="small" color={colors.primary} />}
+              <TouchableOpacity style={styles.headerIconButton} onPress={refresh} disabled={refreshing || loading}>
+                <MaterialIcons name="refresh" size={20} color={colors.text} />
               </TouchableOpacity>
             </View>
           </View>

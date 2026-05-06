@@ -170,7 +170,7 @@ const MedicoConfiguracionScreen: React.FC = () => {
       )}
 
       <View style={styles.main}>
-        <MedicoHeader title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`} />
+        <MedicoHeader title="Configuración" />
         <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
           <Text style={styles.title}>Configuración</Text>
           <Text style={styles.subtitle}>Gestiona las preferencias de tu portal médico</Text>
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   menuTextActive: { color: colors.primary },
   logoutButton: { flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blue, paddingVertical: 12, borderRadius: 12 },
   logoutText: { color: '#fff', fontWeight: '800' },
-  main: { flex: 1, paddingHorizontal: 26, paddingTop: 18 },
+  main: { flex: 1, paddingHorizontal: 20, paddingTop: 18 },
   title: { fontSize: 42, fontWeight: '900', color: colors.dark },
   subtitle: { fontSize: 20, color: colors.muted, marginTop: 6, marginBottom: 18, fontWeight: '600' },
   grid: { flexDirection: Platform.OS === 'web' ? 'row' : 'column', flexWrap: 'wrap', gap: 14 },

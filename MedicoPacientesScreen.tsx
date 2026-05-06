@@ -88,6 +88,7 @@ const formatDateTime = (value: string | null | undefined) => {
 };
 
 const MedicoPacientesScreen: React.FC = () => {
+  const navigation = usePortalAwareMedicoNavigation();
   const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
   const { signOut } = useAuth();
   const { loadingUser, refreshUser, doctorName, doctorSpec, fotoUrl } =
@@ -255,7 +256,7 @@ const MedicoPacientesScreen: React.FC = () => {
   return (
     <View style={{ flex: 1 }}>
         <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
-          <MedicoHeader title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`} />
+          <MedicoHeader title="Mis Pacientes" />
 
         <View style={styles.kpiGrid}>
           <View style={styles.kpiCard}>
@@ -425,9 +426,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoutText: { color: '#fff', fontWeight: '800' },
-  main: { flex: 1 },
+  main: { flex: 1, paddingHorizontal: 20 },
   headerWrap: {
-    paddingHorizontal: Platform.OS === 'web' ? 32 : 14,
     paddingTop: Platform.OS === 'web' ? 32 : 14,
     paddingBottom: 12,
   },
@@ -444,7 +444,6 @@ const styles = StyleSheet.create({
   pageTitle: { color: colors.dark, fontSize: 30, fontWeight: '900' },
   pageSubtitle: { color: colors.muted, fontSize: 16, marginTop: 4, fontWeight: '500' },
   kpiGrid: {
-    paddingHorizontal: Platform.OS === 'web' ? 32 : 14,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
@@ -462,7 +461,6 @@ const styles = StyleSheet.create({
   kpiLabel: { color: colors.muted, fontSize: 12, fontWeight: '800' },
   kpiValue: { color: colors.dark, fontSize: 28, fontWeight: '900', marginTop: 2 },
   searchWrap: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
@@ -476,7 +474,6 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, color: colors.dark, fontSize: 14, fontWeight: '600', paddingVertical: 4 },
   sectionHead: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     marginTop: 12,
     marginBottom: 8,
     flexDirection: 'row',
@@ -486,7 +483,6 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.dark, fontSize: 20, fontWeight: '900' },
   sectionCount: { color: colors.muted, fontSize: 13, fontWeight: '800' },
   sectionCard: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     backgroundColor: '#fff',
     borderRadius: 14,
     borderWidth: 1,

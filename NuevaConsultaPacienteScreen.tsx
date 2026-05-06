@@ -813,17 +813,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 14,
   },
-
-  hamburgerBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e6eef7',
-  },
 });
 
 export default NuevaConsultaPacienteScreen;

@@ -109,7 +109,7 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
         <Text style={styles.userSpec} numberOfLines={1}>{doctorSpec}</Text>
       </View>
 
-      <ScrollView style={{ flex: 1, marginTop: 10 }}>
+      <ScrollView style={{ flex: 1, marginTop: 10 }} showsVerticalScrollIndicator={false}>
         {MENU_ITEMS.map((item) => {
           const isActive = activeModule === item.module;
           return (
@@ -193,8 +193,6 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#fff',
     padding: 20,
-    borderRightWidth: 1,
-    borderRightColor: '#eef2f7',
   },
   sidebarHeader: {
     flexDirection: 'row',

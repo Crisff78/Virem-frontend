@@ -107,7 +107,6 @@ export type RootStackParamList = {
   MedicoFinanzas: undefined;
   MedicoRecetas: undefined;
   AdminPanel: undefined;
-  ITAdminDashboard: undefined;
   BlogDetail: {
     category: string;
     title: string;

@@ -103,10 +103,10 @@ const MedicoRecetasScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <View style={{ paddingHorizontal: 24, paddingTop: 18 }}>
-        <MedicoHeader title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`} />
+      <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+        <MedicoHeader title="Recetas y Órdenes" />
       </View>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20 }]}>
         
         <View style={styles.header}>
           <View>
