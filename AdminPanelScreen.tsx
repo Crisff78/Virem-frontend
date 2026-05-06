@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,7 +22,8 @@ import { getApiErrorMessage } from './utils/apiErrors';
 import AdminSidebar from './components/AdminSidebar';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'AdminPanel'>;
-type TabKey = 'resumen' | 'usuarios' | 'citas' | 'pagos' | 'moderacion' | 'auditoria';
+type AdminMode = 'operational' | 'technical';
+type TabKey = 'resumen' | 'usuarios' | 'citas' | 'pagos' | 'moderacion' | 'auditoria' | 'it-overview' | 'it-infra' | 'it-logs';
 type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
 type PendingMedico = {
@@ -362,6 +363,16 @@ const AdminPanelScreen: React.FC = () => {
   const [citaScope, setCitaScope] = useState('all');
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(Platform.OS === 'web' && width >= 1024);
+  const [adminMode, setAdminMode] = useState<AdminMode>('operational');
+
+  // IT States
+  const [systemHealth, setSystemHealth] = useState(98);
+  const [apiLatency, setApiLatency] = useState(42);
+  const [activeSessions, setActiveSessions] = useState(0);
+  const [dbLoad, setDbLoad] = useState(0);
+  const [infra, setInfra] = useState<any[]>([]);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [itError, setItError] = useState<string | null>(null);
 
   const [panel, setPanel] = useState<PanelStats | null>(null);
   const [pendingDoctors, setPendingDoctors] = useState<PendingMedico[]>([]);
@@ -457,12 +468,49 @@ const AdminPanelScreen: React.FC = () => {
     }
   }, [handleAuthExpired, isAuthenticated, isReady, navigation]);
 
+  const fetchITStats = useCallback(async () => {
+    try {
+      const res = await apiClient.get<any>('/api/admin/it-stats', { authenticated: true });
+      if (res.success && res.stats) {
+        setApiLatency(res.stats.latency);
+        setSystemHealth(res.stats.health);
+        setActiveSessions(res.stats.activeSessions);
+        setDbLoad(res.stats.dbLoad);
+        setInfra(res.stats.infra || []);
+        setItError(null);
+        // Map logs
+        if (res.stats.logs) {
+          setLogs(res.stats.logs.map((l: any) => l.text));
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching IT stats:', err);
+      setItError('Backend connection lost or error occurred.');
+      setSystemHealth(0);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       if (!isReady) return;
       refresh();
     }, [isReady, refresh])
   );
+
+  // Real IT updates
+  useEffect(() => {
+    if (adminMode !== 'technical') return;
+    
+    // First fetch
+    fetchITStats();
+
+    // Interval every 10s
+    const interval = setInterval(() => {
+      fetchITStats();
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [adminMode, fetchITStats]);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -1235,6 +1283,16 @@ const AdminPanelScreen: React.FC = () => {
   );
 
   const renderActiveTab = () => {
+    if (adminMode === 'technical') {
+      if (activeTab === 'it-overview') return renderITOverview();
+      if (activeTab === 'it-logs') return renderITLogs();
+      return (
+        <View style={styles.itPlaceholder}>
+          <Text style={styles.itPlaceholderText}>{activeTab.replace('it-', '').toUpperCase()} Module coming soon...</Text>
+        </View>
+      );
+    }
+
     if (activeTab === 'usuarios') return renderUsuarios();
     if (activeTab === 'citas') return renderCitas();
     if (activeTab === 'pagos') return renderPagos();
@@ -1242,6 +1300,106 @@ const AdminPanelScreen: React.FC = () => {
     if (activeTab === 'auditoria') return renderAuditoria();
     return renderResumen();
   };
+
+  const renderITOverview = () => (
+    <View style={styles.itTabContent}>
+      {itError && (
+        <View style={styles.itErrorBanner}>
+          <MaterialIcons name="error-outline" size={20} color="#F85149" />
+          <Text style={styles.itErrorText}>{itError}</Text>
+        </View>
+      )}
+
+      <View style={styles.itStatsGrid}>
+        <ITStatCard label="System Health" value={`${systemHealth.toFixed(1)}%`} icon="favorite" color={systemHealth > 95 ? '#238636' : systemHealth === 0 ? '#F85149' : '#D29922'} />
+        <ITStatCard label="Avg Latency" value={`${apiLatency.toFixed(0)}ms`} icon="speed" color={apiLatency < 100 ? '#58A6FF' : '#F85149'} />
+        <ITStatCard label="Active Sessions" value={String(activeSessions)} icon="wifi" color="#58A6FF" />
+        <ITStatCard label="DB Load" value={`${dbLoad}%`} icon="storage" color="#238636" />
+      </View>
+      
+      <View style={styles.itSection}>
+        <View style={styles.itSectionHeaderRow}>
+          <Text style={styles.itSectionTitle}>Infrastructure Status</Text>
+          <View style={styles.itLiveDotRow}>
+            <View style={[styles.itLiveDot, { backgroundColor: itError ? '#F85149' : '#3FB950' }]} />
+            <Text style={styles.itLiveText}>{itError ? 'Backend Down' : 'Backend Running'}</Text>
+          </View>
+        </View>
+        <View style={styles.itInfraList}>
+          {infra.length > 0 ? infra.map((item, idx) => (
+            <ITInfraItem key={idx} name={item.name} status={item.status} uptime={item.uptime} warning={item.status !== 'Healthy'} />
+          )) : (
+            <View style={styles.itPlaceholderCompact}>
+              <ActivityIndicator size="small" color="#58A6FF" />
+              <Text style={styles.itPlaceholderTextSmall}>Cargando infraestructura...</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.itSection}>
+        <View style={styles.itSectionHeaderRow}>
+          <Text style={styles.itSectionTitle}>System Runtime Logs (Real-time)</Text>
+          <View style={styles.itTerminalStatus}>
+            <Text style={styles.itTerminalStatusText}>STDOUT / STDERR</Text>
+          </View>
+        </View>
+        <View style={styles.itTerminalShort}>
+          {logs.length > 0 ? logs.map((log, idx) => (
+            <Text key={idx} style={[
+              styles.itTerminalText,
+              log.includes('[ERROR]') && styles.itTerminalTextError,
+              log.includes('[SERVER]') && styles.itTerminalTextServer
+            ]}>
+              {log}
+            </Text>
+          )) : (
+            <Text style={styles.itTerminalTextMuted}>Waiting for system events...</Text>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderITLogs = () => (
+    <View style={styles.itLogsContainer}>
+      <View style={styles.itLogsHeader}>
+        <Text style={styles.itLogsTitle}>system_stdout_stream.log</Text>
+      </View>
+      <ScrollView style={styles.itLogsScroll} inverted>
+        {logs.map((log, idx) => (
+          <Text key={idx} style={styles.itTerminalTextLarge}>{log}</Text>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  const ITStatCard = ({ label, value, icon, color }: any) => (
+    <View style={styles.itStatCard}>
+      <View style={[styles.itStatIconBox, { backgroundColor: `${color}15` }]}>
+        <MaterialIcons name={icon} size={20} color={color} />
+      </View>
+      <View>
+        <Text style={styles.itStatLabel}>{label}</Text>
+        <Text style={styles.itStatValue}>{value}</Text>
+      </View>
+    </View>
+  );
+
+  const ITInfraItem = ({ name, status, uptime, warning }: any) => (
+    <View style={styles.itInfraItem}>
+      <View style={styles.itInfraLeft}>
+        <MaterialIcons name={warning ? 'warning' : 'check-circle'} size={18} color={warning ? '#D29922' : '#238636'} />
+        <Text style={styles.itInfraName}>{name}</Text>
+      </View>
+      <View style={styles.itInfraRight}>
+        <Text style={styles.itInfraUptime}>{uptime} Uptime</Text>
+        <View style={[styles.itStatusBadge, { backgroundColor: warning ? '#D2992220' : '#23863620' }]}>
+          <Text style={[styles.itStatusBadgeText, { color: warning ? '#D29922' : '#238636' }]}>{status}</Text>
+        </View>
+      </View>
+    </View>
+  );
 
   if (loading) {
     return (
@@ -1252,8 +1410,10 @@ const AdminPanelScreen: React.FC = () => {
     );
   }
 
+  const isTech = adminMode === 'technical';
+
   return (
-    <View style={styles.appContainer}>
+    <View style={[styles.appContainer, isTech && styles.appContainerTech]}>
       <AdminSidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -1261,42 +1421,45 @@ const AdminPanelScreen: React.FC = () => {
         onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
         adminEmail={panel?.admin?.email}
         onLogout={handleLogout}
+        adminMode={adminMode}
+        setAdminMode={setAdminMode}
       />
       <View style={{ flex: 1 }}>
         <ScrollView
-          style={styles.screen}
+          style={[styles.screen, isTech && styles.screenTech]}
           contentContainerStyle={[styles.content, isWide && styles.contentWide]}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />
+            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={isTech ? '#58A6FF' : colors.primary} />
           }
         >
           <View style={styles.header}>
             <View style={styles.headerTitleWrap}>
               <View style={styles.headerTitleRow}>
-                <TouchableOpacity 
-                  onPress={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-                  style={styles.menuToggleBtn}
-                >
-                  <MaterialIcons name={isMobileMenuOpen ? "menu-open" : "menu"} size={26} color={colors.text} />
-                </TouchableOpacity>
+                {!isMobileMenuOpen && (
+                  <TouchableOpacity 
+                    onPress={() => setIsMobileMenuOpen(true)} 
+                    style={[styles.menuToggleBtn, isTech && styles.menuToggleBtnTech]}
+                  >
+                    <MaterialIcons name="menu" size={26} color={isTech ? '#C9D1D9' : colors.text} />
+                  </TouchableOpacity>
+                )}
                 <View>
-                  <Text style={styles.title}>Panel Administrativo</Text>
-                  <Text style={styles.subtitle} numberOfLines={1}>
-                    {panel?.admin?.email || 'Administrador'}
-                    {lastUpdatedAt ? ` · ${formatDateTime(lastUpdatedAt)}` : ''}
+                  <Text style={[styles.title, isTech && styles.textWhite]}>
+                    {isTech ? 'IT Ops Center' : 'Panel Administrativo'}
                   </Text>
+                  <View style={styles.itLiveDotRow}>
+                    <View style={[styles.itLiveDot, { backgroundColor: itError ? '#F85149' : '#3FB950' }]} />
+                    <Text style={[styles.itLiveText, isTech && styles.textMuted]}>
+                      {itError ? 'Backend Offline' : 'Backend Online'}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
             <View style={styles.headerActions}>
-              <TouchableOpacity 
-                style={[styles.headerIconButton, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]} 
-                onPress={() => navigation.navigate('ITAdminDashboard')}
-              >
-                <MaterialIcons name="developer-mode" size={20} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.headerIconButton} onPress={refresh} disabled={refreshing}>
-                <MaterialIcons name="refresh" size={20} color={colors.text} />
+              {loading && <ActivityIndicator size="small" color={isTech ? '#58A6FF' : colors.primary} />}
+              <TouchableOpacity style={[styles.headerIconButton, isTech && styles.headerIconButtonTech]} onPress={refresh} disabled={refreshing || loading}>
+                <MaterialIcons name="refresh" size={20} color={isTech ? '#C9D1D9' : colors.text} />
               </TouchableOpacity>
             </View>
           </View>
@@ -1365,10 +1528,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: colors.bg,
   },
+  appContainerTech: { backgroundColor: '#0A0E17' },
   screen: {
     flex: 1,
     backgroundColor: colors.bg,
   },
+  screenTech: { backgroundColor: '#0A0E17' },
   content: {
     padding: 14,
     gap: 12,
@@ -1917,6 +2082,131 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
   },
+
+  // IT Specific Styles
+  itTabContent: { gap: 24 },
+  itStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  itStatCard: {
+    flex: 1,
+    minWidth: 200,
+    backgroundColor: '#161B22',
+    borderWidth: 1,
+    borderColor: '#30363D',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  itStatIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itStatLabel: { color: '#8B949E', fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  itStatValue: { fontSize: 24, fontWeight: '900', color: '#C9D1D9' },
+  itSection: { marginTop: 12 },
+  itSectionTitle: { color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 16 },
+  itInfraList: { gap: 12 },
+  itInfraItem: {
+    backgroundColor: '#161B22',
+    padding: 16,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#30363D',
+  },
+  itInfraLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  itInfraName: { color: '#C9D1D9', fontWeight: '700', fontSize: 14 },
+  itInfraRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  itInfraUptime: { color: '#8B949E', fontSize: 12 },
+  itStatusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  itStatusBadgeText: { fontSize: 11, fontWeight: '900' },
+  itTerminalShort: {
+    backgroundColor: '#010409',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#30363D',
+    minHeight: 200,
+  },
+  itTerminalText: {
+    color: '#D1D5DA',
+    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 2,
+  },
+  itTerminalTextError: { color: '#F85149' },
+  itTerminalTextServer: { color: '#58A6FF', fontWeight: 'bold' },
+  itTerminalTextMuted: { color: '#484F58', fontStyle: 'italic' },
+  itTerminalStatus: {
+    backgroundColor: '#21262D',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  itTerminalStatusText: { color: '#8B949E', fontSize: 10, fontWeight: '700' },
+  itLogsContainer: {
+    flex: 1,
+    backgroundColor: '#010409',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#30363D',
+    minHeight: 500,
+  },
+  itLogsHeader: {
+    height: 40,
+    backgroundColor: '#161B22',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  itLogsTitle: { color: '#8B949E', fontSize: 12, fontWeight: '700' },
+  itLogsScroll: { padding: 20 },
+  itTerminalTextLarge: {
+    color: '#D1D5DA',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 13,
+    marginBottom: 6,
+  },
+  itPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  itPlaceholderText: { color: '#8B949E', fontSize: 16, fontWeight: '700' },
+  itPlaceholderCompact: { padding: 20, alignItems: 'center', gap: 8 },
+  itPlaceholderTextSmall: { color: '#8B949E', fontSize: 12, fontWeight: '600' },
+  itErrorBanner: {
+    backgroundColor: 'rgba(248, 81, 73, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(248, 81, 73, 0.4)',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  itErrorText: { color: '#F85149', fontSize: 13, fontWeight: '700' },
+  itSectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  itLiveDotRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  itLiveDot: { width: 8, height: 8, borderRadius: 4, shadowColor: '#3FB950', shadowOpacity: 0.5, shadowRadius: 4 },
+  itLiveText: { color: '#8B949E', fontSize: 12, fontWeight: '700' },
+  textWhite: { color: '#fff' },
+  textMuted: { color: '#8B949E' },
+  menuToggleBtnTech: { backgroundColor: '#161B22', borderColor: '#30363D' },
+  headerIconButtonTech: { backgroundColor: '#161B22', borderColor: '#30363D' },
 });
 
 export default AdminPanelScreen;
