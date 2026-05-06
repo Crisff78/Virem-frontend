@@ -381,13 +381,13 @@ const HoverCountCard = ({ children, count, style }: { children: any; count: stri
 };
 
 const HoverServiceCard = ({ title, description, image, style }: any) => {
+  const { isMobile, select } = useResponsive();
   const scale = useRef(new Animated.Value(1)).current;
   const shadowOpacity = useRef(new Animated.Value(0.15)).current;
-  const overlayY = useRef(new Animated.Value(120)).current;
-  const [hovered, setHovered] = useState(false);
+  const overlayY = useRef(new Animated.Value(260)).current; // Start well below the bottom
+  const [toggled, setToggled] = useState(false);
 
-  const handleMouseEnter = () => {
-    setHovered(true);
+  const showOverlay = () => {
     Animated.parallel([
       Animated.timing(scale, { toValue: 1.05, duration: 300, useNativeDriver: false }),
       Animated.timing(shadowOpacity, { toValue: 0.3, duration: 300, useNativeDriver: false }),
@@ -395,13 +395,35 @@ const HoverServiceCard = ({ title, description, image, style }: any) => {
     ]).start();
   };
 
-  const handleMouseLeave = () => {
-    setHovered(false);
+  const hideOverlay = () => {
     Animated.parallel([
       Animated.timing(scale, { toValue: 1, duration: 300, useNativeDriver: false }),
       Animated.timing(shadowOpacity, { toValue: 0.15, duration: 300, useNativeDriver: false }),
-      Animated.spring(overlayY, { toValue: 120, tension: 50, friction: 7, useNativeDriver: false }),
+      Animated.spring(overlayY, { toValue: 260, tension: 50, friction: 7, useNativeDriver: false }),
     ]).start();
+  };
+
+  const handlePress = () => {
+    if (isMobile || Platform.OS !== 'web') {
+      if (toggled) {
+        hideOverlay();
+      } else {
+        showOverlay();
+      }
+      setToggled(!toggled);
+    }
+  };
+
+  const handleMouseEnter = () => {
+    if (!isMobile && Platform.OS === 'web') {
+      showOverlay();
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (!isMobile && Platform.OS === 'web') {
+      hideOverlay();
+    }
   };
 
   return (
@@ -411,28 +433,47 @@ const HoverServiceCard = ({ title, description, image, style }: any) => {
         web: { onMouseEnter: handleMouseEnter, onMouseLeave: handleMouseLeave },
       } as any)}
     >
-      <View style={{ backgroundColor: colors.primary, paddingVertical: 16, alignItems: 'center', zIndex: 2 }}>
-        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>{title}</Text>
-      </View>
-      <View style={{ position: 'relative', overflow: 'hidden' }}>
-        <Image source={image} style={{ width: '100%', height: 250, resizeMode: 'cover' }} />
+      <Pressable onPress={handlePress} style={{ flex: 1 }}>
+        <View style={{ backgroundColor: colors.primary, paddingVertical: 16, alignItems: 'center', zIndex: 2 }}>
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>{title}</Text>
+        </View>
+        <View style={{ position: 'relative', overflow: 'hidden' }}>
+          <Image 
+            source={image} 
+            style={{ 
+              width: '100%', 
+              height: select({ mobile: 220, tablet: 240, desktop: 260 }),
+              resizeMode: 'cover' 
+            }} 
+          />
 
-        {/* Overlay Concept - Slides up on hover */}
-        <Animated.View style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: 'rgba(26, 54, 93, 0.9)', // Azul marino de la marca, más integrado
-          padding: 20,
-          transform: [{ translateY: overlayY }],
-          ...(Platform.select({ web: { backdropFilter: 'blur(8px)' } }) || {} as any)
-        }}>
-          <Text style={{ color: '#fff', fontSize: 14, lineHeight: 20, textAlign: 'center', fontWeight: '500' }}>
-            {description}
-          </Text>
-        </Animated.View>
-      </View>
+          {/* Overlay Concept - Slides up on hover/tap */}
+          <Animated.View style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            top: 0, // Cover the whole image area for better readability
+            backgroundColor: 'rgba(26, 54, 93, 0.95)',
+            padding: 24,
+            justifyContent: 'center',
+            alignItems: 'center',
+            transform: [{ translateY: overlayY }],
+            ...(Platform.select({ web: { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } }) || {} as any)
+          }}>
+            <Text style={{ color: '#fff', fontSize: 16, lineHeight: 24, textAlign: 'center', fontWeight: '500' }}>
+              {description}
+            </Text>
+            {(isMobile || toggled) && (
+              <View style={{ marginTop: 20, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)' }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+                  {toggled ? 'Toca para cerrar' : 'Ver menos'}
+                </Text>
+              </View>
+            )}
+          </Animated.View>
+        </View>
+      </Pressable>
     </Animated.View>
   );
 };
@@ -602,15 +643,29 @@ const LandingScreen: React.FC = () => {
   const scrollTo = (y: number) => {
     scrollViewRef.current?.scrollTo({ y, animated: true });
   };
-  const { isDesktop, isTablet, isMobile, select, width } = useResponsive();
+  const { isDesktop, isTablet, isMobile, select, width, height } = useResponsive();
 
   const navigateToLogin = () => navigation.navigate('Login');
   const navigateToRegister = () => navigation.navigate('SeleccionPerfil');
 
   const [navScrolled, setNavScrolled] = useState(false);
-  const [showNavLinksMobile, setShowNavLinksMobile] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuAnim = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
   const [nosotrosVisible, setNosotrosVisible] = useState(false);
+
+  const toggleMenu = () => {
+    if (isMenuOpen) {
+      Animated.timing(menuAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => setIsMenuOpen(false));
+    } else {
+      setIsMenuOpen(true);
+      Animated.timing(menuAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    }
+  };
+
+  const closeMenu = () => {
+    Animated.timing(menuAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => setIsMenuOpen(false));
+  };
 
   // Inject sticky navbar CSS once
   useEffect(() => {
@@ -662,31 +717,8 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {isDesktop ? (
-          <View style={styles.navLinksCenter}>
-            <TouchableOpacity onPress={() => scrollTo(layoutY.plataforma)}>
-              <Text style={styles.navLinkCenterText}>Plataforma</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => scrollTo(layoutY.especialidades)}>
-              <Text style={styles.navLinkCenterText}>Especialidades</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => scrollTo(layoutY.nosotros)}>
-              <Text style={styles.navLinkCenterText}>Nosotros</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => scrollTo(layoutY.blog)}>
-              <Text style={styles.navLinkCenterText}>Blog</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => scrollTo(layoutY.contacto)}>
-              <Text style={styles.navLinkCenterText}>Contacto</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          isMobile && showNavLinksMobile && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[styles.navLinksCenter, { paddingLeft: 10, paddingRight: 20, gap: 16 }]}
-              style={{ flexGrow: 0 }}
-            >
+          <>
+            <View style={styles.navLinksCenter}>
               <TouchableOpacity onPress={() => scrollTo(layoutY.plataforma)}>
                 <Text style={styles.navLinkCenterText}>Plataforma</Text>
               </TouchableOpacity>
@@ -702,22 +734,106 @@ const LandingScreen: React.FC = () => {
               <TouchableOpacity onPress={() => scrollTo(layoutY.contacto)}>
                 <Text style={styles.navLinkCenterText}>Contacto</Text>
               </TouchableOpacity>
-            </ScrollView>
-          )
-        )}
+            </View>
 
-        {(!isMobile || !showNavLinksMobile) && (
-          <View style={[styles.navRight, isMobile && { gap: 4 }]}>
-            <HoverButton style={[styles.navBtn, { backgroundColor: colors.primary, marginRight: isMobile ? 4 : 10 }, isMobile && { paddingHorizontal: 10, paddingVertical: 6 }]} onPress={navigateToRegister}>
-              <Text style={[styles.navBtnText, isMobile && { fontSize: 11 }]}>REGISTRARSE</Text>
-            </HoverButton>
-            <HoverButton style={[styles.navBtn, { backgroundColor: colors.primary }, isMobile && { paddingHorizontal: 10, paddingVertical: 6 }]} onPress={navigateToLogin}>
-              <Text style={[styles.navBtnText, isMobile && { fontSize: 11 }]}>INICIAR SESIÓN</Text>
-            </HoverButton>
-          </View>
+            <View style={styles.navRight}>
+              <HoverButton style={[styles.navBtn, { backgroundColor: colors.primary, marginRight: 10 }]} onPress={navigateToRegister}>
+                <Text style={styles.navBtnText}>REGISTRARSE</Text>
+              </HoverButton>
+              <HoverButton style={[styles.navBtn, { backgroundColor: colors.primary }]} onPress={navigateToLogin}>
+                <Text style={styles.navBtnText}>INICIAR SESIÓN</Text>
+              </HoverButton>
+            </View>
+          </>
+        ) : (
+          <TouchableOpacity onPress={toggleMenu} style={{ padding: 8 }}>
+            <MaterialIcons name={isMenuOpen ? "close" : "menu"} size={30} color={colors.primary} />
+          </TouchableOpacity>
         )}
       </View>
 
+      {/* MOBILE MENU OVERLAY (Inspired by reference) */}
+      {isMenuOpen && !isDesktop && (
+        <Animated.View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: height,
+          backgroundColor: '#FFFFFF',
+          zIndex: 1000,
+          opacity: menuAnim,
+          transform: [{
+            translateX: menuAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [width, 0]
+            })
+          }]
+        }}>
+          {/* Header inside Menu */}
+          <View style={{ 
+            flexDirection: 'row', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            paddingHorizontal: 20, 
+            paddingTop: Platform.OS === 'ios' ? 50 : 20, 
+            paddingBottom: 15,
+            borderBottomWidth: 1,
+            borderBottomColor: '#F1F5F9'
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Image source={ViremLogo} style={{ width: 38, height: 38 }} resizeMode="contain" />
+              <Text style={{ fontSize: 22, fontWeight: '900', color: colors.secondary, letterSpacing: -0.5 }}>VIREM</Text>
+            </View>
+            <TouchableOpacity onPress={closeMenu} style={{ padding: 10 }}>
+              <MaterialIcons name="close" size={32} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ padding: 20 }}>
+            {/* Action Buttons Grid - Top Priority */}
+            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 30 }}>
+              <TouchableOpacity 
+                style={{ flex: 1, backgroundColor: colors.primary, paddingVertical: 18, borderRadius: 10, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 }}
+                onPress={() => { navigateToRegister(); closeMenu(); }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '900', fontSize: 14, letterSpacing: 0.5 }}>REGÍSTRATE</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{ flex: 1, backgroundColor: colors.secondary, paddingVertical: 18, borderRadius: 10, alignItems: 'center', justifyContent: 'center', shadowColor: colors.secondary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 }}
+                onPress={() => { navigateToLogin(); closeMenu(); }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '900', fontSize: 14, letterSpacing: 0.5 }}>INICIAR SESIÓN</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Navigation Links - Clean List without icons */}
+            <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 4, overflow: 'hidden' }}>
+              {[
+                { label: 'Especialidades', y: layoutY.especialidades },
+                { label: 'Plataforma', y: layoutY.plataforma },
+                { label: 'Nosotros', y: layoutY.nosotros },
+                { label: 'Blog', y: layoutY.blog },
+                { label: 'Contacto', y: layoutY.contacto },
+              ].map((link, idx) => (
+                <TouchableOpacity 
+                  key={idx} 
+                  onPress={() => { scrollTo(link.y); closeMenu(); }}
+                  style={{ 
+                    paddingVertical: 20, 
+                    paddingHorizontal: 20, 
+                    borderBottomWidth: idx === 4 ? 0 : 1, 
+                    borderBottomColor: '#E2E8F0' 
+                  }}
+                >
+                  <Text style={{ fontSize: 18, color: colors.secondary, fontWeight: '900', letterSpacing: -0.5 }}>{link.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </Animated.View>
+      )}
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
@@ -727,17 +843,6 @@ const LandingScreen: React.FC = () => {
 
           scrollY.setValue(y);
           setNavScrolled(y > 50);
-
-          if (isMobile) {
-            // If scrolling down and past 100px, show nav links and hide auth
-            if (y > 100 && !isScrollingUp) {
-              setShowNavLinksMobile(true);
-            }
-            // If scrolling up or near top, show auth buttons again
-            else if (isScrollingUp || y < 50) {
-              setShowNavLinksMobile(false);
-            }
-          }
 
           lastScrollY.current = y;
 
@@ -871,40 +976,44 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* NUEVA SECCIÓN: SERVICIOS (3 Tarjetas) */}
-        <View style={{ paddingVertical: 80, alignItems: 'center', backgroundColor: '#F0F9FF', width: '100%' }}>
-          <Text style={{ fontSize: 32, fontWeight: '300', color: colors.secondary, marginBottom: 16 }}>SERVICIOS</Text>
-          <Text style={{ fontSize: 16, color: colors.muted, textAlign: 'center', maxWidth: 800, marginBottom: 50, paddingHorizontal: 20 }}>
-            Desde consultas virtuales con especialistas hasta la descarga inmediata de tus recetas médicas, en VIREM contamos con todas las herramientas necesarias para brindarte una atención integral y precisa.
-          </Text>
+        <View style={{ paddingVertical: select({ mobile: 60, tablet: 80, desktop: 100 }), alignItems: 'center', backgroundColor: '#F0F9FF', width: '100%' }}>
+          <FadeInView delay={100} style={{ alignItems: 'center', marginBottom: select({ mobile: 30, tablet: 40, desktop: 50 }) }}>
+            <View style={{ width: 40, height: 4, backgroundColor: colors.primary, borderRadius: 2, marginBottom: 16 }} />
+            <Text style={{ fontSize: select({ mobile: 28, tablet: 32, desktop: 36 }), fontWeight: '900', color: colors.secondary, marginBottom: 16, textAlign: 'center' }}>SERVICIOS</Text>
+            <Text style={{ fontSize: 16, color: colors.muted, textAlign: 'center', maxWidth: 800, paddingHorizontal: 20, lineHeight: 24 }}>
+              Desde consultas virtuales con especialistas hasta la descarga inmediata de tus recetas médicas, en VIREM contamos con todas las herramientas necesarias para brindarte una atención integral y precisa.
+            </Text>
+          </FadeInView>
 
           <View style={{
             flexDirection: select({ mobile: 'column', tablet: 'row', desktop: 'row' }),
-            gap: 30,
+            gap: select({ mobile: 24, tablet: 24, desktop: 32 }),
             maxWidth: 1200,
-            paddingHorizontal: 20,
+            paddingHorizontal: select({ mobile: 20, tablet: 30, desktop: 40 }),
             flexWrap: 'wrap',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            width: '100%'
           }}>
 
             <HoverServiceCard
               title="Consultas Virtuales"
-              description="Atención médica especializada por videollamada segura, estés donde estés."
+              description="Atención médica especializada por videollamada segura, estés donde estés. Habla con tu médico sin salir de casa."
               image={require('./assets/imagenes/Videoconsulta.png')}
-              style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowRadius: 15, elevation: 5 }}
+              style={{ width: select({ mobile: '100%', tablet: '48%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', shadowColor: '#000', shadowRadius: 20, elevation: 8 }}
             />
 
             <HoverServiceCard
               title="Recetas Digitales"
-              description="Recibe tus prescripciones médicas oficiales directamente en tu perfil al instante."
+              description="Recibe tus prescripciones médicas oficiales directamente en tu perfil al instante. Descárgalas en cualquier momento."
               image={require('./assets/imagenes/RecetasM.png')}
-              style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowRadius: 15, elevation: 5 }}
+              style={{ width: select({ mobile: '100%', tablet: '48%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', shadowColor: '#000', shadowRadius: 20, elevation: 8 }}
             />
 
             <HoverServiceCard
               title="Historial Clínico"
-              description="Accede a tus reportes, estudios y antecedentes médicos de forma segura y organizada."
+              description="Accede a tus reportes, estudios y antecedentes médicos de forma segura y organizada. Tu salud siempre a mano."
               image={require('./assets/imagenes/HistorialC.png')}
-              style={{ width: select({ mobile: '100%', tablet: '45%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowRadius: 15, elevation: 5 }}
+              style={{ width: select({ mobile: '100%', tablet: '48%', desktop: 350 }), backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', shadowColor: '#000', shadowRadius: 20, elevation: 8 }}
             />
 
           </View>
@@ -1261,10 +1370,10 @@ const styles = StyleSheet.create({
   navbarDesktop: { paddingHorizontal: 40, paddingVertical: 16 },
   navLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logoImage: { width: 32, height: 32 },
-  logoText: { fontSize: 26, fontWeight: '600', color: colors.dark, letterSpacing: 0.5 },
+  logoText: { fontSize: 26, fontWeight: '900', color: colors.dark, letterSpacing: 0.5 },
 
   navLinksCenter: { flexDirection: 'row', gap: 24 },
-  navLinkCenterText: { color: colors.primary, fontWeight: '600', fontSize: 15 },
+  navLinkCenterText: { color: colors.primary, fontWeight: '900', fontSize: 15, letterSpacing: -0.5 },
 
   navRight: { flexDirection: 'row', alignItems: 'center' },
   navBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
