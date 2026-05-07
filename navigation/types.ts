@@ -93,7 +93,7 @@ export type RootStackParamList = {
     doctorSnapshot?: DoctorRouteSnapshot;
   };
   DashboardMedico: undefined;
-  MedicoCitas: undefined;
+  MedicoCitas: { highlightCitaId?: string } | undefined;
   MedicoPacientes: undefined;
   MedicoChat:
     | {
