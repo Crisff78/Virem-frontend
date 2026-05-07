@@ -21,6 +21,7 @@ const colors = {
 const SeleccionPerfil: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
   const { select, width, rs, fs } = useResponsive();
+  const [isFooterHovered, setIsFooterHovered] = React.useState(false);
 
   const styles = React.useMemo(() => StyleSheet.create({
     mainContainer: {
@@ -67,12 +68,11 @@ const SeleccionPerfil: React.FC = () => {
     card: {
       backgroundColor: colors.white,
       borderRadius: 32,
-      padding: rs(32),
+      padding: rs(28),
       alignItems: 'center',
       borderWidth: 1,
       borderColor: 'rgba(179, 207, 229, 0.4)',
       justifyContent: 'space-between',
-      minHeight: rs(380),
       ...Platform.select({
         ios: { shadowColor: colors.blueDeep, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 16 },
         android: { elevation: 8 },
@@ -87,32 +87,32 @@ const SeleccionPerfil: React.FC = () => {
       width: '100%',
     },
     iconWrapper: {
-      height: rs(80),
-      width: rs(80),
+      height: rs(60),
+      width: rs(60),
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 24,
+      borderRadius: 18,
       backgroundColor: 'rgba(26, 61, 99, 0.05)',
-      marginBottom: 24,
+      marginBottom: 16,
     },
     cardTitle: {
       color: colors.blueDeep,
       fontWeight: '800',
-      marginBottom: 12,
+      marginBottom: 6,
       letterSpacing: -0.5,
     },
     cardDesc: {
       color: colors.blueMedium,
       textAlign: 'center',
-      lineHeight: 22,
-      marginBottom: 20,
+      lineHeight: 18,
+      marginBottom: 12,
       fontWeight: '500',
-      minHeight: 66,
+      minHeight: 36,
     },
     registerButton: {
       width: '100%',
-      height: rs(54),
-      borderRadius: 16,
+      height: rs(50),
+      borderRadius: 14,
       justifyContent: 'center',
       alignItems: 'center',
       backgroundColor: colors.blueDark,
@@ -126,7 +126,7 @@ const SeleccionPerfil: React.FC = () => {
       letterSpacing: 0.5,
     },
     footerWrapper: {
-      marginTop: rs(56),
+      marginTop: rs(40),
       paddingBottom: 20,
     },
     footerText: {
@@ -134,8 +134,7 @@ const SeleccionPerfil: React.FC = () => {
       fontWeight: '600',
     },
     footerLink: {
-      color: colors.blueDark,
-      fontWeight: '800',
+      fontWeight: '600',
       textDecorationLine: 'underline',
     },
   }), [rs, fs]);
@@ -159,40 +158,46 @@ const SeleccionPerfil: React.FC = () => {
 
       <View style={styles.cardsGrid}>
         <TouchableOpacity 
-          style={[styles.card, { width: select({ mobile: '100%', tablet: 320, desktop: 340 }) }]}
+          style={[styles.card, { 
+            width: select({ mobile: '100%', tablet: 320, desktop: 380 }),
+            height: select({ mobile: 'auto', tablet: 260, desktop: 280 })
+          }]}
           activeOpacity={0.8}
           onPress={() => handleRegister('Medico')}
         >
           <View style={styles.cardContent}>
             <View style={styles.iconWrapper}>
-              <MaterialCommunityIcons name="stethoscope" size={rs(42)} color={colors.blueDark} />
+              <MaterialCommunityIcons name="stethoscope" size={rs(34)} color={colors.blueDark} />
             </View>
-            <Text style={[styles.cardTitle, { fontSize: fs(24) }]}>Médico</Text>
-            <Text style={[styles.cardDesc, { fontSize: fs(14.5) }]}>
+            <Text style={[styles.cardTitle, { fontSize: fs(20) }]}>Médico</Text>
+            <Text style={[styles.cardDesc, { fontSize: fs(13) }]}>
               Accede a tu panel de consultas, pacientes y gestión médica.
             </Text>
           </View>
           <View style={styles.registerButton}>
-            <Text style={[styles.buttonText, { fontSize: fs(16) }]}>Registrarme</Text>
+            <Text style={[styles.buttonText, { fontSize: fs(15) }]}>Registrarme</Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.card, { width: select({ mobile: '100%', tablet: 320, desktop: 340 }) }]}
+          style={[styles.card, { 
+            width: select({ mobile: '100%', tablet: 320, desktop: 380 }),
+            height: select({ mobile: 'auto', tablet: 260, desktop: 280 })
+          }]}
           activeOpacity={0.8}
           onPress={() => handleRegister('Paciente')}
         >
           <View style={styles.cardContent}>
-            <View style={styles.iconWrapper}>
-              <MaterialCommunityIcons name="account" size={rs(42)} color={colors.blueDark} />
+            <View style={[styles.iconWrapper, { backgroundColor: 'rgba(74, 127, 167, 0.08)' }]}>
+              <MaterialCommunityIcons name="account" size={rs(34)} color={colors.blueMedium} />
             </View>
-            <Text style={[styles.cardTitle, { fontSize: fs(24) }]}>Paciente</Text>
-            <Text style={[styles.cardDesc, { fontSize: fs(14.5) }]}>
+            <Text style={[styles.cardTitle, { fontSize: fs(20) }]}>Paciente</Text>
+            <Text style={[styles.cardDesc, { fontSize: fs(13) }]}>
               Gestiona tus citas, recetas y comunícate con tus doctores.
             </Text>
           </View>
-          <View style={styles.registerButton}>
-            <Text style={[styles.buttonText, { fontSize: fs(16) }]}>Registrarme</Text>
+          <View style={[styles.registerButton, { backgroundColor: colors.blueMedium }]}>
+            <Text style={[styles.buttonText, { fontSize: fs(15) }]}>Registrarme</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -200,7 +205,12 @@ const SeleccionPerfil: React.FC = () => {
       <View style={styles.footerWrapper}>
         <Text style={[styles.footerText, { fontSize: fs(15) }]}>
           ¿Ya tienes una cuenta?{' '}
-          <Text style={styles.footerLink} onPress={handleLogin}>
+          <Text 
+            style={[styles.footerLink, { color: isFooterHovered ? colors.blueDark : colors.blueMedium }]} 
+            onPress={handleLogin}
+            onPointerEnter={() => setIsFooterHovered(true)}
+            onPointerLeave={() => setIsFooterHovered(false)}
+          >
             Inicia sesión aquí
           </Text>
         </Text>
