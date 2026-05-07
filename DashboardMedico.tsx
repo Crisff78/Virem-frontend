@@ -27,6 +27,10 @@ import { useResponsive } from './hooks/useResponsive';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import MedicoHeader from './components/MedicoHeader';
+import Skeleton from './components/Skeleton';
+import ViremImage from './components/ViremImage';
+import FadeInView from './components/FadeInView';
+import colors from './theme/colors';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 type MaterialIconName = any;
@@ -37,19 +41,7 @@ const PatientAvatar: ImageSourcePropType = DefaultAvatar;
 // -------------------------------------------------------------
 // COLORES Y CONSTANTES (Renovados)
 // -------------------------------------------------------------
-const colors = {
-  primary: '#137fec',
-  bg: '#F6FAFD',
-  dark: '#0A1931',
-  blue: '#1A3D63',
-  green: '#22c55e',
-  red: '#ef4444',
-  muted: '#4A7FA7',
-  white: '#FFFFFF',
-  brand: '#137fec',
-  viremLight: '#E8EFF5',
-  viremMuted: '#7D95A9',
-};
+
 
 const MIN_REFRESH_INTERVAL_MS = 15000;
 
