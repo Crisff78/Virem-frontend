@@ -177,6 +177,7 @@ const PacienteNotificacionesScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { t } = useLanguage();
   const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { signOut } = useAuth();
   const { isDesktop: isDesktopLayout } = useResponsive();
   const [user, setUser] = useState<User | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>('todas');
@@ -418,7 +419,6 @@ const PacienteNotificacionesScreen: React.FC = () => {
     await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
-  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
 
 
   return (

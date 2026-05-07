@@ -57,6 +57,14 @@ const parseUser = (raw: string | null): User | null => {
   }
 };
 
+const colors = {
+  primary: '#1e40af',
+  blue: '#1e40af',
+  dark: '#0f172a',
+  muted: '#64748b',
+  bg: '#f5f7fb',
+};
+
 const PacienteHistorialSesionesScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { t, tx } = useLanguage();
@@ -114,18 +122,7 @@ const PacienteHistorialSesionesScreen: React.FC = () => {
       tx({
         es: 'Se cerraron todas las demás sesiones.',
         en: 'All other sessions were closed.',
-        pt: 'Todas as outras sessoes foram encerradas.',
-      })
-    );
-
-  const closeOtherSessions = () => {
-    setSessions((prev) => prev.filter((s) => s.current));
-    Alert.alert(
-      tx({ es: 'Listo', en: 'Done', pt: 'Pronto' }),
-      tx({
-        es: 'Se cerraron todas las demás sesiones.',
-        en: 'All other sessions were closed.',
-        pt: 'Todas as outras sessoes foram encerradas.',
+        pt: 'Todas as outras sessoes fueron encerradas.',
       })
     );
   };
@@ -232,7 +229,7 @@ const PacienteHistorialSesionesScreen: React.FC = () => {
                 {tx({
                   es: 'Si notas actividad inusual en esta lista, te recomendamos cerrar las sesiones inactivas y cambiar tu contraseña inmediatamente. Mostramos sesiones de los últimos 30 días.',
                   en: 'If you notice unusual activity, close inactive sessions and change your password immediately. We show sessions from the last 30 days.',
-                  pt: 'Se notar atividade incomum, encerre sessoes inativas e altere sua senha imediatamente. Mostramos sessoes dos ultimos 30 dias.',
+                  pt: 'Se notar atividade incomum, encerre sessoes inativas e altere sua senha inmediatamente. Mostramos sessoes dos ultimos 30 dias.',
                 })}
               </Text>
             </View>

@@ -17,6 +17,7 @@ export const PORTAL_MODULES = [
   'PacienteRecetasDocumentos',
   'PacientePerfil',
   'PacienteConfiguracion',
+  'PacienteNotificaciones',
 ] as const;
 
 export type PortalModule = (typeof PORTAL_MODULES)[number];
