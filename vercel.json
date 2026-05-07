@@ -1,6 +1,6 @@
 {
   "framework": null,
-  "installCommand": "npm ci",
+  "installCommand": "npm install --omit=optional",
   "buildCommand": "npx expo export --platform web --output-dir dist-web --clear",
   "outputDirectory": "dist-web",
   "rewrites": [
