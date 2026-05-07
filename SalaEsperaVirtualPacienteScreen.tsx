@@ -329,7 +329,6 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
         const payload = await response.json().catch(() => null);
         if (response.ok && payload?.success && Array.isArray(payload?.citas) && payload.citas.length) {
           const ordered = (payload.citas as CitaItem[])
-            .filter((item) => String(item?.modalidad || '').toLowerCase() === 'virtual')
             .filter((item) =>
               ['pendiente', 'confirmada', 'reprogramada'].includes(
                 String(item?.estadoCodigo || '').toLowerCase()
