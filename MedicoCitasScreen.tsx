@@ -310,10 +310,12 @@ const MedicoCitasScreen: React.FC = () => {
   );
 
   const openVideoSala = useCallback((cita: CitaItem) => {
+    /*
     if (normalizeText(cita?.modalidad).toLowerCase() !== 'virtual') {
       Alert.alert('Consulta presencial', 'Esta cita no tiene videollamada habilitada.');
       return;
     }
+    */
 
     navigation.navigate('VideoCall', {
       citaId: cita.citaid,
@@ -444,11 +446,11 @@ const MedicoCitasScreen: React.FC = () => {
                   <TouchableOpacity
                     style={[
                       styles.primaryAction,
-                      (normalizeText(cita?.modalidad).toLowerCase() !== 'virtual' || workingCitaId === cita.citaid) &&
+                      (workingCitaId === cita.citaid) &&
                         styles.secondaryActionDisabled,
                     ]}
                     onPress={() => openVideoSala(cita)}
-                    disabled={normalizeText(cita?.modalidad).toLowerCase() !== 'virtual' || workingCitaId === cita.citaid}
+                    disabled={workingCitaId === cita.citaid}
                   >
                     <MaterialIcons name="videocam" size={16} color="#fff" />
                     <Text style={styles.primaryActionText}>Iniciar</Text>
