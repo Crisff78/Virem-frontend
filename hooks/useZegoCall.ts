@@ -80,6 +80,8 @@ export function useZegoCall(citaId: string | undefined): ZegoCallApi {
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoEndRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const localUserIdRef = useRef<string>('');
+
   const cleanCitaId = (citaId || '').trim();
 
   /** Listeners SDK (solo en nativo) */
@@ -94,19 +96,29 @@ export function useZegoCall(citaId: string | undefined): ZegoCallApi {
         engine.on('roomStreamUpdate', (_roomId: string, updateType: number, streamList: any[]) => {
           // updateType: 0 = ADD, 1 = DELETE
           if (updateType === 0 && streamList?.length) {
-            const s = streamList[0];
+            // ── FIX: Filtrar el stream del usuario local para evitar vista doble ──
+            const remoteStreams = streamList.filter(
+              (s) => s?.user?.userID !== localUserIdRef.current
+            );
+            if (remoteStreams.length === 0) return;
+            const s = remoteStreams[0];
             setRemoteStreamId(s.streamID);
             setRemoteUserId(s?.user?.userID || null);
             setRemoteUserName(s?.user?.userName || null);
             try { engine.startPlayingStream(s.streamID); } catch (_) {}
           } else if (updateType === 1) {
-            // Se fue
-            try {
-              for (const s of streamList || []) engine.stopPlayingStream(s.streamID);
-            } catch (_) {}
-            setRemoteStreamId(null);
-            setRemoteUserId(null);
-            setRemoteUserName(null);
+            // Se fue — solo limpiar si era un stream remoto
+            const remoteGone = (streamList || []).filter(
+              (s) => s?.user?.userID !== localUserIdRef.current
+            );
+            for (const s of remoteGone) {
+              try { engine.stopPlayingStream(s.streamID); } catch (_) {}
+            }
+            if (remoteGone.length > 0) {
+              setRemoteStreamId(null);
+              setRemoteUserId(null);
+              setRemoteUserName(null);
+            }
           }
         });
 
@@ -203,6 +215,8 @@ export function useZegoCall(citaId: string | undefined): ZegoCallApi {
         userId: tokenResponse.zego.userId,
         userName: tokenResponse.zego.userName,
       });
+      // Store our userId so roomStreamUpdate can filter out our own stream
+      localUserIdRef.current = tokenResponse.zego.userId;
       if (!join.ok) {
         setError('No se pudo unir a la sala.');
         setState('error');

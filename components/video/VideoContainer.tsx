@@ -1,5 +1,5 @@
-import React from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Platform, StyleSheet, Text, View } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { getZegoEngine, getZegoTextureView } from '../../services/zegoService';
 import WebVideoContainer from './WebVideoContainer';
@@ -63,6 +63,56 @@ class ZegoSurface extends React.Component<{
   }
 }
 
+// ── Premium waiting avatar with pulse ─────────────────────────────────────
+const WaitingAvatar: React.FC<{ fullscreen?: boolean; label?: string }> = ({
+  fullscreen,
+  label,
+}) => {
+  const pulse = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1200, useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 0.3, duration: 1200, useNativeDriver: false }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  return (
+    <View style={styles.avatarWrap}>
+      <Animated.View
+        style={[
+          styles.pulseRing,
+          fullscreen && styles.pulseRingLg,
+          { opacity: pulse },
+        ]}
+      />
+      <View style={[styles.avatarCircle, fullscreen && styles.avatarCircleLg]}>
+        <MaterialIcons
+          name="person"
+          size={fullscreen ? 80 : 36}
+          color="#fff"
+        />
+      </View>
+      {label ? (
+        <Text style={[styles.avatarLabel, fullscreen && styles.avatarLabelLg]}>
+          {label}
+        </Text>
+      ) : null}
+      {fullscreen && (
+        <View style={styles.waitingDots}>
+          <View style={styles.dotActive} />
+          <View style={[styles.dotActive, { opacity: 0.6 }]} />
+          <View style={[styles.dotActive, { opacity: 0.3 }]} />
+        </View>
+      )}
+    </View>
+  );
+};
+
 // ── Componente principal ──────────────────────────────────────────────────
 const VideoContainer: React.FC<Props> = ({
   streamId,
@@ -93,18 +143,7 @@ const VideoContainer: React.FC<Props> = ({
       {!showAvatar ? (
         <ZegoSurface streamId={streamId} mode={mode} />
       ) : (
-        <View style={styles.avatarWrap}>
-          <View style={[styles.avatarCircle, fullscreen && styles.avatarCircleLg]}>
-            <MaterialIcons
-              name="person"
-              size={fullscreen ? 80 : 36}
-              color="#fff"
-            />
-          </View>
-          {avatarLabel ? (
-            <Text style={styles.avatarLabel}>{avatarLabel}</Text>
-          ) : null}
-        </View>
+        <WaitingAvatar fullscreen={fullscreen} label={avatarLabel} />
       )}
     </View>
   );
@@ -121,23 +160,50 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 12,
     backgroundColor: '#0a1931',
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 160,
+    borderWidth: 2,
+    borderColor: 'rgba(19,127,236,0.4)',
+  },
+  pulseRingLg: {
+    width: 200,
+    height: 200,
+    borderRadius: 200,
   },
   avatarCircle: {
     width: 96,
     height: 96,
     borderRadius: 96,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(19,127,236,0.3)',
   },
   avatarCircleLg: {
     width: 140,
     height: 140,
     borderRadius: 140,
   },
-  avatarLabel: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  avatarLabel: { color: '#fff', fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  avatarLabelLg: { fontSize: 16, fontWeight: '800', marginTop: 8 },
+  waitingDots: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 8,
+  },
+  dotActive: {
+    width: 8,
+    height: 8,
+    borderRadius: 8,
+    backgroundColor: '#137fec',
+  },
 });
 
 export default VideoContainer;

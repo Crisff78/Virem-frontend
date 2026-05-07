@@ -76,7 +76,7 @@ const VideoCallScreen: React.FC = () => {
     }
   }, [call.error]);
 
-  /** Iniciar la llamada cuando el acceso esté disponible */
+  /** Iniciar la llamada cuando el acceso esté disponible — estilo Google Meet */
   useEffect(() => {
     if (!citaId) return;
     if (call.state !== 'idle') return;
@@ -85,14 +85,10 @@ const VideoCallScreen: React.FC = () => {
     // Native: requiere Zego SDK (dev client)
     if (Platform.OS !== 'web' && !isZegoAvailable()) return;
 
+    // Simplemente unirse a la sala — sin invitaciones ni popups
     call.start();
-
-    // Notificar al otro extremo que hay una llamada entrante
-    if (initiate) {
-      signaler.invite(citaId).catch(() => undefined);
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [citaId, access.canJoin, call.state, initiate]);
+  }, [citaId, access.canJoin, call.state]);
 
   /** Salir si access deja de ser válido mientras la llamada está activa */
   useEffect(() => {

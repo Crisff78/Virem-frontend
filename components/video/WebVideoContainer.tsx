@@ -2,13 +2,11 @@
  * Contenedor de video para la plataforma web.
  *
  * Crea un elemento <video> nativo del DOM y lo sincroniza con el MediaStream
- * provisto. La visibilidad del avatar se controla con la prop `enabled`.
- *
- * En native (iOS/Android) este componente nunca se renderiza — VideoContainer
- * usa ZegoTextureView en su lugar.
+ * provisto. Cuando no hay stream, muestra un avatar premium con animación
+ * de pulso indicando que se espera al otro participante.
  */
-import React, { useEffect, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 type Props = {
@@ -33,6 +31,22 @@ const WebVideoContainer: React.FC<Props> = ({
 }) => {
   const containerRef = useRef<any>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const pulseAnim = useRef(new Animated.Value(0.3)).current;
+
+  // Premium pulse animation for the waiting avatar
+  useEffect(() => {
+    const showAvatar = !stream || !enabled;
+    if (!showAvatar) return;
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1200, useNativeDriver: false }),
+        Animated.timing(pulseAnim, { toValue: 0.3, duration: 1200, useNativeDriver: false }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [stream, enabled, pulseAnim]);
 
   // Crear el elemento <video> una sola vez y adjuntarlo al DOM
   useEffect(() => {
@@ -94,6 +108,14 @@ const WebVideoContainer: React.FC<Props> = ({
     >
       {showAvatar && (
         <View style={styles.avatarWrap}>
+          {/* Pulse ring behind avatar */}
+          <Animated.View
+            style={[
+              styles.pulseRing,
+              fullscreen && styles.pulseRingLg,
+              { opacity: pulseAnim },
+            ]}
+          />
           <View style={[styles.avatarCircle, fullscreen && styles.avatarCircleLg]}>
             <MaterialIcons
               name="person"
@@ -102,8 +124,17 @@ const WebVideoContainer: React.FC<Props> = ({
             />
           </View>
           {avatarLabel ? (
-            <Text style={styles.avatarLabel}>{avatarLabel}</Text>
+            <Text style={[styles.avatarLabel, fullscreen && styles.avatarLabelLg]}>
+              {avatarLabel}
+            </Text>
           ) : null}
+          {fullscreen && (
+            <View style={styles.waitingDots}>
+              <View style={styles.dotActive} />
+              <View style={[styles.dotActive, { opacity: 0.6 }]} />
+              <View style={[styles.dotActive, { opacity: 0.3 }]} />
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -124,16 +155,31 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 12,
     backgroundColor: '#0a1931',
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 160,
+    borderWidth: 2,
+    borderColor: 'rgba(19,127,236,0.4)',
+  },
+  pulseRingLg: {
+    width: 200,
+    height: 200,
+    borderRadius: 200,
   },
   avatarCircle: {
     width: 96,
     height: 96,
     borderRadius: 96,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(19,127,236,0.3)',
   },
   avatarCircleLg: {
     width: 140,
@@ -145,6 +191,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  avatarLabelLg: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginTop: 8,
+  },
+  waitingDots: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 8,
+  },
+  dotActive: {
+    width: 8,
+    height: 8,
+    borderRadius: 8,
+    backgroundColor: '#137fec',
   },
 });
 
