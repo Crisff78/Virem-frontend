@@ -526,6 +526,20 @@ const MedicoCitasScreen: React.FC = () => {
                 >
                   <Text style={styles.smallActionText}>Chat</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.smallAction, { backgroundColor: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.2)' }]}
+                  onPress={() =>
+                    navigation.navigate('MedicoRecetas', {
+                      prefill: {
+                        pacienteId: String(cita?.paciente?.pacienteid || ''),
+                        pacienteNombre: normalizeText(cita?.paciente?.nombreCompleto || 'Paciente'),
+                        citaId: cita.citaid,
+                      },
+                    })
+                  }
+                >
+                  <Text style={[styles.smallActionText, { color: '#15803d' }]}>Crear Receta</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.smallAction} onPress={() => showDetails(cita)}>
                   <Text style={styles.smallActionText}>Ver</Text>
                 </TouchableOpacity>

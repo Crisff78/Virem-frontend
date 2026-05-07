@@ -27,7 +27,7 @@ type Receta = {
 };
 
 const MedicoRecetasScreen: React.FC = () => {
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar, activeModuleParams } = useMedicoModule();
   const { doctorName } = useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
   const navigation = usePortalAwareMedicoNavigation();
   const { width: viewportWidth } = useWindowDimensions();
@@ -39,10 +39,22 @@ const MedicoRecetasScreen: React.FC = () => {
   // Simple form state
   const [showForm, setShowForm] = useState(false);
   const [pacienteId, setPacienteId] = useState('');
-  const [citaId, setCitaId] = useState('00000000-0000-0000-0000-000000000000'); // Default UUID for simple direct emit
+  const [pacienteNombre, setPacienteNombre] = useState('');
+  const [citaId, setCitaId] = useState('00000000-0000-0000-0000-000000000000');
   const [diagnostico, setDiagnostico] = useState('');
   const [medicamento, setMedicamento] = useState('');
   const [instrucciones, setInstrucciones] = useState('');
+
+  // Handle prefill from navigation
+  useEffect(() => {
+    if (activeModuleParams?.prefill) {
+      const { pacienteId: pId, pacienteNombre: pName, citaId: cId } = activeModuleParams.prefill;
+      setPacienteId(pId);
+      setPacienteNombre(pName);
+      setCitaId(cId);
+      setShowForm(true);
+    }
+  }, [activeModuleParams]);
 
   const fetchRecetas = useCallback(async () => {
     setLoading(true);
@@ -124,23 +136,47 @@ const MedicoRecetasScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Emitir Nueva Receta</Text>
             
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>ID del Paciente</Text>
-              <TextInput style={styles.input} value={pacienteId} onChangeText={setPacienteId} placeholder="Ej. 123" keyboardType="numeric" />
+              <Text style={styles.label}>Paciente</Text>
+              <TextInput 
+                style={[styles.input, pacienteNombre ? { backgroundColor: '#f1f5f9', color: '#64748b' } : null]} 
+                value={pacienteNombre || pacienteId} 
+                editable={!pacienteNombre}
+                onChangeText={setPacienteId} 
+                placeholder="ID del Paciente" 
+              />
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Diagnóstico</Text>
-              <TextInput style={styles.input} value={diagnostico} onChangeText={setDiagnostico} placeholder="Ej. Amigdalitis aguda" />
+              <TextInput 
+                style={[styles.input, { height: 60 }]} 
+                value={diagnostico} 
+                onChangeText={setDiagnostico} 
+                placeholder="Ej. Amigdalitis aguda" 
+                multiline
+              />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Medicamento</Text>
-              <TextInput style={styles.input} value={medicamento} onChangeText={setMedicamento} placeholder="Ej. Amoxicilina 500mg" />
+              <Text style={styles.label}>Medicamentos</Text>
+              <TextInput 
+                style={[styles.input, { height: 60 }]} 
+                value={medicamento} 
+                onChangeText={setMedicamento} 
+                placeholder="Ej. Amoxicilina 500mg, Paracetamol 1g" 
+                multiline
+              />
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Instrucciones de uso</Text>
-              <TextInput style={[styles.input, { height: 80 }]} value={instrucciones} onChangeText={setInstrucciones} placeholder="Tomar 1 cápsula cada 8 horas por 7 días." multiline />
+              <TextInput 
+                style={[styles.input, { height: 80 }]} 
+                value={instrucciones} 
+                onChangeText={setInstrucciones} 
+                placeholder="Tomar 1 cápsula cada 8 horas por 7 días." 
+                multiline 
+              />
             </View>
 
             <TouchableOpacity style={styles.submitBtn} onPress={handleEmitir}>

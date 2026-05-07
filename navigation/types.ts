@@ -105,7 +105,13 @@ export type RootStackParamList = {
   MedicoConfiguracion: undefined;
   MedicoHorarios: undefined;
   MedicoFinanzas: undefined;
-  MedicoRecetas: undefined;
+  MedicoRecetas: { 
+    prefill?: {
+      pacienteId: string;
+      pacienteNombre: string;
+      citaId: string;
+    }
+  } | undefined;
   AdminPanel: undefined;
   BlogDetail: {
     category: string;
