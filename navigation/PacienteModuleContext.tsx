@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Platform } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
+import PacienteNotificationModal from '../components/PacienteNotificationModal';
 
 /**
  * List of sidebar modules that stay mounted inside the portal.
@@ -37,6 +38,9 @@ type PacienteModuleContextValue = {
   /** Global sidebar toggle state (Desktop & Mobile) */
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
+  /** Notification drawer state */
+  isNotificationsOpen: boolean;
+  setIsNotificationsOpen: (open: boolean) => void;
 };
 
 const fallbackCtx: PacienteModuleContextValue = {
@@ -51,6 +55,10 @@ const fallbackCtx: PacienteModuleContextValue = {
   isSidebarOpen: false,
   toggleSidebar: () => {
     console.warn('usePacienteModule: toggleSidebar called outside of PacienteModuleProvider');
+  },
+  isNotificationsOpen: false,
+  setIsNotificationsOpen: () => {
+    console.warn('usePacienteModule: setIsNotificationsOpen called outside of PacienteModuleProvider');
   },
 };
 
@@ -135,6 +143,8 @@ const PacienteModuleRootProvider: React.FC<{
     setIsSidebarOpen((prev) => !prev);
   }, []);
 
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
   const value = useMemo<PacienteModuleContextValue>(
     () => ({
       isInsidePortal: isPortal,
@@ -143,13 +153,19 @@ const PacienteModuleRootProvider: React.FC<{
       portalNavigate,
       isSidebarOpen,
       toggleSidebar,
+      isNotificationsOpen,
+      setIsNotificationsOpen,
     }),
-    [isPortal, activeModule, portalNavigate, setActiveModule, isSidebarOpen, toggleSidebar]
+    [isPortal, activeModule, portalNavigate, setActiveModule, isSidebarOpen, toggleSidebar, isNotificationsOpen]
   );
 
   return (
     <PacienteModuleContext.Provider value={value}>
       {children}
+      <PacienteNotificationModal 
+        visible={isNotificationsOpen} 
+        onClose={() => setIsNotificationsOpen(false)} 
+      />
     </PacienteModuleContext.Provider>
   );
 };

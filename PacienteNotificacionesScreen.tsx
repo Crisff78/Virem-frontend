@@ -176,7 +176,7 @@ const mapNotification = (item: AgendaNotification): NotificationItem => {
 const PacienteNotificacionesScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { t } = useLanguage();
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar, setIsNotificationsOpen } = usePacienteModule();
   const { signOut } = useAuth();
   const { isDesktop: isDesktopLayout } = useResponsive();
   const [user, setUser] = useState<User | null>(null);
@@ -460,6 +460,13 @@ const PacienteNotificacionesScreen: React.FC = () => {
             <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead}>
               <MaterialIcons name="done-all" size={16} color="#fff" />
               <Text style={styles.markAllBtnText}>{t('notif.markAllRead')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingsBtn}
+              onPress={() => setIsNotificationsOpen(true)}
+            >
+              <MaterialIcons name="notifications" size={20} color={colors.primary} />
             </TouchableOpacity>
 
             <TouchableOpacity
