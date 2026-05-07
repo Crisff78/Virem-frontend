@@ -1,6 +1,4 @@
-const runtimeBackendUrl =
-  (typeof process !== "undefined" ? process.env?.EXPO_PUBLIC_BACKEND_URL : "") ||
-  "https://virem-backend.onrender.com"; // Default to production so it works for everyone
+const runtimeBackendUrl = "http://localhost:3000";
 
 export const BACKEND_URL = String(runtimeBackendUrl).replace(/\/+$/, "");
 
