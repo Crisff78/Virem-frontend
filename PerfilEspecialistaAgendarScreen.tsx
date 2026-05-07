@@ -877,13 +877,19 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                           </TouchableOpacity>
                         ))}
                       </View>
-                      {availableTimes.length > slotsLimit && (
+                      {availableTimes.length > 6 && (
                         <TouchableOpacity
                           style={{ marginTop: 12, alignItems: 'center', paddingVertical: 8 }}
-                          onPress={() => setSlotsLimit(prev => prev + 10)}
+                          onPress={() => {
+                            if (slotsLimit >= availableTimes.length) {
+                              setSlotsLimit(6);
+                            } else {
+                              setSlotsLimit(prev => prev + 10);
+                            }
+                          }}
                         >
                           <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
-                            Ver más horarios
+                            {slotsLimit >= availableTimes.length ? 'Ver menos horarios' : 'Ver más horarios'}
                           </Text>
                         </TouchableOpacity>
                       )}
