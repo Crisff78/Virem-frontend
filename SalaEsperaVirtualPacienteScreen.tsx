@@ -789,7 +789,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 <View>
                   <Text style={styles.summaryLabel}>Estado de sala</Text>
                   <Text style={[styles.summaryValue, roomCanJoin && styles.summaryValueGreen]}>
-                    {loadingRoom ? 'Sincronizando...' : roomCanJoin ? '● Abierta' : roomStatus || 'pendiente'}
+                    {loadingRoom ? 'Sincronizando...' : roomCanJoin ? '● Disponible' : 'En espera'}
                   </Text>
                 </View>
               </View>
@@ -822,7 +822,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 <MaterialIcons name="video-call" size={20} color="#fff" />
               )}
               <Text style={styles.joinBtnText}>
-                {openingRoom ? 'Conectando…' : roomCanJoin ? 'Entrar a la consulta' : 'Esperando al médico…'}
+                {openingRoom ? 'Conectando…' : roomCanJoin ? 'Entrar a la consulta' : 'En espera del médico…'}
               </Text>
             </TouchableOpacity>
 
