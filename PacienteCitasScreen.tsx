@@ -300,9 +300,11 @@ const PacienteCitasScreen: React.FC = () => {
 
   const { upcomingCitas, historyCitas, cancelledCitas } = useMemo(() => {
     const now = Date.now();
+    const graceMs = 40 * 60 * 1000;
     const upcoming: CitaItem[] = [];
     const history: CitaItem[] = [];
     const cancelled: CitaItem[] = [];
+
     for (const cita of filteredCitas) {
       const estado = normalizeText(cita.estado).toLowerCase();
       if (estado.includes('cancel')) {
@@ -310,15 +312,17 @@ const PacienteCitasScreen: React.FC = () => {
         continue;
       }
       const startMs = parseDateMs(cita.fechaHoraInicio);
-      if (Number.isFinite(startMs) && startMs >= now) {
+      if (Number.isFinite(startMs) && (startMs + graceMs) >= now) {
         upcoming.push(cita);
       } else {
         history.push(cita);
       }
     }
+
     upcoming.sort((a, b) => parseDateMs(a.fechaHoraInicio) - parseDateMs(b.fechaHoraInicio));
     history.sort((a, b) => parseDateMs(b.fechaHoraInicio) - parseDateMs(a.fechaHoraInicio));
     cancelled.sort((a, b) => parseDateMs(b.fechaHoraInicio) - parseDateMs(a.fechaHoraInicio));
+
     return { upcomingCitas: upcoming, historyCitas: history, cancelledCitas: cancelled };
   }, [filteredCitas]);
 

@@ -95,7 +95,8 @@ const isNowOrSoon = (value: string | null, windowMinutes = 10): boolean => {
   if (Number.isNaN(date.getTime())) return false;
   const diffMs = date.getTime() - Date.now();
   const diffMin = diffMs / 60000;
-  return diffMin <= windowMinutes && diffMin >= -60;
+  // Window: from 10 min before to 40 min after start
+  return diffMin <= windowMinutes && diffMin >= -40;
 };
 
 const MedicoConsultaVirtualScreen: React.FC = () => {
@@ -119,7 +120,11 @@ const MedicoConsultaVirtualScreen: React.FC = () => {
       }
 
       const mapped = (payload.citas as any[])
-        .filter((item) => String(item?.modalidad || '').toLowerCase() === 'virtual')
+        .filter((item) =>
+          ['pendiente', 'confirmada', 'reprogramada'].includes(
+            String(item?.estadoCodigo || '').toLowerCase()
+          )
+        )
         .map((item) => ({
           citaid: String(item?.citaid || ''),
           fechaHoraInicio: item?.fechaHoraInicio || null,
