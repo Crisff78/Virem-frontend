@@ -41,7 +41,7 @@ const BlogDetailScreen: React.FC = () => {
         <Text style={styles.title}>{title}</Text>
 
         {/* Featured Image */}
-        <Image source={{ uri: image }} style={styles.featuredImage} resizeMode="cover" />
+        <Image source={typeof image === 'string' ? { uri: image } : image} style={styles.featuredImage} resizeMode="cover" />
 
         {/* Description / Content */}
         <View style={styles.articleBody}>

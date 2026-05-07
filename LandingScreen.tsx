@@ -14,6 +14,8 @@ const HeartImg = require('./assets/imagenes/Heart.png');
 const HeartHQImg = require('./assets/imagenes/Heart_HQ.png');
 const HTImg = require('./assets/imagenes/HT.png');
 const VcImg = require('./assets/imagenes/vc.png');
+const SaludMentalImg = require('./assets/imagenes/SaludMental.png');
+const ChequeoImg = require('./assets/imagenes/Chequeo.png');
 
 const colors = {
   primary: '#2B6CB0', // Professional, muted blue
@@ -600,7 +602,7 @@ const HoverBlogCard = ({ category, title, description, image, onPress, style }: 
       <Pressable onPress={onPress} style={{ flex: 1 }}>
         <View style={{ height: 240, overflow: 'hidden' }}>
           <Image
-            source={{ uri: image }}
+            source={typeof image === 'string' ? { uri: image } : image}
             style={[{ width: '100%', height: '100%' }, Platform.OS === 'web' && { className: 'blog-card-img' } as any]}
             resizeMode="cover"
           />
@@ -1297,12 +1299,12 @@ const LandingScreen: React.FC = () => {
               category="SALUD MENTAL"
               title="Grupos de Apoyo y Psicología"
               description="Descubre cómo nuestras reuniones virtuales con especialistas están ayudando a cientos de pacientes a manejar el estrés diario."
-              image="https://images.unsplash.com/photo-1527689368864-3a821dbccc34?q=80&w=800&auto=format&fit=crop"
+              image={SaludMentalImg}
               onPress={() => navigation.navigate('BlogDetail', {
                 category: "SALUD MENTAL",
                 title: "Grupos de Apoyo y Psicología",
                 description: "Descubre cómo nuestras reuniones virtuales con especialistas están ayudando a cientos de pacientes a manejar el estrés diario.",
-                image: "https://images.unsplash.com/photo-1527689368864-3a821dbccc34?q=80&w=800&auto=format&fit=crop"
+                image: SaludMentalImg
               })}
               style={{ flex: 1, maxWidth: isDesktop ? 550 : '100%', shadowRadius: 20, elevation: 10 }}
             />
@@ -1310,12 +1312,12 @@ const LandingScreen: React.FC = () => {
               category="PREVENCIÓN"
               title="La importancia del chequeo anual"
               description="Por qué no debes esperar a sentirte mal para agendar una cita con tu médico de confianza. Hábitos saludables que puedes iniciar hoy mismo."
-              image="https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?q=80&w=800&auto=format&fit=crop"
+              image={ChequeoImg}
               onPress={() => navigation.navigate('BlogDetail', {
                 category: "PREVENCIÓN",
                 title: "La importancia del chequeo anual",
                 description: "Por qué no debes esperar a sentirte mal para agendar una cita con tu médico de confianza. Hábitos saludables que puedes iniciar hoy mismo.",
-                image: "https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?q=80&w=800&auto=format&fit=crop"
+                image: ChequeoImg
               })}
               style={{ flex: 1, maxWidth: isDesktop ? 550 : '100%', shadowRadius: 20, elevation: 10 }}
             />
