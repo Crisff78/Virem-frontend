@@ -168,20 +168,25 @@ export function useWebRTCCall(
   
   const onRtcReady = useCallback(async () => {
     if (!IS_WEB || !initiate || !pcRef.current) return;
-    console.log('[WebRTC] Received rtc:ready, creating offer...');
+    console.log('[WebRTC] Received rtc:ready (or periodic trigger), creating/sending offer...');
     try {
-      const offer = await pcRef.current.createOffer();
+      const offer = await pcRef.current.createOffer({
+        iceRestart: state === 'reconnecting',
+      });
       await pcRef.current.setLocalDescription(offer);
-      emitSignal('rtc:offer', { citaId: cleanCitaId, offer });
+      emitSignal('rtc:offer', { citaId: cleanCitaId, offer, fromRole: 'medico' });
     } catch (err) {
       console.warn('[WebRTC] rtc:ready → createOffer error:', err);
     }
-  }, [IS_WEB, initiate, cleanCitaId, emitSignal]);
+  }, [IS_WEB, initiate, cleanCitaId, emitSignal, state]);
 
   const onRtcOffer = useCallback(async (payload: any) => {
     if (!IS_WEB || !payload?.offer || !cleanCitaId || !pcRef.current) return;
     if (initiate) return; // Initiator shouldn't receive offer
     
+    // Si ya estamos live, ignorar ofertas repetidas a menos que sea un reinicio de ICE
+    if (state === 'live' && !payload.offer.sdp?.includes('ice-ufrag')) return;
+
     console.log('[WebRTC] Received offer, creating answer...');
     try {
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
@@ -190,18 +195,13 @@ export function useWebRTCCall(
       
       const answer = await pcRef.current.createAnswer();
       await pcRef.current.setLocalDescription(answer);
-      emitSignal('rtc:answer', { citaId: cleanCitaId, answer });
+      emitSignal('rtc:answer', { citaId: cleanCitaId, answer, fromRole: 'paciente' });
       
-      if (payload.fromRole) {
-        setRemoteUserName(payload.fromRole === 'medico' ? 'Tu médico' : 'Tu paciente');
-      }
       setState('connecting');
     } catch (err) {
       console.warn('[WebRTC] rtc:offer handler error:', err);
-      setError('Error al establecer la conexión de video.');
-      setState('error');
     }
-  }, [IS_WEB, cleanCitaId, initiate, emitSignal, flushICEQueue]);
+  }, [IS_WEB, cleanCitaId, initiate, emitSignal, flushICEQueue, state]);
 
   const onRtcAnswer = useCallback(async (payload: any) => {
     if (!IS_WEB || !payload?.answer || !pcRef.current) return;
@@ -344,25 +344,30 @@ export function useWebRTCCall(
     }
   }, [cleanCitaId, initiate, buildPC, emitSignal]);
 
-  // ── Signaling Retry Loop ────────────────────────────────────────────────
+  // ── Signaling Retry Loop (Aggressive Handshake) ─────────────────────────
   useEffect(() => {
     if (!IS_WEB || !cleanCitaId || state === 'live' || state === 'ended') return;
     
     const interval = setInterval(() => {
-      // If we are not yet connected, keep signaling presence
-      if (!remoteDescSetRef.current && pcRef.current) {
-        if (initiate) {
-          console.log('[WebRTC] Periodic call:invite retry...');
-          emitSignal('call:invite', { citaId: cleanCitaId });
-        } else {
-          console.log('[WebRTC] Periodic rtc:ready retry...');
+      if (!pcRef.current) return;
+
+      if (initiate) {
+        // Initiator keeps sending offer until connected
+        if (!remoteDescSetRef.current) {
+          console.log('[WebRTC] Aggressive retry: creating new offer...');
+          onRtcReady(); 
+        }
+      } else {
+        // Receiver keeps signaling presence
+        if (!remoteDescSetRef.current) {
+          console.log('[WebRTC] Aggressive retry: sending rtc:ready...');
           emitSignal('rtc:ready', { citaId: cleanCitaId });
         }
       }
-    }, 4000); // Every 4 seconds until connected
+    }, 3000); // Every 3 seconds until remote description is set
 
     return () => clearInterval(interval);
-  }, [IS_WEB, cleanCitaId, state, initiate, emitSignal]);
+  }, [IS_WEB, cleanCitaId, state, initiate, emitSignal, onRtcReady]);
 
   // ── end ───────────────────────────────────────────────────────────────────
   const end = useCallback(
