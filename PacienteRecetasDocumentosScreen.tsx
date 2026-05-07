@@ -14,9 +14,11 @@ import {
 import type { ImageSourcePropType } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
 import { apiClient } from "./utils/api";
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import PacienteSidebar from './components/PacienteSidebar';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { useResponsive } from './hooks/useResponsive';
 
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
@@ -238,11 +240,20 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
-  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isDesktop: isDesktopLayout } = useResponsive();
 
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
+      <View style={{ flex: 1 }}>
 
       <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
         <View style={styles.header}>
@@ -305,6 +316,7 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
               autorizados tienen acceso a esta información.
             </Text>
           </View>
+        </View>
         </View>
       </ScrollView>
     </View>
@@ -505,7 +517,13 @@ const styles = StyleSheet.create({
   noticeText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
 });
 
-export default PacienteRecetasDocumentosScreen;
+const PacienteRecetasDocumentosScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider initialModule="PacienteRecetasDocumentos">
+    <PacienteRecetasDocumentosScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default PacienteRecetasDocumentosScreenWrapper;
 
 
 

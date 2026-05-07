@@ -20,7 +20,7 @@ import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
 import VideoCallFrame from './components/VideoCallFrame';
 import { useVideoCall } from './hooks/useVideoCall';
 
@@ -1637,4 +1637,10 @@ const styles = StyleSheet.create({
   applyBtnText: { color: '#fff', fontSize: 15, fontWeight: '900' },
 });
 
-export default SalaEsperaVirtualPacienteScreen;
+const SalaEsperaVirtualPacienteScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider initialModule="SalaEsperaVirtualPaciente">
+    <SalaEsperaVirtualPacienteScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default SalaEsperaVirtualPacienteScreenWrapper;

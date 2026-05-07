@@ -14,9 +14,8 @@ import {
 import type { ImageSourcePropType } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from './navigation/types';
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
@@ -24,6 +23,8 @@ import { apiClient } from './utils/api';
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientSessionProfile, type PatientSessionUser } from './hooks/usePatientSessionProfile';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
+import { useResponsive } from './hooks/useResponsive';
+import PacienteSidebar from './components/PacienteSidebar';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -31,14 +32,14 @@ const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 type User = PatientSessionUser;
 
 type SpecialtyItem = {
-  icon: string;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   label: string;
   description: string;
   totalMedicos: number;
 };
 
 type SpecialtyCardProps = {
-  icon: string;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   label: string;
   description: string;
   onPress: () => void;
@@ -78,7 +79,7 @@ const FALLBACK_SPECIALTIES: SpecialtyItem[] = [
   { icon: 'pill', label: 'Endocrinologia', description: 'Hormonas y metabolismo', totalMedicos: 0 },
 ];
 
-const getSpecialtyIcon = (specialtyName: string) => {
+const getSpecialtyIcon = (specialtyName: string): React.ComponentProps<typeof MaterialCommunityIcons>['name'] => {
   const key = normalizeText(specialtyName);
   if (key.includes('cardio')) return 'heart-outline';
   if (key.includes('pedia')) return 'baby-face-outline';
@@ -151,7 +152,8 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isDesktop: isDesktopLayout, isTablet: isTabletLayout } = useResponsive();
   const { signOut } = useAuth();
   const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { width: viewportWidth } = useWindowDimensions();
@@ -160,8 +162,6 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [specialtyList, setSpecialtyList] = useState<SpecialtyItem[]>(FALLBACK_SPECIALTIES);
   const [loadingSpecialties, setLoadingSpecialties] = useState(false);
-  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
-  const isTabletLayout = viewportWidth >= 720;
 
   useEffect(() => {
     if (sessionUser) {
@@ -227,7 +227,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
             counts.set(name, (counts.get(name) || 0) + 1);
           }
 
-          const items = Array.from(counts.entries())
+          const items: SpecialtyItem[] = Array.from(counts.entries())
             .map(([name, total]) => ({
               icon: getSpecialtyIcon(name),
               label: name,
@@ -290,17 +290,27 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
       ? styles.specialtyColumnTablet
       : styles.specialtyColumnMobile;
 
-  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const [showAllSpecialties, setShowAllSpecialties] = useState(false);
 
+  const displayedSpecialties = useMemo(() => {
+    // Si hay búsqueda, mostramos todo lo que coincida
+    if (searchText.trim().length > 0) return filteredSpecialties;
+    // Si no, mostramos 4 o todas según el botón
+    return showAllSpecialties ? filteredSpecialties : filteredSpecialties.slice(0, 4);
+  }, [filteredSpecialties, searchText, showAllSpecialties]);
 
   return (
-    <View style={styles.container}>
-
-      <ScrollView
-        style={[styles.main, !isDesktopLayout && styles.mainMobile]}
-        contentContainerStyle={{ paddingBottom: 30 }}
-      >
-        <View style={styles.header}>
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
+      <View style={{ flex: 1 }}>
+        {/* Header Fijo fuera del ScrollView */}
+        <View style={[styles.header, !isDesktopLayout && styles.headerMobile]}>
           {!isSidebarOpen && (
             <TouchableOpacity 
               style={styles.hamburgerBtn} 
@@ -313,7 +323,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
           <View style={styles.searchBox}>
             <MaterialIcons name="search" size={20} color={colors.muted} />
             <TextInput
-              placeholder="Busca un medico para consulta online"
+              placeholder="Busca un médico..."
               placeholderTextColor="#8aa7bf"
               style={styles.searchInput}
             />
@@ -328,6 +338,10 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
+      <ScrollView
+        style={[styles.main, !isDesktopLayout && styles.mainMobile]}
+        contentContainerStyle={{ paddingBottom: 30 }}
+      >
         <View style={styles.centerHeader}>
           <Text style={styles.pageTitle}>
             {tx({
@@ -337,7 +351,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
             })}
           </Text>
           <Text style={styles.pageSubtitle}>
-            En que podemos ayudarte hoy? Selecciona una especialidad real para comenzar.
+            ¿En qué podemos ayudarte hoy? Selecciona una especialidad para comenzar.
           </Text>
         </View>
 
@@ -347,13 +361,13 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
             value={searchText}
             onChangeText={setSearchText}
             style={styles.searchField}
-            placeholder="Busca sintomas (ej. dolor de cabeza), especialidades o doctores"
+            placeholder="Busca síntomas o especialidades..."
             placeholderTextColor="#8ca7bd"
           />
         </View>
 
         <View style={styles.quickSearchRow}>
-          <Text style={styles.quickSearchLabel}>Especialidades con mas medicos:</Text>
+          <Text style={styles.quickSearchLabel}>Populares:</Text>
           {specialtyList.slice(0, 3).map((item) => (
             <Text key={item.label} style={styles.quickSearchItem}>
               {item.label}
@@ -362,7 +376,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Especialidades Medicas</Text>
+          <Text style={styles.sectionTitle}>Especialidades Médicas</Text>
           <TouchableOpacity onPress={() => setSearchText('')}>
             <Text style={styles.sectionLink}>
               {loadingSpecialties ? 'Actualizando...' : `${specialtyList.length} disponibles`}
@@ -371,7 +385,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
         </View>
 
         <View style={styles.specialtiesGrid}>
-          {filteredSpecialties.map((item) => (
+          {displayedSpecialties.map((item) => (
             <View key={item.label} style={specialtyColumnStyle}>
               <SpecialtyCard
                 icon={item.icon}
@@ -381,19 +395,37 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
               />
               <Text style={styles.specialtyCountText}>
                 {item.totalMedicos > 0
-                  ? `${item.totalMedicos} medico(s) disponible(s)`
-                  : 'Disponibilidad variable'}
+                  ? `${item.totalMedicos} médicos`
+                  : 'Disponible'}
               </Text>
             </View>
           ))}
-          {!filteredSpecialties.length ? (
+          
+          {!displayedSpecialties.length ? (
             <View style={styles.emptySpecialtyWrap}>
               <Text style={styles.emptySpecialtyText}>
-                No se encontraron especialidades para "{searchText.trim()}".
+                No se encontraron resultados para "{searchText.trim()}".
               </Text>
             </View>
           ) : null}
         </View>
+
+        {/* Botón Ver Más / Ver Menos */}
+        {!searchText.trim() && specialtyList.length > 4 && (
+          <TouchableOpacity 
+            style={styles.showMoreBtn} 
+            onPress={() => setShowAllSpecialties(!showAllSpecialties)}
+          >
+            <Text style={styles.showMoreText}>
+              {showAllSpecialties ? 'Ver menos' : `Ver todas (${specialtyList.length})`}
+            </Text>
+            <MaterialIcons 
+              name={showAllSpecialties ? "keyboard-arrow-up" : "keyboard-arrow-down"} 
+              size={20} 
+              color={colors.primary} 
+            />
+          </TouchableOpacity>
+        )}
 
         <View style={styles.expressCard}>
           <View style={styles.expressLeft}>
@@ -401,9 +433,9 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
               <MaterialIcons name="emergency" size={24} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.expressTitle}>Necesitas atencion inmediata?</Text>
+              <Text style={styles.expressTitle}>¿Atención inmediata?</Text>
               <Text style={styles.expressSubtitle}>
-                Contamos con medicos de guardia disponibles 24/7 para videoconsultas de urgencia.
+                Médicos de guardia 24/7 para videoconsultas de urgencia.
               </Text>
             </View>
           </View>
@@ -420,7 +452,8 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
         </View>
       </ScrollView>
     </View>
-  );
+  </View>
+);
 };
 
 const colors = {
@@ -581,7 +614,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 14,
+    paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
+    paddingVertical: 12,
+    backgroundColor: colors.bg,
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef4fb',
+  },
+  headerMobile: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   searchBox: {
     flex: 1,
@@ -591,52 +633,51 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 18,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     shadowColor: colors.dark,
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  searchInput: { flex: 1, color: colors.dark, fontWeight: '600' },
+  searchInput: { flex: 1, color: colors.dark, fontWeight: '600', fontSize: 13 },
   notifBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.dark,
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     elevation: 2,
   },
   notifDot: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 10,
-    height: 10,
-    borderRadius: 10,
+    top: 10,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 8,
     backgroundColor: '#ef4444',
     borderWidth: 2,
     borderColor: '#fff',
   },
 
-  centerHeader: { alignItems: 'center', marginBottom: 20, marginTop: 8 },
+  centerHeader: { alignItems: 'center', marginBottom: 20, marginTop: 15 },
   pageTitle: {
     color: colors.dark,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900',
     textAlign: 'center',
-    lineHeight: 34,
+    lineHeight: 30,
   },
   pageSubtitle: {
-    marginTop: 9,
+    marginTop: 6,
     color: colors.muted,
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 13,
     maxWidth: 620,
   },
   searchWrap: {
@@ -667,43 +708,41 @@ const styles = StyleSheet.create({
     gap: 10,
     flexWrap: 'wrap',
   },
-  quickSearchLabel: { color: '#7292ad', fontSize: 12 },
-  quickSearchItem: { color: colors.blue, fontWeight: '700', fontSize: 12 },
+  quickSearchLabel: { color: '#7292ad', fontSize: 11 },
+  quickSearchItem: { color: colors.blue, fontWeight: '700', fontSize: 11 },
 
   sectionHeader: {
-    marginTop: 28,
+    marginTop: 24,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  sectionTitle: { color: colors.dark, fontSize: 16, fontWeight: '900' },
-  sectionLink: { color: colors.blue, fontWeight: '800', fontSize: 13 },
+  sectionTitle: { color: colors.dark, fontSize: 15, fontWeight: '900' },
+  sectionLink: { color: colors.blue, fontWeight: '800', fontSize: 12 },
 
-  specialtiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  specialtiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between' },
   specialtyColumnDesktop: {
     width: '24%',
-    minWidth: 190,
+    minWidth: 180,
   },
   specialtyColumnTablet: {
     width: '48%',
     minWidth: 0,
   },
   specialtyColumnMobile: {
-    width: '100%',
+    width: '48%',
     minWidth: 0,
   },
   specialtyCard: {
-    width: '24%',
-    minWidth: 190,
+    width: '100%',
     backgroundColor: '#fff',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e4edf6',
-    paddingVertical: 18,
-    paddingHorizontal: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 12,
     alignItems: 'center',
-    cursor: 'pointer',
   },
   specialtyCardHover: {
     borderColor: 'rgba(19,127,236,0.45)',
@@ -713,35 +752,35 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  specialtyCardPressed: { transform: [{ scale: 0.995 }] },
+  specialtyCardPressed: { transform: [{ scale: 0.98 }] },
   specialtyIconBox: {
-    width: 62,
-    height: 62,
-    borderRadius: 14,
+    width: 50,
+    height: 50,
+    borderRadius: 12,
     backgroundColor: '#eef5fb',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   specialtyIconBoxHover: { backgroundColor: colors.blue },
   specialtyTitle: {
     color: colors.dark,
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
   },
   specialtyTitleHover: { color: colors.blue },
   specialtyDescription: {
-    marginTop: 4,
+    marginTop: 3,
     color: colors.muted,
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
   },
   specialtyCountText: {
-    marginTop: 6,
+    marginTop: 5,
     textAlign: 'center',
     color: colors.muted,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
   },
   emptySpecialtyWrap: {
@@ -813,9 +852,33 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 14,
   },
+  showMoreBtn: {
+    marginTop: 20,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  showMoreText: {
+    color: colors.primary,
+    fontWeight: '800',
+    fontSize: 14,
+  },
 });
 
-export default NuevaConsultaPacienteScreen;
+const NuevaConsultaPacienteScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider initialModule="NuevaConsultaPaciente">
+    <NuevaConsultaPacienteScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default NuevaConsultaPacienteScreenWrapper;
 
 
 

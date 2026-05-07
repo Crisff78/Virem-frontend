@@ -23,11 +23,12 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { DoctorRouteSnapshot, RootStackParamList } from './navigation/types';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 import { usePatientSessionProfile, type PatientSessionUser } from './hooks/usePatientSessionProfile';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
+import PacienteSidebar from './components/PacienteSidebar';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -286,7 +287,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const { t } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'PerfilEspecialistaAgendar'>>();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
   const { signOut } = useAuth();
   const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { isDesktop, isTablet, isMobile, select } = useResponsive();
@@ -673,120 +674,46 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.container, isInsidePortal ? null : (isDesktop ? styles.containerDesktop : (isTablet ? styles.containerTablet : styles.containerMobile))]}>
-      <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : (isTablet ? styles.sidebarTablet : styles.sidebarMobile)]}>
-        <View>
-          <View style={styles.logoBox}>
-            <Image source={ViremLogo} style={styles.logo} />
-            <View>
-              <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSubtitle}>Portal Paciente</Text>
-            </View>
+    <View style={[styles.container, !isInsidePortal && isDesktop && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
+      <View style={{ flex: 1 }}>
+        <View style={[styles.header, !isDesktop && styles.headerMobile]}>
+          {!isSidebarOpen && (
+            <TouchableOpacity 
+              style={styles.hamburgerBtn} 
+              onPress={toggleSidebar}
+            >
+              <MaterialIcons name="menu" size={26} color={colors.dark} />
+            </TouchableOpacity>
+          )}
+
+          <View style={styles.searchBox}>
+            <MaterialIcons name="search" size={20} color={colors.muted} />
+            <TextInput
+              placeholder="Busca servicios, medicos..."
+              placeholderTextColor="#8aa7bf"
+              style={styles.searchInput}
+            />
           </View>
-
-          <View style={styles.sidebarUserBox}>
-            <Image source={userAvatarSource} style={styles.sidebarUserAvatar} />
-            <Text style={styles.sidebarUserName}>{fullName}</Text>
-            <Text style={styles.sidebarUserPlan}>{planLabel}</Text>
-          </View>
-
-          <View style={[styles.menu, (isDesktop || isTablet) ? styles.menuDesktop : styles.menuMobile]}>
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('DashboardPaciente')}
-            >
-              <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.home')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.menuItemRow, styles.menuItemActive]}
-              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
-            >
-              <MaterialIcons name="person-search" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.searchDoctor')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteCitas')}
-            >
-              <MaterialIcons name="calendar-month" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.appointments')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
-            >
-              <MaterialIcons name="videocam" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.videocall')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteChat')}
-            >
-              <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.chat')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
-            >
-              <MaterialIcons name="description" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacientePerfil')}
-            >
-              <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.profile')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteConfiguracion')}
-            >
-              <MaterialIcons name="settings" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.settings')}</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.notifBtn}
+            onPress={() => navigation.navigate('PacienteNotificaciones')}
+          >
+            <MaterialIcons name="notifications" size={22} color={colors.dark} />
+            <View style={styles.notifDot} />
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>{t('menu.logout')}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={{ flex: 1 }}>
         <ScrollView
           style={[styles.main, !isDesktop && styles.mainMobile]}
           contentContainerStyle={{ paddingBottom: 28 }}
         >
-          <View style={styles.header}>
-            <View style={styles.searchBox}>
-              <MaterialIcons name="search" size={20} color={colors.muted} />
-              <TextInput
-                placeholder="Busca un médico para consulta online"
-                placeholderTextColor="#8aa7bf"
-                style={styles.searchInput}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.notifBtn}
-              onPress={() => navigation.navigate('PacienteNotificaciones')}
-            >
-              <MaterialIcons name="notifications" size={22} color={colors.dark} />
-              <View style={styles.notifDot} />
-            </TouchableOpacity>
-          </View>
-
           <View style={[styles.breadcrumbRow, (isTablet || isMobile) && styles.breadcrumbRowMobile]}>
             <TouchableOpacity onPress={() => navigation.navigate('DashboardPaciente')}>
               <Text style={styles.breadcrumbLink}>Inicio</Text>
@@ -869,7 +796,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
               </View>
             </View>
 
-            <View style={[styles.bookingCol, !isDesktopLayout && styles.bookingColMobile]}>
+            <View style={[styles.bookingCol, !isDesktop && styles.bookingColMobile]}>
               <View style={styles.bookingCard}>
                 <View style={styles.bookingTop}>
                   <Text style={styles.priceLabel}>Precio de consulta</Text>
@@ -902,7 +829,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                   </View>
 
                   <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Horarios disponibles</Text>
-                  <View style={[styles.modeRow, !isDesktopLayout && styles.modeRowMobile]}>
+                  <View style={[styles.modeRow, !isDesktop && styles.modeRowMobile]}>
                     {modalidadOptions.map((option) => (
                       <TouchableOpacity
                         key={option.id}
@@ -928,7 +855,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                           key={item.id}
                           style={[
                             styles.timeBtn,
-                            !isDesktopLayout && styles.timeBtnMobile,
+                            !isDesktop && styles.timeBtnMobile,
                             selectedTime === item.id && styles.timeBtnActive,
                           ]}
                           onPress={() => setSelectedTime(item.id)}
@@ -1153,6 +1080,16 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  closeSidebarBtn: {
+    padding: 5,
+    marginRight: -5,
+  },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
   logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
   logoSubtitle: { fontSize: 11, color: colors.muted, fontWeight: '700' },
@@ -1627,6 +1564,28 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontWeight: '700',
   },
+  hamburgerBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  headerMobile: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
 });
 
-export default PerfilEspecialistaAgendarScreen;
+const PerfilEspecialistaAgendarScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider>
+    <PerfilEspecialistaAgendarScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default PerfilEspecialistaAgendarScreenWrapper;

@@ -15,6 +15,9 @@ import { useFocusEffect, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import PacienteHeader from './components/PacienteHeader';
+import PacienteSidebar from './components/PacienteSidebar';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { useResponsive } from './hooks/useResponsive';
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 import { useSocketEvent } from './hooks/useSocketEvent';
@@ -80,7 +83,8 @@ const PacienteChatScreen: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'chat'>('list');
   const [isTyping, setIsTyping] = useState(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isDesktop: isDesktopLayout } = useResponsive();
 
   const loadContacts = useCallback(async () => {
     setLoadingContacts(true);
@@ -323,7 +327,14 @@ const PacienteChatScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
       <View style={styles.main}>
         <View style={styles.headerWrap}>
           <PacienteHeader title="Mensajes" />
@@ -631,4 +642,10 @@ const styles = StyleSheet.create({
   emptyChatState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
 });
 
-export default PacienteChatScreen;
+const PacienteChatScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider initialModule="PacienteChat">
+    <PacienteChatScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default PacienteChatScreenWrapper;

@@ -24,6 +24,9 @@ import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
 import { resolveRemoteImageSource } from './utils/imageSources';
+import PacienteSidebar from './components/PacienteSidebar';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { useResponsive } from './hooks/useResponsive';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -61,8 +64,8 @@ const sanitizeFotoUrl = (value: unknown) => {
 
 const PacienteConfiguracionScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = usePacienteModule();
-  const { language: appLanguage, setLanguage, t, tx } = useLanguage();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isDesktop: isDesktopLayout } = useResponsive();
   const { user, refreshUser, signOut, fullName, planLabel, fotoUrl, hasProfilePhoto } =
     usePatientPortalSession({ syncOnMount: false });
 
@@ -241,9 +244,16 @@ const PacienteConfiguracionScreen: React.FC = () => {
 
 
   return (
-    <View style={styles.container}>
-
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
+      <View style={{ flex: 1 }}>
+        <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
         {!isSidebarOpen && (
           <TouchableOpacity 
             style={styles.hamburgerBtn} 
@@ -528,7 +538,8 @@ const PacienteConfiguracionScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
-
+        </ScrollView>
+      </View>
     </View>
   );
 };
@@ -884,6 +895,12 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PacienteConfiguracionScreen;
+const PacienteConfiguracionScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider initialModule="PacienteConfiguracion">
+    <PacienteConfiguracionScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default PacienteConfiguracionScreenWrapper;
 
 

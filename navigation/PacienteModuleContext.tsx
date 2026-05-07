@@ -41,10 +41,16 @@ type PacienteModuleContextValue = {
 const fallbackCtx: PacienteModuleContextValue = {
   isInsidePortal: false,
   activeModule: 'DashboardPaciente',
-  setActiveModule: () => undefined,
-  portalNavigate: () => undefined,
-  isSidebarOpen: true,
-  toggleSidebar: () => undefined,
+  setActiveModule: () => {
+    console.warn('usePacienteModule: setActiveModule called outside of PacienteModuleProvider');
+  },
+  portalNavigate: () => {
+    console.warn('usePacienteModule: portalNavigate called outside of PacienteModuleProvider');
+  },
+  isSidebarOpen: false,
+  toggleSidebar: () => {
+    console.warn('usePacienteModule: toggleSidebar called outside of PacienteModuleProvider');
+  },
 };
 
 export const PacienteModuleContext = createContext<PacienteModuleContextValue>(fallbackCtx);

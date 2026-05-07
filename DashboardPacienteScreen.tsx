@@ -436,23 +436,24 @@ const DashboardPacienteScreen: React.FC = () => {
 
       {/* Main Content */}
       <View style={{ flex: 1 }}>
-        <ScrollView style={[styles.main, !isDesktop && styles.mainMobile]} contentContainerStyle={{ paddingBottom: 40 }}>
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              {!isSidebarOpen && (
-                <TouchableOpacity style={styles.menuToggle} onPress={toggleSidebar}>
-                  <MaterialIcons name="menu" size={24} color={colors.dark} />
-                </TouchableOpacity>
-              )}
-              <Text style={styles.title}>Hola, {fullName.split(' ')[0]}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: rs(10) }}>
-              <TouchableOpacity style={styles.notifBtn} onPress={() => setIsNotificationsOpen(true)}>
-                <MaterialIcons name="notifications" size={22} color={colors.dark} />
-                {unreadCount > 0 && <View style={styles.notifDot} />}
+        <View style={[styles.header, { paddingHorizontal: rs(24), paddingTop: rs(12), backgroundColor: '#F6FAFD', zIndex: 10, borderBottomWidth: 1, borderBottomColor: '#eef4fb' }]}>
+          <View style={styles.headerLeft}>
+            {!isSidebarOpen && (
+              <TouchableOpacity style={styles.menuToggle} onPress={toggleSidebar}>
+                <MaterialIcons name="menu" size={24} color={colors.dark} />
               </TouchableOpacity>
-            </View>
+            )}
+            <Text style={styles.title}>Hola, {fullName.split(' ')[0]}</Text>
           </View>
+          <View style={{ flexDirection: 'row', gap: rs(10) }}>
+            <TouchableOpacity style={styles.notifBtn} onPress={() => setIsNotificationsOpen(true)}>
+              <MaterialIcons name="notifications" size={22} color={colors.dark} />
+              {unreadCount > 0 && <View style={styles.notifDot} />}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <ScrollView style={[styles.main, !isDesktop && styles.mainMobile]} contentContainerStyle={{ paddingBottom: 40 }}>
           <Text style={styles.subtitle}>Gestiona tus consultas y salud desde aquí.</Text>
 
           {/* Big Card */}
