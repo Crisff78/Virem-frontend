@@ -22,8 +22,6 @@ import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 import { getApiErrorMessage } from './utils/apiErrors';
 import { useMedicoSessionProfile, type MedicoSessionUser } from './hooks/useMedicoSessionProfile';
-import VideoCallFrame from './components/VideoCallFrame';
-import { useVideoCall } from './hooks/useVideoCall';
 import { useResponsive } from './hooks/useResponsive';
 
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -218,7 +216,6 @@ const DashboardMedico: React.FC = () => {
   const [loadingDashboard, setLoadingDashboard] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
   const [openingCitaId, setOpeningCitaId] = useState('');
-  const { isInCall, roomInfo, startCall, endCall, error: callError, setError: setCallError } = useVideoCall();
   
   const lastRefreshRef = useRef(0);
 
@@ -834,37 +831,23 @@ const DashboardMedico: React.FC = () => {
     navigation.navigate(route as any);
   };
 
-  const handleVideoCall = async (citaId?: string) => {
+  const handleVideoCall = (citaId?: string) => {
     const targetCita = citaId 
       ? upcomingCitas.find(c => c.citaid === citaId) 
       : upcomingCitas[0];
       
     if (!targetCita) return;
 
-    setOpeningCitaId(targetCita.citaid);
-    await startCall(targetCita.citaid, true);
-    setOpeningCitaId('');
+    navigation.navigate('VideoCall', { 
+      citaId: targetCita.citaid,
+      initiate: true 
+    });
   };
 
   const nextCita = upcomingCitas[0] || null;
   const bannerPatientName = nextCita ? nextCita.paciente.nombreCompleto : '';
   const bannerPatientAvatar = resolveAvatarSource(nextCita?.paciente?.fotoUrl);
   
-  if (isInCall && roomInfo) {
-    return (
-      <View style={{ flex: 1 }}>
-        <View style={styles.mainCallContainer}>
-          <VideoCallFrame
-            roomName={roomInfo.roomName}
-            displayName={doctorName}
-            onHangup={endCall}
-            jwtToken={roomInfo.jwtToken}
-            jitsiDomain={roomInfo.jitsiDomain}
-          />
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={{ flex: 1 }}>

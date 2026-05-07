@@ -21,8 +21,6 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
 import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
-import VideoCallFrame from './components/VideoCallFrame';
-import { useVideoCall } from './hooks/useVideoCall';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { RootStackParamList } from './navigation/types';
@@ -161,7 +159,6 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const roomReadyPulse = useRef(new Animated.Value(0)).current;
   const panelTranslateX = useRef(new Animated.Value(430)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
-  const { isInCall, roomInfo, startCall, endCall, error: callError, setError: setCallError } = useVideoCall();
   const requestedCitaId = String(route.params?.citaId || '').trim();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
@@ -442,17 +439,14 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
   useSocketRoom('cita', selectedCitaId, Boolean(selectedCitaId));
 
-  const enterVideoRoom = async () => {
+  const enterVideoRoom = () => {
     if (!nextCita?.citaid) return;
-    setRoomError('');
-    await startCall(nextCita.citaid, false);
+    navigation.navigate('VideoCall', {
+      citaId: nextCita.citaid,
+      initiate: false // Patients wait for doctors to initiate or just join
+    });
   };
 
-  useEffect(() => {
-    if (callError) {
-      setRoomError(callError);
-    }
-  }, [callError]);
 
   const openSettings = () => {
     setSettingsOpen(true);
@@ -600,19 +594,6 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const rs = (size: number) => size;
 
 
-  if (isInCall && roomInfo) {
-    return (
-      <View style={styles.fullScreenCall}>
-        <VideoCallFrame
-          roomName={roomInfo.roomName}
-          displayName={fullName}
-          onHangup={endCall}
-          jwtToken={roomInfo.jwtToken}
-          jitsiDomain={roomInfo.jitsiDomain}
-        />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>

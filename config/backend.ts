@@ -1,4 +1,4 @@
-const runtimeBackendUrl = "http://localhost:3000";
+const runtimeBackendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
 
 export const BACKEND_URL = String(runtimeBackendUrl).replace(/\/+$/, "");
 
