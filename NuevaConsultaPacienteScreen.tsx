@@ -291,13 +291,14 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
       : styles.specialtyColumnMobile;
 
   const [showAllSpecialties, setShowAllSpecialties] = useState(false);
+  const displayLimit = isDesktopLayout ? 8 : 4;
 
   const displayedSpecialties = useMemo(() => {
     // Si hay búsqueda, mostramos todo lo que coincida
     if (searchText.trim().length > 0) return filteredSpecialties;
-    // Si no, mostramos 4 o todas según el botón
-    return showAllSpecialties ? filteredSpecialties : filteredSpecialties.slice(0, 4);
-  }, [filteredSpecialties, searchText, showAllSpecialties]);
+    // Si no, mostramos el límite (8 en PC, 4 en móvil) o todas según el botón
+    return showAllSpecialties ? filteredSpecialties : filteredSpecialties.slice(0, displayLimit);
+  }, [filteredSpecialties, searchText, showAllSpecialties, displayLimit]);
 
   return (
     <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
@@ -411,7 +412,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
         </View>
 
         {/* Botón Ver Más / Ver Menos */}
-        {!searchText.trim() && specialtyList.length > 4 && (
+        {!searchText.trim() && specialtyList.length > displayLimit && (
           <TouchableOpacity 
             style={styles.showMoreBtn} 
             onPress={() => setShowAllSpecialties(!showAllSpecialties)}
