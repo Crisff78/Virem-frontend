@@ -119,7 +119,11 @@ export function useWebRTCCall(
       // ICE → relay via socket
       pc.onicecandidate = (e) => {
         if (e.candidate) {
-          emitSignal('rtc:ice', { citaId: cleanCitaId, candidate: e.candidate.toJSON() });
+          emitSignal('rtc:ice', { 
+            citaId: cleanCitaId, 
+            candidate: e.candidate.toJSON(),
+            fromRole: IS_WEB ? 'web' : 'native'
+          });
         }
       };
 
@@ -314,7 +318,15 @@ export function useWebRTCCall(
       //    - Receptor: emite rtc:ready para que el iniciador sepa que puede enviar el offer
       //    - Iniciador: espera rtc:ready (manejado por useSocketEvent arriba)
       if (!initiate) {
+        // Emit ready, then retry once after 3s if no offer received (mutual visibility fix)
         emitSignal('rtc:ready', { citaId: cleanCitaId });
+        setTimeout(() => {
+          // If after 3 seconds we are still not live, the initiator might have missed the first 'ready'
+          if (pcRef.current && !remoteDescSetRef.current) {
+            console.log('[WebRTC] Retrying rtc:ready...');
+            emitSignal('rtc:ready', { citaId: cleanCitaId });
+          }
+        }, 3000);
       }
     } catch (err: any) {
       const msg =

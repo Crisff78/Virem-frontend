@@ -345,6 +345,17 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
           const chosen = fromParam || ordered[0] || null;
           setSelectedCitaId(String(chosen?.citaid || ''));
           setNextCita(chosen);
+          
+          const cleanCitaId = String(chosen?.citaid || '').trim();
+          if (cleanCitaId && !initiate) {
+            emitSignal('rtc:ready', { citaId: cleanCitaId });
+            setTimeout(() => {
+              if (state !== 'live' && state !== 'ended') {
+                console.log('[WebRTC] Retrying rtc:ready...');
+                emitSignal('rtc:ready', { citaId: cleanCitaId });
+              }
+            }, 3000);
+          }
         } else {
           setUpcomingCitas([]);
           setSelectedCitaId('');
@@ -430,12 +441,36 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   useSocketEvent('call:incoming', (payload: any) => {
     if (!selectedCitaId) return;
     if (String(payload?.citaId || '') !== selectedCitaId) return;
+    
+    console.log('[WaitingRoom] Doctor joined! Updating UI...');
+    
     // Doctor has started the call — enable join immediately
     setRoomCanJoin(true);
     setRoomStatus('activa');
-    // Trigger the "room ready" pulse animation
+    
+    // Visual feedback
     roomReadyPulse.setValue(0);
-    Animated.timing(roomReadyPulse, { toValue: 1, duration: 500, useNativeDriver: false }).start();
+    Animated.timing(roomReadyPulse, { 
+      toValue: 1, 
+      duration: 500, 
+      useNativeDriver: false 
+    }).start();
+
+    // Sound notification (using browser beep if possible or just visual pulse)
+    if (Platform.OS === 'web') {
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.2);
+      } catch (_) {}
+    }
   });
 
   // ── Listen for doctor ending the call → redirect patient ──
@@ -921,6 +956,16 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                           key={camera.id}
                           style={[styles.selectOption, selectedCameraId === camera.id && styles.selectOptionActive]}
                           onPress={() => {
+                            // ICE → relay via socket
+                            pc.onicecandidate = (e) => {
+                              if (e.candidate) {
+                                emitSignal('rtc:ice', { 
+                                  citaId: cleanCitaId, 
+                                  candidate: e.candidate.toJSON(),
+                                  fromRole: IS_WEB ? 'web' : 'native'
+                                });
+                              }
+                            };
                             setSelectedCameraId(camera.id);
                             setOpenSelect(null);
                           }}
