@@ -32,6 +32,7 @@ export type ZegoTokenResponse = {
   provider: 'zego';
   zego: {
     appId: number;
+    server: string;
     token: string;
     roomId: string;
     userId: string;
