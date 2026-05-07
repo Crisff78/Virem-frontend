@@ -917,7 +917,13 @@ const LandingScreen: React.FC = () => {
         </AnimatedGradientBg>
 
         {/* HOW IT WORKS */}
-        <View onLayout={(e) => setLayoutY(prev => ({ ...prev, plataforma: e.nativeEvent.layout.y }))} style={[styles.howItWorksSection, isDesktop && styles.howItWorksDesktop]}>
+        <View 
+          onLayout={(e) => {
+            const y = e.nativeEvent.layout.y;
+            setLayoutY(prev => ({ ...prev, plataforma: y }));
+          }} 
+          style={[styles.howItWorksSection, isDesktop && styles.howItWorksDesktop]}
+        >
           {isDesktop && (
             <View style={[styles.howItWorksImgContainer, { paddingRight: 40 }]}>
               <View style={{ position: 'relative' }}>
@@ -1022,7 +1028,13 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* ESPECIALIDADES GRID */}
-        <View onLayout={(e) => setLayoutY(prev => ({ ...prev, especialidades: e.nativeEvent.layout.y }))} style={[styles.servicesSection, { backgroundColor: "#FFFFFF", paddingVertical: 80, alignItems: "center", width: "100%", borderTopWidth: 1, borderTopColor: "#E2E8F0" }]}>
+        <View 
+          onLayout={(e) => {
+            const y = e.nativeEvent.layout.y;
+            setLayoutY(prev => ({ ...prev, especialidades: y }));
+          }} 
+          style={[styles.servicesSection, { backgroundColor: "#FFFFFF", paddingVertical: 80, alignItems: "center", width: "100%", borderTopWidth: 1, borderTopColor: "#E2E8F0" }]}
+        >
 
           <View style={{ width: "100%", maxWidth: 1200, marginBottom: 40, paddingHorizontal: 20 }}>
             <Text style={{ fontSize: 36, fontWeight: "900", color: colors.dark, marginBottom: 16, textAlign: isDesktop ? "left" : "center" }}>Especialidades Médicas</Text>
@@ -1221,7 +1233,13 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* NOSOTROS - ENHANCED */}
-        <View onLayout={(e) => setLayoutY(prev => ({ ...prev, nosotros: e.nativeEvent.layout.y }))} style={[styles.howItWorksSection, { backgroundColor: '#FFFFFF', paddingVertical: 100, borderTopWidth: 1, borderTopColor: '#E2E8F0' }, isDesktop && styles.howItWorksDesktop]}>
+        <View 
+          onLayout={(e) => {
+            const y = e.nativeEvent.layout.y;
+            setLayoutY(prev => ({ ...prev, nosotros: y }));
+          }} 
+          style={[styles.howItWorksSection, { backgroundColor: '#FFFFFF', paddingVertical: 100, borderTopWidth: 1, borderTopColor: '#E2E8F0' }, isDesktop && styles.howItWorksDesktop]}
+        >
           <View style={[styles.howItWorksTextContainer, isDesktop && { paddingRight: 60 }, (isTablet || isMobile) && { alignItems: 'center' }]}>
 
             <FadeInView delay={200}>
@@ -1287,7 +1305,13 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* BLOG */}
-        <View onLayout={(e) => setLayoutY(prev => ({ ...prev, blog: e.nativeEvent.layout.y }))} style={[styles.servicesSection, { backgroundColor: '#F0F9FF', paddingVertical: 100, borderTopWidth: 1, borderTopColor: '#E2E8F0' }]}>
+        <View 
+          onLayout={(e) => {
+            const y = e.nativeEvent.layout.y;
+            setLayoutY(prev => ({ ...prev, blog: y }));
+          }} 
+          style={[styles.servicesSection, { backgroundColor: '#F0F9FF', paddingVertical: 100, borderTopWidth: 1, borderTopColor: '#E2E8F0' }]}
+        >
           <FadeInView delay={100} style={{ alignItems: 'center', marginBottom: 60 }}>
             <View style={{ width: 40, height: 4, backgroundColor: colors.primary, borderRadius: 2, marginBottom: 16 }} />
             <Text style={[styles.sectionHeadingCenter, { fontSize: 36, fontWeight: '900', color: colors.dark }]}>NUESTRO BLOG</Text>
@@ -1325,7 +1349,13 @@ const LandingScreen: React.FC = () => {
         </View>
 
         {/* FOOTER */}
-        <View onLayout={(e) => setLayoutY(prev => ({ ...prev, contacto: e.nativeEvent.layout.y }))} style={[styles.footerContainer, isDesktop && { borderTopLeftRadius: 150 }]}>
+        <View 
+          onLayout={(e) => {
+            const y = e.nativeEvent.layout.y;
+            setLayoutY(prev => ({ ...prev, contacto: y }));
+          }} 
+          style={[styles.footerContainer, isDesktop && { borderTopLeftRadius: 150 }]}
+        >
           <View style={[styles.footer, isDesktop && styles.footerDesktop]}>
             <View style={[styles.footerBrandSection, (isTablet || isMobile) && { alignItems: 'center', maxWidth: '100%' }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
