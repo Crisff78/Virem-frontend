@@ -78,19 +78,19 @@ const MedicoHorariosScreen: React.FC = () => {
       return;
     }
     
-    try {
-      setGuardando(true);
-      // Validar formato simple YYYY-MM-DD
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-        Alert.alert("Error", "Formato de fecha inválido. Usa YYYY-MM-DD (ej: 2026-05-07)");
-        return;
-      }
-      // Validar formato de hora HH:MM
-      if (!/^\d{2}:\d{2}$/.test(horaInicio) || !/^\d{2}:\d{2}$/.test(horaFin)) {
-        Alert.alert("Error", "Formato de hora inválido. Usa HH:MM (ej: 08:00)");
-        return;
-      }
+    // Validar formato simple YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      Alert.alert("Error", "Formato de fecha inválido. Usa YYYY-MM-DD (ej: 2026-05-07)");
+      return;
+    }
+    // Validar formato de hora HH:MM
+    if (!/^\d{2}:\d{2}$/.test(horaInicio) || !/^\d{2}:\d{2}$/.test(horaFin)) {
+      Alert.alert("Error", "Formato de hora inválido. Usa HH:MM (ej: 08:00)");
+      return;
+    }
 
+    setGuardando(true);
+    try {
       const bodyData = {
         fecha: fecha,
         horaInicio: horaInicio,
@@ -119,11 +119,13 @@ const MedicoHorariosScreen: React.FC = () => {
       }
     } catch (e: any) {
       console.error("[MedicoHorarios] Error al crear horario:", e);
+      console.error("[MedicoHorarios] Error status:", e?.status);
       console.error("[MedicoHorarios] Error data:", e?.data);
       const serverError = e?.data?.error || '';
       const serverDetail = e?.data?.detail || '';
+      const serverHint = e?.data?.hint || '';
       const msg = e?.data?.message || e?.message || "Error de conexión.";
-      const fullMsg = [msg, serverError, serverDetail].filter(Boolean).join('\n');
+      const fullMsg = [msg, serverError, serverDetail, serverHint].filter(Boolean).join('\n');
       Alert.alert("Error al crear horario", fullMsg);
     } finally {
       setGuardando(false);

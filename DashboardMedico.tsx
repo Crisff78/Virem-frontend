@@ -205,8 +205,9 @@ const DashboardMedico: React.FC = () => {
 
   const [dashboardData, setDashboardData] = useState<DashboardPayload>(EMPTY_DASHBOARD);
   const [upcomingCitas, setUpcomingCitas] = useState<MedicoUpcomingCita[]>([]);
-  const [loadingDashboard, setLoadingDashboard] = useState(false);
-  const [profileReady, setProfileReady] = useState(false);
+  const [loadingDashboard, setLoadingDashboard] = useState(true);
+  const [profileReady, setProfileReady] = useState(true);
+  const [dataError, setDataError] = useState(false);
   const [openingCitaId, setOpeningCitaId] = useState('');
 
   const lastRefreshRef = useRef(0);
@@ -682,10 +683,20 @@ const DashboardMedico: React.FC = () => {
 
   const loadDashboardData = useCallback(async () => {
     setLoadingDashboard(true);
+    setDataError(false);
+    
+    // Timeout fallback: if API takes >5s, show empty dashboard instead of infinite skeleton
+    const timeoutId = setTimeout(() => {
+      setLoadingDashboard(false);
+      setDataError(true);
+    }, 5000);
+    
     try {
       const payload = await apiClient.get<any>('/api/users/me/dashboard-medico', {
         authenticated: true,
       });
+      clearTimeout(timeoutId);
+      
       if (!(payload?.success && payload?.dashboard)) {
         setDashboardData(EMPTY_DASHBOARD);
         return;
@@ -737,7 +748,9 @@ const DashboardMedico: React.FC = () => {
       if (backendSpec) setDoctorSpec(backendSpec);
       if (backendFoto) setDoctorAvatar({ uri: backendFoto });
     } catch {
+      clearTimeout(timeoutId);
       setDashboardData(EMPTY_DASHBOARD);
+      setDataError(true);
     } finally {
       setLoadingDashboard(false);
     }
@@ -850,7 +863,7 @@ const DashboardMedico: React.FC = () => {
         />
 
         {/* ── Skeleton loading overlay ── */}
-        {(!profileReady || loadingDashboard) && (
+        {loadingDashboard && (
           <View style={{ gap: rs(12), marginBottom: rs(16) }}>
             <View style={{
               backgroundColor: '#e8eff5',
@@ -881,17 +894,23 @@ const DashboardMedico: React.FC = () => {
               height: rs(80),
               width: '100%',
             }} />
-            <View style={{
-              backgroundColor: '#e8eff5',
-              borderRadius: rs(18),
-              height: rs(80),
-              width: '100%',
-            }} />
           </View>
         )}
 
-        {profileReady && !loadingDashboard && (
+        {!loadingDashboard && (
           <>
+            {dataError && (
+              <View style={{ backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: rs(14), padding: rs(14), marginBottom: rs(12), flexDirection: 'row', alignItems: 'center', gap: rs(10) }}>
+                <MaterialIcons name="wifi-off" size={20} color={colors.red} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: fs(13), fontWeight: '700', color: colors.dark }}>Conexión lenta o sin datos</Text>
+                  <Text style={{ fontSize: fs(11), color: colors.muted, marginTop: rs(2) }}>Algunos datos podrían no estar actualizados.</Text>
+                </View>
+                <TouchableOpacity onPress={() => loadMedicoProfile()} style={{ paddingHorizontal: rs(12), paddingVertical: rs(6), backgroundColor: colors.primary, borderRadius: rs(8) }}>
+                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: fs(11) }}>Reintentar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             <Text style={styles.subtitle}>Aquí tienes un resumen de tu jornada y próximos pacientes.</Text>
 
             {/* ── Llamada en Curso card ── */}

@@ -37,12 +37,16 @@ const PacientePortalInner: React.FC = () => {
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
   const { isSidebarOpen, toggleSidebar } = usePacienteModule();
 
+  const closeSidebar = React.useCallback(() => {
+    if (isSidebarOpen) toggleSidebar();
+  }, [isSidebarOpen, toggleSidebar]);
+
   return (
     <View style={[styles.container, isDesktopLayout ? styles.containerDesktop : styles.containerMobile]}>
       <PacienteSidebar
         isMobileMenuOpen={isSidebarOpen}
         onToggleMobileMenu={toggleSidebar}
-        onCloseMobileMenu={toggleSidebar}
+        onCloseMobileMenu={closeSidebar}
       />
 
       <View style={styles.modulesContainer}>

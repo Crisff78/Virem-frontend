@@ -29,13 +29,13 @@ const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 const MIN_REFRESH_INTERVAL_MS = 15000;
 
 const colors = {
-  primary: '#1e40af',
-  brand: '#1e40af',
-  dark: '#0f172a',
-  muted: '#64748b',
+  primary: '#137fec',
+  brand: '#137fec',
+  dark: '#0A1931',
+  muted: '#4A7FA7',
   light: '#f8fafc',
-  bg: '#f5f7fb',
-  white: '#ffffff',
+  bg: '#F6FAFD',
+  white: '#FFFFFF',
   green: '#22c55e',
   red: '#ef4444',
 };
@@ -120,7 +120,8 @@ const DashboardPacienteScreen: React.FC = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isExpressModalOpen, setIsExpressModalOpen] = useState(true);
   const [user, setUser] = useState<User | null>(() => (ensurePatientSessionUser(sessionUser) as User | null) || null);
-  const [loadingCitas, setLoadingCitas] = useState(false);
+  const [loadingCitas, setLoadingCitas] = useState(true);
+  const [dataError, setDataError] = useState(false);
   const [upcomingCitas, setUpcomingCitas] = useState<CitaItem[]>([]);
   const [historyCitas, setHistoryCitas] = useState<CitaItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -232,7 +233,7 @@ const DashboardPacienteScreen: React.FC = () => {
     container: { flex: 1, backgroundColor: '#F6FAFD' },
     
     // Sidebar Overlay (Drawer)
-    overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 2000 },
+    overlay: { ...(Platform.OS === 'web' ? { position: 'fixed' as any } : { position: 'absolute' }), top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 2000 },
     drawer: { position: 'absolute', top: 0, bottom: 0, backgroundColor: '#fff', zIndex: 2001, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
     drawerLeft: { left: 0, width: rs(300) },
     drawerRight: { right: 0, width: rs(320) },
@@ -318,7 +319,7 @@ const DashboardPacienteScreen: React.FC = () => {
     notifTime: { color: '#94a3b8', fontSize: fs(11), marginTop: rs(6), fontWeight: '700' },
 
     // Modal Express
-    modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 3000, alignItems: 'center', justifyContent: 'center', padding: rs(20) },
+    modalOverlay: { ...(Platform.OS === 'web' ? { position: 'fixed' as any } : { position: 'absolute' }), top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 3000, alignItems: 'center', justifyContent: 'center', padding: rs(20) },
     modalContent: { backgroundColor: '#0f172a', borderRadius: rs(28), padding: rs(24), width: '100%', maxWidth: rs(450), shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 },
     modalHeader: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: rs(10) },
     modalIconBox: { width: rs(60), height: rs(60), borderRadius: rs(30), backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: rs(20), alignSelf: 'center' },
@@ -329,24 +330,31 @@ const DashboardPacienteScreen: React.FC = () => {
   }), [fs, rs, isDesktop]);
 
   const loadData = useCallback(async () => {
+    setLoadingCitas(true);
+    setDataError(false);
+    const timeoutId = setTimeout(() => {
+      setLoadingCitas(false);
+      setDataError(true);
+    }, 5000);
     try {
       const sessionUser = (await syncProfile()) as PatientSessionUser | null;
       setUser((ensurePatientSessionUser(sessionUser) as User | null) || null);
 
-      setLoadingCitas(true);
-      try {
-        const [up, hist, notifs] = await Promise.all([
-          apiClient.get<any>('/api/agenda/me/citas', { authenticated: true, query: { scope: 'upcoming', limit: 5 } }),
-          apiClient.get<any>('/api/agenda/me/citas', { authenticated: true, query: { scope: 'history', limit: 5 } }),
-          apiClient.get<any>('/api/agenda/me/notificaciones', { authenticated: true, query: { limit: 15 } }),
-        ]);
-        if (up?.success) setUpcomingCitas(up.citas.sort((a: any, b: any) => parseDateMs(a.fechaHoraInicio) - parseDateMs(b.fechaHoraInicio)));
-        if (hist?.success) setHistoryCitas(hist.citas);
-        if (notifs?.success) setNotifications(notifs.notificaciones || []);
-      } finally {
-        setLoadingCitas(false);
-      }
-    } catch {}
+      const [up, hist, notifs] = await Promise.all([
+        apiClient.get<any>('/api/agenda/me/citas', { authenticated: true, query: { scope: 'upcoming', limit: 5 } }).catch(() => null),
+        apiClient.get<any>('/api/agenda/me/citas', { authenticated: true, query: { scope: 'history', limit: 5 } }).catch(() => null),
+        apiClient.get<any>('/api/agenda/me/notificaciones', { authenticated: true, query: { limit: 15 } }).catch(() => null),
+      ]);
+      clearTimeout(timeoutId);
+      if (up?.success) setUpcomingCitas(up.citas.sort((a: any, b: any) => parseDateMs(a.fechaHoraInicio) - parseDateMs(b.fechaHoraInicio)));
+      if (hist?.success) setHistoryCitas(hist.citas);
+      if (notifs?.success) setNotifications(notifs.notificaciones || []);
+    } catch {
+      clearTimeout(timeoutId);
+      setDataError(true);
+    } finally {
+      setLoadingCitas(false);
+    }
   }, [syncProfile]);
 
   useFocusEffect(
@@ -464,6 +472,19 @@ const DashboardPacienteScreen: React.FC = () => {
                 ))}
               </View>
               <View style={{ backgroundColor: '#e8eff5', borderRadius: rs(18), height: rs(80), width: '100%' }} />
+            </View>
+          )}
+
+          {dataError && !loadingCitas && (
+            <View style={{ backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: rs(14), padding: rs(14), marginBottom: rs(12), flexDirection: 'row', alignItems: 'center', gap: rs(10) }}>
+              <MaterialIcons name="wifi-off" size={20} color={colors.red} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: fs(13), fontWeight: '700', color: colors.dark }}>Conexión lenta</Text>
+                <Text style={{ fontSize: fs(11), color: colors.muted, marginTop: rs(2) }}>Algunos datos podrían no estar actualizados.</Text>
+              </View>
+              <TouchableOpacity onPress={() => loadData()} style={{ paddingHorizontal: rs(12), paddingVertical: rs(6), backgroundColor: colors.primary, borderRadius: rs(8) }}>
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: fs(11) }}>Reintentar</Text>
+              </TouchableOpacity>
             </View>
           )}
 

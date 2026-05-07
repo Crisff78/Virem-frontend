@@ -90,12 +90,19 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
     <>
       {/* Drawer Overlay for Mobile */}
       {!isDesktopLayout && isMobileMenuOpen && (
-        <TouchableOpacity
-          style={styles.drawerOverlay}
-          activeOpacity={1}
-          onPress={onCloseMobileMenu}
-        >
-          <View style={styles.drawerContent}>
+        <View style={styles.drawerOverlay}>
+          {/* Overlay background - tapping here closes the menu */}
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={onCloseMobileMenu}
+          />
+          {/* Drawer panel - captures touches so they don't bubble to overlay */}
+          <View
+            style={styles.drawerContent}
+            onStartShouldSetResponder={() => true}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
             {/* Logo & Close Button */}
             <View style={styles.sidebarHeader}>
               <View style={styles.logoBox}>
@@ -151,7 +158,7 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
               <Text style={styles.logoutText}>{t('menu.logout')}</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       )}
 
       {/* Persistent Sidebar for Desktop */}
