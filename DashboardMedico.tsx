@@ -684,13 +684,13 @@ const DashboardMedico: React.FC = () => {
   const loadDashboardData = useCallback(async () => {
     setLoadingDashboard(true);
     setDataError(false);
-    
-    // Timeout fallback: if API takes >5s, show empty dashboard instead of infinite skeleton
+
+    // Show real content (or empty state) after 2s max — prevents the perception of an infinite skeleton.
     const timeoutId = setTimeout(() => {
       setLoadingDashboard(false);
       setDataError(true);
-    }, 5000);
-    
+    }, 2000);
+
     try {
       const payload = await apiClient.get<any>('/api/users/me/dashboard-medico', {
         authenticated: true,
@@ -787,9 +787,13 @@ const DashboardMedico: React.FC = () => {
   }, []);
 
   const loadMedicoProfile = useCallback(async () => {
+    // Run profile sync and data fetches in parallel so the dashboard can render
+    // as soon as data arrives, even if the profile endpoint is slow.
+    const profilePromise = syncProfile().catch(() => null) as Promise<MedicoSessionUser | null>;
+    const dataPromise = Promise.all([loadDashboardData(), loadUpcomingCitas()]).catch(() => null);
+
     try {
-      const nextUser = (await syncProfile()) as MedicoSessionUser | null;
-      await Promise.all([loadDashboardData(), loadUpcomingCitas()]);
+      const nextUser = await profilePromise;
 
       const nombreBase = String(
         nextUser?.nombreCompleto || nextUser?.medico?.nombreCompleto || ''
@@ -812,6 +816,7 @@ const DashboardMedico: React.FC = () => {
       setDoctorName('Doctor');
     } finally {
       setProfileReady(true);
+      await dataPromise;
     }
   }, [syncProfile, loadDashboardData, loadUpcomingCitas]);
 

@@ -260,21 +260,19 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
 
         <View style={[styles.layoutRow, !isDesktopLayout && styles.layoutRowMobile]}>
           <View style={[styles.filtersCol, !isDesktopLayout && styles.filtersColMobile]}>
-            {/* Collapsible toggle button (mobile only) */}
-            {!isDesktopLayout && (
-              <TouchableOpacity
-                style={styles.filtersToggleBtn}
-                onPress={toggleFilters}
-                activeOpacity={0.8}
-              >
-                <MaterialIcons name={filtersOpen ? 'expand-less' : 'tune'} size={20} color={colors.primary} />
-                <Text style={styles.filtersToggleText}>{filtersOpen ? 'Ocultar Filtros' : 'Mostrar Filtros'}</Text>
-                <MaterialIcons name={filtersOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'} size={20} color={colors.primary} />
-              </TouchableOpacity>
-            )}
+            {/* Collapsible toggle button — available on all screen sizes */}
+            <TouchableOpacity
+              style={styles.filtersToggleBtn}
+              onPress={toggleFilters}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="tune" size={18} color={colors.primary} />
+              <Text style={styles.filtersToggleText}>{filtersOpen ? 'Ocultar filtros' : 'Mostrar filtros'}</Text>
+              <MaterialIcons name={filtersOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'} size={20} color={colors.primary} />
+            </TouchableOpacity>
 
-            {/* Filters content - always visible on desktop, toggled on mobile */}
-            {(isDesktopLayout || filtersOpen) && (
+            {/* Filters content - shown only when toggled open */}
+            {filtersOpen && (
             <View style={styles.filtersCard}>
               <View style={styles.filtersHeader}>
                 <Text style={styles.filtersTitle}>Filtros</Text>
@@ -535,9 +533,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  layoutRow: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
+  layoutRow: { flexDirection: 'column', gap: 12, alignItems: 'stretch' },
   layoutRowMobile: { flexDirection: 'column' },
-  filtersCol: { width: 240 },
+  filtersCol: { width: '100%' },
   filtersColMobile: { width: '100%', marginBottom: 10 },
   filtersToggleBtn: {
     flexDirection: 'row',

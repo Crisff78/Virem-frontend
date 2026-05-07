@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
 import { useWindowDimensions } from 'react-native';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 import MedicoHeader from './components/MedicoHeader';
+import FeedbackBanner, { type FeedbackState } from './components/FeedbackBanner';
 import { apiClient } from './utils/api';
 
 const colors = {
@@ -71,62 +72,55 @@ const MedicoHorariosScreen: React.FC = () => {
     { dayOfWeek: 0, active: false, start: "08:00", end: "12:00" },
   ]);
   const [generating, setGenerating] = useState(false);
+  const [feedback, setFeedback] = useState<FeedbackState>(null);
 
   const handleAgregar = async () => {
+    setFeedback(null);
     if (!fecha || !horaInicio || !horaFin) {
-      Alert.alert("Error", "Debes ingresar fecha, hora de inicio y hora de fin.");
+      setFeedback({ kind: 'error', message: 'Debes ingresar fecha, hora de inicio y hora de fin.' });
       return;
     }
-    
-    // Validar formato simple YYYY-MM-DD
+
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-      Alert.alert("Error", "Formato de fecha inválido. Usa YYYY-MM-DD (ej: 2026-05-07)");
+      setFeedback({ kind: 'error', message: 'Formato de fecha inválido. Usa YYYY-MM-DD (ej: 2026-05-07).' });
       return;
     }
-    // Validar formato de hora HH:MM
     if (!/^\d{2}:\d{2}$/.test(horaInicio) || !/^\d{2}:\d{2}$/.test(horaFin)) {
-      Alert.alert("Error", "Formato de hora inválido. Usa HH:MM (ej: 08:00)");
+      setFeedback({ kind: 'error', message: 'Formato de hora inválido. Usa HH:MM (ej: 08:00).' });
       return;
     }
 
     setGuardando(true);
     try {
       const bodyData = {
-        fecha: fecha,
-        horaInicio: horaInicio,
-        horaFin: horaFin,
-        modalidad: modalidad,
+        fecha,
+        horaInicio,
+        horaFin,
+        modalidad,
         slotMinutos: parseInt(slot, 10) || 30,
       };
-      console.log("[MedicoHorarios] Enviando POST /api/agenda/medico/me/disponibilidades:", JSON.stringify(bodyData));
 
       const payload = await apiClient.post<any>("/api/agenda/medico/me/disponibilidades", {
         authenticated: true,
         body: bodyData,
       });
 
-      console.log("[MedicoHorarios] Respuesta:", JSON.stringify(payload));
-
       if (payload?.success) {
-        Alert.alert("Éxito", "Horario agregado correctamente.");
+        setFeedback({ kind: 'success', message: 'Horario agregado correctamente.' });
         setShowForm(false);
         setFecha("");
         setHoraInicio("");
         setHoraFin("");
         fetchHorarios();
       } else {
-        Alert.alert("Error", payload?.message || "No se pudo agregar el horario.");
+        setFeedback({ kind: 'error', message: payload?.message || 'No se pudo agregar el horario.' });
       }
     } catch (e: any) {
-      console.error("[MedicoHorarios] Error al crear horario:", e);
-      console.error("[MedicoHorarios] Error status:", e?.status);
-      console.error("[MedicoHorarios] Error data:", e?.data);
       const serverError = e?.data?.error || '';
       const serverDetail = e?.data?.detail || '';
-      const serverHint = e?.data?.hint || '';
-      const msg = e?.data?.message || e?.message || "Error de conexión.";
-      const fullMsg = [msg, serverError, serverDetail, serverHint].filter(Boolean).join('\n');
-      Alert.alert("Error al crear horario", fullMsg);
+      const msg = e?.data?.message || e?.message || 'Error de conexión.';
+      const fullMsg = [msg, serverError, serverDetail].filter(Boolean).join(' · ');
+      setFeedback({ kind: 'error', message: fullMsg });
     } finally {
       setGuardando(false);
     }
@@ -153,18 +147,16 @@ const MedicoHorariosScreen: React.FC = () => {
   };
 
   const handleGenerarRecurrente = async () => {
+    setFeedback(null);
     const activeDays = weeklyPattern.filter(p => p.active);
-    console.log("Generando recurrente con dias:", activeDays.length);
-    
+
     if (activeDays.length === 0) {
-      Alert.alert("Error", "Debes seleccionar al menos un día activo.");
+      setFeedback({ kind: 'error', message: 'Debes seleccionar al menos un día activo.' });
       return;
     }
 
     try {
       setGenerating(true);
-      console.log("Enviando peticion a /api/agenda/medico/me/disponibilidades/recurrente...");
-      
       const payload = await apiClient.post<any>("/api/agenda/medico/me/disponibilidades/recurrente", {
         authenticated: true,
         body: {
@@ -175,18 +167,15 @@ const MedicoHorariosScreen: React.FC = () => {
         }
       });
 
-      console.log("Respuesta recibida:", JSON.stringify(payload));
-
       if (payload?.success) {
-        Alert.alert("Éxito", `Se han generado ${payload.createdCount} horarios para los próximos 30 días.`);
+        setFeedback({ kind: 'success', message: `Se han generado ${payload.createdCount} horarios para los próximos 30 días.` });
         setViewMode('specific');
         fetchHorarios();
       } else {
-        Alert.alert("Error", payload?.message || "No se pudo generar la agenda.");
+        setFeedback({ kind: 'error', message: payload?.message || 'No se pudo generar la agenda.' });
       }
     } catch (e: any) {
-      console.error("Error en handleGenerarRecurrente:", e);
-      Alert.alert("Error de Conexión", e.message || "No se pudo conectar con el servidor.");
+      setFeedback({ kind: 'error', message: e?.message || 'No se pudo conectar con el servidor.' });
     } finally {
       setGenerating(false);
     }
@@ -226,7 +215,7 @@ const MedicoHorariosScreen: React.FC = () => {
     try {
       const now = new Date();
       const end = new Date();
-      end.setDate(now.getDate() + 30); // Próximos 30 días
+      end.setDate(now.getDate() + 30);
 
       const payload = await apiClient.get<any>('/api/agenda/medico/me/disponibilidades', {
         authenticated: true,
@@ -239,8 +228,7 @@ const MedicoHorariosScreen: React.FC = () => {
         setHorarios([]);
       }
     } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'No se pudieron cargar los horarios.');
+      setFeedback({ kind: 'error', message: 'No se pudieron cargar los horarios.' });
     } finally {
       setLoading(false);
     }
@@ -258,11 +246,12 @@ const MedicoHorariosScreen: React.FC = () => {
       });
       if (payload?.success) {
         fetchHorarios();
+        setFeedback({ kind: 'success', message: bloqueadoActual ? 'Horario desbloqueado.' : 'Horario bloqueado.' });
       } else {
-        Alert.alert('Error', 'No se pudo actualizar el estado.');
+        setFeedback({ kind: 'error', message: 'No se pudo actualizar el estado.' });
       }
     } catch (error) {
-      Alert.alert('Error', 'Error de conexión.');
+      setFeedback({ kind: 'error', message: 'Error de conexión.' });
     }
   };
 
@@ -505,7 +494,9 @@ const MedicoHorariosScreen: React.FC = () => {
         <MedicoHeader title="Mis Horarios" />
       </View>
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20 }]}>
-        
+
+        <FeedbackBanner feedback={feedback} onDismiss={() => setFeedback(null)} />
+
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Disponibilidad</Text>
