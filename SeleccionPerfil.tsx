@@ -206,10 +206,8 @@ const SeleccionPerfil: React.FC = () => {
         <Text style={[styles.footerText, { fontSize: fs(15) }]}>
           ¿Ya tienes una cuenta?{' '}
           <Text 
-            style={[styles.footerLink, { color: isFooterHovered ? colors.blueDark : colors.blueMedium }]} 
+            style={[styles.footerLink, { color: colors.blueDeep }]} 
             onPress={handleLogin}
-            onPointerEnter={() => setIsFooterHovered(true)}
-            onPointerLeave={() => setIsFooterHovered(false)}
           >
             Inicia sesión aquí
           </Text>
