@@ -166,6 +166,18 @@ export function useWebRTCCall(
 
   // ── Signaling Handlers ───────────────────────────────────────────────────
   
+  // Debug: log all incoming signals
+  useEffect(() => {
+    if (!socket) return;
+    const logAny = (event: string, payload: any) => {
+      if (event.startsWith('rtc:') || event.startsWith('call:')) {
+        console.log(`[Socket] Inbound event "${event}":`, payload);
+      }
+    };
+    socket.onAny(logAny);
+    return () => { socket.offAny(logAny); };
+  }, [socket]);
+
   const onRtcReady = useCallback(async () => {
     if (!IS_WEB || !initiate || !pcRef.current) return;
     console.log('[WebRTC] Received rtc:ready (or periodic trigger), creating/sending offer...');
@@ -332,7 +344,10 @@ export function useWebRTCCall(
 
       // 5. Unirse al cuarto de socket para asegurar recepción de mensajes
       if (socket) {
-        socket.emit('join:cita', cleanCitaId);
+        console.log('[WebRTC] Joining socket room:', cleanCitaId);
+        socket.emit('join:cita', cleanCitaId, (resp: any) => {
+          console.log('[WebRTC] join:cita response:', resp);
+        });
       }
     } catch (err: any) {
       const msg =
