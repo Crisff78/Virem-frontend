@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { NativeStackNavigationProp } from '@react-navigation/stack';
 import * as SecureStore from 'expo-secure-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -31,8 +31,6 @@ const ViremLogo = require('./assets/imagenes/descarga.png');
 const MEDICO_CACHE_BY_EMAIL_KEY = 'medicoProfileByEmail';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
-
-
 
 async function getCachedMedicoProfileByEmail(email: string) {
   const key = String(email || '').trim().toLowerCase();
@@ -151,7 +149,6 @@ const LoginScreen: React.FC = () => {
     setGeneratedCode(code);
 
     try {
-      // Make.com Webhook Integration
       const webhookUrl = 'https://hook.us2.make.com/mihua6oq9816sr7l3050cmmjnqihlx8x';
       await fetch(webhookUrl, {
         method: 'POST',
@@ -168,7 +165,6 @@ const LoginScreen: React.FC = () => {
       setAdminCodeSent(true);
       Alert.alert('Código Enviado', 'Revisa el correo yaslyncastillo21@gmail.com para obtener tu código de acceso.');
     } catch (error) {
-      // For demonstration if no webhook, we still allow it but warn
       console.error('Error sending code:', error);
       setAdminCodeSent(true); 
       Alert.alert('Nota', 'Se generó el código (ver consola) pero falló la conexión con el servidor de correos.');
@@ -181,7 +177,6 @@ const LoginScreen: React.FC = () => {
   const handleForgotPassword = () => navigation.navigate('RecuperarContrasena');
   const handleGoToRegister = () => navigation.navigate('SeleccionPerfil');
 
-<<<<<<< HEAD
   const cardPadding = isSmallMobile ? spacing.lg : spacing.xxl;
 
   return (
@@ -198,53 +193,6 @@ const LoginScreen: React.FC = () => {
               <Text style={[styles.appNameHorizontal, { fontSize: fs(22) }]} numberOfLines={1}>
                 VIREM
               </Text>
-=======
-  const { isDesktop, isTablet, isMobile, select, width } = useResponsive();
-
-  return (
-    <View style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
-
-      <View style={styles.container}>
-        <View style={[
-          styles.card, 
-          { 
-            padding: select({ mobile: 20, tablet: 30, desktop: 40 }),
-            width: select({ 
-              mobile: Math.max(280, Math.min(400, width - 40)), 
-              tablet: 400, 
-              desktop: 400 
-            })
-          }
-        ]}>
-          <View style={styles.logoSectionHorizontal}>
-            <Image source={ViremLogo} style={styles.logoSmallOriginal} />
-            <Text style={styles.appNameHorizontal}>VIREM</Text>
-          </View>
-
-          <Text style={styles.title}>Accede a tu cuenta</Text>
-          <Text style={styles.subtitle}>
-            Bienvenido de nuevo. Por favor, introduce tus credenciales.
-          </Text>
-
-          <View style={styles.form}>
-            <Text style={styles.inputLabel}>Correo Electrónico</Text>
-            <View style={styles.inputContainer}>
-              <MaterialCommunityIcons
-                name="email-outline"
-                size={22}
-                color={COLORS.iconColor}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="tu@email.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
->>>>>>> feature-cris
             </View>
 
             <Text style={[styles.title, { fontSize: fs(22) }]}>Accede a tu cuenta</Text>
@@ -313,6 +261,43 @@ const LoginScreen: React.FC = () => {
                 </View>
               </View>
 
+              {isAdminCredentials && !adminCodeSent && (
+                <TouchableOpacity 
+                  style={[styles.adminCodeBtn, { opacity: isSendingCode ? 0.7 : 1 }]} 
+                  onPress={handleSendAdminCode}
+                  disabled={isSendingCode}
+                >
+                  {isSendingCode ? (
+                    <ActivityIndicator color={colors.primary} size="small" />
+                  ) : (
+                    <Text style={styles.adminCodeBtnText}>ENVIAR CÓDIGO DE SEGURIDAD</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {adminCodeSent && (
+                <View>
+                  <Text style={[styles.inputLabel, { fontSize: fs(14) }]}>Código de Seguridad</Text>
+                  <View style={styles.inputContainer}>
+                    <MaterialCommunityIcons
+                      name="shield-check-outline"
+                      size={22}
+                      color={colors.muted}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={[styles.input, { fontSize: fs(16) }]}
+                      placeholder="Código de 6 dígitos"
+                      placeholderTextColor="#A0AEC0"
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      value={adminCodeInput}
+                      onChangeText={setAdminCodeInput}
+                    />
+                  </View>
+                </View>
+              )}
+
               <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordLink}>
                 <Text style={[styles.linkText, { fontSize: fs(13) }]}>
                   ¿Olvidaste tu contraseña?
@@ -335,61 +320,11 @@ const LoginScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-<<<<<<< HEAD
             <TouchableOpacity onPress={handleGoToRegister} style={styles.registerLink}>
               <Text style={[styles.registerText, { fontSize: fs(13) }]}>
                 ¿No tienes cuenta?{' '}
                 <Text style={[styles.linkTextBold, { fontSize: fs(13) }]}>Regístrate</Text>
               </Text>
-=======
-            {isAdminCredentials && !adminCodeSent && (
-              <TouchableOpacity 
-                style={[styles.adminCodeBtn, { opacity: isSendingCode ? 0.7 : 1 }]} 
-                onPress={handleSendAdminCode}
-                disabled={isSendingCode}
-              >
-                {isSendingCode ? (
-                  <ActivityIndicator color={COLORS.primary} size="small" />
-                ) : (
-                  <Text style={styles.adminCodeBtnText}>ENVIAR CÓDIGO DE SEGURIDAD</Text>
-                )}
-              </TouchableOpacity>
-            )}
-
-            {adminCodeSent && (
-              <View>
-                <Text style={styles.inputLabel}>Código de Seguridad</Text>
-                <View style={styles.inputContainer}>
-                  <MaterialCommunityIcons
-                    name="shield-check-outline"
-                    size={22}
-                    color={COLORS.iconColor}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Introduce el código de 6 dígitos"
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    value={adminCodeInput}
-                    onChangeText={setAdminCodeInput}
-                  />
-                </View>
-              </View>
-            )}
-
-            <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordLink}>
-              <Text style={styles.linkText}>¿Olvidaste tu contraseña?</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, { opacity: isLoading ? 0.7 : 1 }]}
-              activeOpacity={0.8}
-              onPress={handleLogin}
-              disabled={isLoading}
-            >
-              {isLoading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Iniciar Sesión</Text>}
->>>>>>> feature-cris
             </TouchableOpacity>
           </View>
         </FadeInView>
@@ -461,7 +396,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     backgroundColor: colors.surface,
   },
-<<<<<<< HEAD
   inputIcon: {
     paddingLeft: spacing.md,
     paddingRight: spacing.sm,
@@ -493,31 +427,19 @@ const styles = StyleSheet.create({
   registerText: { color: colors.muted, textAlign: 'center' },
   linkTextBold: { color: colors.primary, fontWeight: 'bold' },
   passwordToggle: { paddingHorizontal: spacing.md, justifyContent: 'center', minHeight: 48 },
-=======
-  inputIcon: { paddingLeft: 12, paddingRight: 8 },
-  input: { flex: 1, fontSize: 16, color: COLORS.textPrimary },
-  forgotPasswordLink: { alignSelf: 'flex-end', paddingVertical: 5, marginTop: -5 },
-  linkText: { color: COLORS.link, fontSize: 14, fontWeight: '600' },
-  button: { width: '100%', height: 48, backgroundColor: COLORS.primary, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginTop: 15 },
-  buttonText: { color: COLORS.cardLight, fontSize: 18, fontWeight: 'bold' },
-  registerLink: { marginTop: 20 },
-  registerText: { fontSize: 14, color: COLORS.textSecondary },
-  linkTextBold: { color: COLORS.link, fontSize: 14, fontWeight: 'bold' },
-  passwordToggle: { paddingRight: 12, justifyContent: 'center' as const },
   adminCodeBtn: {
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: 8,
+    borderColor: colors.primary,
+    borderRadius: radii.sm,
     alignItems: 'center',
     backgroundColor: '#fff',
     marginTop: 10,
   },
   adminCodeBtnText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: 'bold',
     fontSize: 13,
     letterSpacing: 0.5,
   },
->>>>>>> feature-cris
 });

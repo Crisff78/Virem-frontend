@@ -20,20 +20,6 @@ type RegistroMedicoFormCardProps = {
   isTabletLayout: boolean;
 };
 
-<<<<<<< HEAD
-type DocumentoFieldProps = {
-  label: string;
-  field: RegistroMedicoDocumentField;
-  value: string;
-  showError: boolean;
-  errorText: string;
-  onPick: (field: RegistroMedicoDocumentField) => Promise<void>;
-};
-
-
-
-=======
->>>>>>> feature-cris
 export const RegistroMedicoFormCard: React.FC<RegistroMedicoFormCardProps> = ({
   controller,
   isWideLayout,
@@ -201,12 +187,7 @@ export const RegistroMedicoFormCard: React.FC<RegistroMedicoFormCardProps> = ({
               <Text style={styles.errorText}>Debe seleccionar una especialidad</Text>
             )}
           </View>
-<<<<<<< HEAD
-
-
-=======
           <View style={styles.inputWrapper} />
->>>>>>> feature-cris
         </View>
       </View>
 

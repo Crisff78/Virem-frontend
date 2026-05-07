@@ -1,5 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { sanitizeRemoteImageUrl, resolveRemoteImageSource } from './utils/imageSources';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,20 +16,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-<<<<<<< HEAD
-=======
-import type { RootStackParamList } from './navigation/types';
 import MedicoHeader from './components/MedicoHeader';
->>>>>>> feature-cris
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
-import { useMedicoSessionProfile, type MedicoSessionUser } from './hooks/useMedicoSessionProfile';
 import { useResponsive } from './hooks/useResponsive';
 import { colors } from './theme/colors';
 import { spacing, radii } from './theme/spacing';
 
-const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
 type CitaItem = {
@@ -80,24 +73,13 @@ const formatDateTime = (value: string | null | undefined) => {
 
 const MedicoPacientesScreen: React.FC = () => {
   const navigation = usePortalAwareMedicoNavigation();
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
-  const { signOut } = useAuth();
-<<<<<<< HEAD
-  const { sessionUser, syncProfile } = useMedicoSessionProfile();
-  const { fs, rs, isDesktop, isTablet, isMobile } = useResponsive();
+  const { isInsidePortal } = useMedicoModule();
+  const { loadingUser, refreshUser } = useMedicoPortalSession({ syncOnMount: true, addDoctorPrefix: true });
+  const { fs } = useResponsive();
   
-  const [user, setUser] = useState<MedicoSessionUser | null>(sessionUser);
-  const [loadingUser, setLoadingUser] = useState(true);
-=======
-  const { loadingUser, refreshUser, doctorName, doctorSpec, fotoUrl } =
-    useMedicoPortalSession({ syncOnMount: true, addDoctorPrefix: true });
-
->>>>>>> feature-cris
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [patients, setPatients] = useState<PatientRow[]>([]);
-
-
 
   const loadUser = useCallback(async () => {
     try {
@@ -135,7 +117,7 @@ const MedicoPacientesScreen: React.FC = () => {
           upcomingCitas: 0,
           lastEstado: estado,
           nextDateMs: Number.POSITIVE_INFINITY,
-          nextDateLabel: 'Sin cita proxima',
+          nextDateLabel: 'Sin cita próxima',
           lastDateMs: Number.NEGATIVE_INFINITY,
           lastDateLabel: 'Sin historial',
         };
@@ -178,14 +160,6 @@ const MedicoPacientesScreen: React.FC = () => {
     }, [loadPatients, loadUser])
   );
 
-<<<<<<< HEAD
-=======
-  const userAvatarSource: ImageSourcePropType = useMemo(() => {
-    if (fotoUrl) return { uri: fotoUrl };
-    return DefaultAvatar;
-  }, [fotoUrl]);
-
->>>>>>> feature-cris
   const filteredPatients = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
     if (!q) return patients;
@@ -203,25 +177,6 @@ const MedicoPacientesScreen: React.FC = () => {
     return { total, withUpcoming, withoutUpcoming };
   }, [patients]);
 
-  const dateText = useMemo(
-    () =>
-      new Intl.DateTimeFormat('es-DO', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-      }).format(new Date()),
-    []
-  );
-
-  const timeText = useMemo(
-    () =>
-      new Intl.DateTimeFormat('es-DO', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(new Date()),
-    []
-  );
-
   if (loadingUser) {
     return (
       <View style={styles.loaderWrap}>
@@ -232,28 +187,9 @@ const MedicoPacientesScreen: React.FC = () => {
   }
 
   return (
-<<<<<<< HEAD
-    <View style={styles.container}>
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: spacing.xl }}>
-        <View style={styles.headerWrap}>
-          <View style={[styles.headerRow, !isDesktop && styles.headerRowMobile]}>
-            <View style={styles.headerLeft}>
-              <Text style={[styles.pageTitle, { fontSize: fs(30) }]}>Pacientes</Text>
-              <Text style={[styles.pageSubtitle, { fontSize: fs(15) }]}>
-                Visualiza y da seguimiento a tus pacientes activos.
-              </Text>
-            </View>
-            <View style={[styles.headerRight, !isDesktop && styles.headerRightMobile]}>
-              <Text style={styles.headerDate}>{dateText}</Text>
-              <Text style={styles.headerTime}>{timeText}</Text>
-            </View>
-          </View>
-        </View>
-=======
-    <View style={{ flex: 1 }}>
-        <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
-          <MedicoHeader title="Mis Pacientes" />
->>>>>>> feature-cris
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+        <MedicoHeader title="Mis Pacientes" />
 
         <View style={styles.kpiGrid}>
           <View style={styles.kpiCard}>
@@ -261,11 +197,11 @@ const MedicoPacientesScreen: React.FC = () => {
             <Text style={[styles.kpiValue, { fontSize: fs(28) }]}>{kpis.total}</Text>
           </View>
           <View style={styles.kpiCard}>
-            <Text style={styles.kpiLabel}>Con cita proxima</Text>
+            <Text style={styles.kpiLabel}>Con cita próxima</Text>
             <Text style={[styles.kpiValue, { fontSize: fs(28) }]}>{kpis.withUpcoming}</Text>
           </View>
           <View style={styles.kpiCard}>
-            <Text style={styles.kpiLabel}>Sin cita proxima</Text>
+            <Text style={styles.kpiLabel}>Sin cita próxima</Text>
             <Text style={[styles.kpiValue, { fontSize: fs(28) }]}>{kpis.withoutUpcoming}</Text>
           </View>
         </View>
@@ -298,7 +234,7 @@ const MedicoPacientesScreen: React.FC = () => {
                     Estado reciente: {patient.lastEstado || 'Pendiente'} · Total citas: {patient.totalCitas}
                   </Text>
                   <Text style={styles.patientSub}>
-                    Proxima: {patient.nextDateLabel} · Ultima: {patient.lastDateLabel}
+                    Próxima: {patient.nextDateLabel} · Última: {patient.lastDateLabel}
                   </Text>
                 </View>
                 <View style={styles.actionsRow}>
@@ -324,9 +260,9 @@ const MedicoPacientesScreen: React.FC = () => {
                     onPress={() =>
                       Alert.alert(
                         patient.name,
-                        `Citas totales: ${patient.totalCitas}\nCitas proximas: ${patient.upcomingCitas}\nEstado reciente: ${
+                        `Citas totales: ${patient.totalCitas}\nCitas próximas: ${patient.upcomingCitas}\nEstado reciente: ${
                           patient.lastEstado || 'Pendiente'
-                        }\nProxima cita: ${patient.nextDateLabel}\nUltima cita: ${patient.lastDateLabel}`
+                        }\nPróxima cita: ${patient.nextDateLabel}\nÚltima cita: ${patient.lastDateLabel}`
                       )
                     }
                   >
@@ -339,8 +275,8 @@ const MedicoPacientesScreen: React.FC = () => {
             <Text style={styles.emptyText}>No se encontraron pacientes.</Text>
           )}
         </View>
-        </ScrollView>
-      </View>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -353,105 +289,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   loaderText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-<<<<<<< HEAD
-  main: { flex: 1 },
-  headerWrap: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-=======
-  sidebar: {
-    width: Platform.OS === 'web' ? 280 : '100%',
-    backgroundColor: colors.white,
-    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-    borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
-    borderRightColor: '#eef2f7',
-    borderBottomColor: '#eef2f7',
-    padding: Platform.OS === 'web' ? 20 : 14,
-    justifyContent: 'space-between',
-  },
-  logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, resizeMode: 'contain' },
-  logoTitle: { color: colors.dark, fontSize: 20, fontWeight: '800' },
-  logoSub: { color: colors.muted, fontSize: 11, fontWeight: '700' },
-  userCard: { alignItems: 'center', marginTop: 18, marginBottom: 10 },
-  userAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 80,
-    borderWidth: 4,
-    borderColor: '#f0f4f9',
-    marginBottom: 10,
-  },
-  userName: { color: colors.dark, fontSize: 16, fontWeight: '800', textAlign: 'center' },
-  userSpec: { color: colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 2 },
-  menu: { marginTop: 12, gap: 6 },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  menuItemActive: { backgroundColor: 'rgba(19,127,236,0.12)' },
-  menuText: { color: colors.muted, fontSize: 14, fontWeight: '700' },
-  menuTextActive: { color: colors.primary, fontWeight: '800' },
-  badge: {
-    marginLeft: 'auto',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  logoutBtn: {
-    marginTop: 16,
-    backgroundColor: colors.blue,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  logoutText: { color: '#fff', fontWeight: '800' },
   main: { flex: 1, paddingHorizontal: 20 },
-  headerWrap: {
-    paddingTop: Platform.OS === 'web' ? 32 : 14,
-    paddingBottom: 12,
->>>>>>> feature-cris
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  headerRowMobile: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-  },
-  headerLeft: { flex: 1 },
-  headerRight: { alignItems: 'flex-end' },
-  headerRightMobile: { alignItems: 'flex-start', marginTop: spacing.xs },
-  headerDate: { color: colors.dark, fontSize: 13, fontWeight: '800' },
-  headerTime: { color: colors.muted, fontSize: 11, marginTop: 2, fontWeight: '600' },
-  pageTitle: { color: colors.dark, fontWeight: '900' },
-  pageSubtitle: { color: colors.muted, marginTop: 4, fontWeight: '600' },
-  
   kpiGrid: {
-<<<<<<< HEAD
-    paddingHorizontal: spacing.md,
-=======
->>>>>>> feature-cris
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
     marginBottom: spacing.sm,
+    marginTop: 12,
   },
   kpiCard: {
     backgroundColor: '#fff',
@@ -470,12 +314,7 @@ const styles = StyleSheet.create({
   },
   kpiLabel: { color: colors.muted, fontSize: 11, fontWeight: '800' },
   kpiValue: { color: colors.dark, fontWeight: '900', marginTop: 2 },
-  
   searchWrap: {
-<<<<<<< HEAD
-    marginHorizontal: spacing.md,
-=======
->>>>>>> feature-cris
     backgroundColor: '#fff',
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -486,30 +325,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     marginBottom: spacing.md,
+    marginTop: 8,
   },
   searchInput: { flex: 1, color: colors.dark, fontSize: 14, fontWeight: '600', paddingVertical: 8 },
-  
   sectionHead: {
-<<<<<<< HEAD
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
-=======
     marginTop: 12,
     marginBottom: 8,
->>>>>>> feature-cris
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   sectionTitle: { color: colors.dark, fontWeight: '900' },
   sectionCount: { color: colors.muted, fontSize: 12, fontWeight: '800' },
-  
   sectionCard: {
-<<<<<<< HEAD
-    marginHorizontal: spacing.md,
-=======
->>>>>>> feature-cris
     backgroundColor: '#fff',
     borderRadius: radii.xl,
     borderWidth: 1,

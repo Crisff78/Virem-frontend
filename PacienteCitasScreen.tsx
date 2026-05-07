@@ -121,12 +121,8 @@ const MIN_REFRESH_INTERVAL_MS = 15000;
 
 const PacienteCitasScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-<<<<<<< HEAD
-  const { isInsidePortal, setNotificationsOpen } = usePacienteModule();
-=======
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isInsidePortal, setNotificationsOpen, isSidebarOpen, toggleSidebar } = usePacienteModule();
   const { isDesktop: isDesktopLayout } = useResponsive();
->>>>>>> feature-cris
   const { signOut } = useAuth();
   const { width: viewportWidth } = useWindowDimensions();
   const { t } = useLanguage();

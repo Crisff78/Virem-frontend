@@ -213,12 +213,8 @@ const PacientePerfilScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = usePortalAwareNavigation();
-<<<<<<< HEAD
-  const { isInsidePortal, setNotificationsOpen } = usePacienteModule();
-=======
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isInsidePortal, setNotificationsOpen, isSidebarOpen, toggleSidebar } = usePacienteModule();
   const { isDesktop: isDesktopLayout } = useResponsive();
->>>>>>> feature-cris
   const {
     user,
     loadingUser,

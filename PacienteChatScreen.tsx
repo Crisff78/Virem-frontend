@@ -51,11 +51,7 @@ const normalizeText = (value: unknown) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-<<<<<<< HEAD
 
-
-=======
->>>>>>> feature-cris
 const parseDateMs = (value: string | null | undefined) => {
   if (!value) return Number.POSITIVE_INFINITY;
   const ms = new Date(value).getTime();
@@ -89,42 +85,8 @@ const PacienteChatScreen: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'chat'>('list');
   const [isTyping, setIsTyping] = useState(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-<<<<<<< HEAD
-
-  const loadUser = useCallback(async () => {
-    setLoadingUser(true);
-    try {
-      let nextUser = ensurePatientSessionUser(sessionUser);
-      const profilePayload = await apiClient.get<any>('/api/users/me/paciente-profile', {
-        authenticated: true,
-      });
-      if (profilePayload?.success && profilePayload?.profile) {
-        const profileUser = profilePayload.profile as User;
-        nextUser = {
-          ...(nextUser || {}),
-          ...profileUser,
-          nombres: normalizeText((profileUser as any)?.nombres),
-          apellidos: normalizeText((profileUser as any)?.apellidos),
-          nombre: normalizeText((profileUser as any)?.nombres || (profileUser as any)?.nombre),
-          apellido: normalizeText((profileUser as any)?.apellidos || (profileUser as any)?.apellido),
-          fotoUrl: sanitizeRemoteImageUrl((profileUser as any)?.fotoUrl),
-        };
-        if (nextUser) {
-          await updateUser(nextUser);
-        }
-      }
-
-      setUser(nextUser);
-    } catch {
-      setUser(ensurePatientSessionUser(sessionUser));
-    } finally {
-      setLoadingUser(false);
-    }
-  }, [sessionUser, updateUser]);
-=======
   const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
   const { isDesktop: isDesktopLayout } = useResponsive();
->>>>>>> feature-cris
 
   const loadContacts = useCallback(async () => {
     setLoadingContacts(true);
@@ -138,25 +100,12 @@ const PacienteChatScreen: React.FC = () => {
         return;
       }
 
-<<<<<<< HEAD
-      const routeDoctorId = normalizeText(route.params?.doctorId);
-      const routeAvatarUrl = sanitizeRemoteImageUrl(route.params?.doctorAvatarUrl);
-      const contactList = (payload.conversaciones as any[])
-        .map((conversation) => {
-          const conversationId = normalizeText(conversation?.conversacionId);
-          const citaId = normalizeText(conversation?.citaId);
-          if (!conversationId || !citaId) return null;
-          const nextDateMs = parseDateMs(conversation?.cita?.fechaHoraInicio || null);
-          const doctorId = normalizeText(conversation?.medico?.medicoid);
-          const fallbackAvatar = routeDoctorId && doctorId === routeDoctorId ? routeAvatarUrl : '';
-=======
       // El servidor ya devuelve una conversacion por par paciente/medico
       const mapped: ChatContact[] = (payload.conversaciones as any[])
         .map((conv) => {
           const mId = normalizeText(conv?.medico?.medicoid);
           const convId = normalizeText(conv?.conversacionId);
           if (!mId || !convId) return null;
->>>>>>> feature-cris
           return {
             id: convId,
             medicoId: mId,
@@ -235,49 +184,7 @@ const PacienteChatScreen: React.FC = () => {
   }, []);
 
   useEffect(() => {
-<<<<<<< HEAD
-    const routeDoctorId = normalizeText(route.params?.doctorId);
-    const routeDoctorName = normalizeText(route.params?.doctorName).toLowerCase();
 
-    if (!contacts.length) {
-      setSelectedChatId('');
-      return;
-    }
-
-    if (routeDoctorId) {
-      const byDoctorId = contacts.find((c) => c.doctorId === routeDoctorId);
-      if (byDoctorId) {
-        setSelectedChatId(byDoctorId.id);
-        return;
-      }
-      const byId = contacts.find((c) => c.id === routeDoctorId);
-      if (byId) {
-        setSelectedChatId(byId.id);
-        return;
-      }
-    }
-
-    if (routeDoctorName) {
-      const byName = contacts.find((c) => c.name.toLowerCase() === routeDoctorName);
-      if (byName) {
-        setSelectedChatId(byName.id);
-        return;
-      }
-    }
-
-    const exists = contacts.some((c) => c.id === selectedChatId);
-    if (!exists) {
-      if (isDesktopLayout) {
-        setSelectedChatId(contacts[0].id);
-      } else {
-        setSelectedChatId('');
-      }
-    }
-  }, [contacts, route.params?.doctorId, route.params?.doctorName, selectedChatId, isDesktopLayout]);
-
-  useEffect(() => {
-=======
->>>>>>> feature-cris
     if (!selectedChatId) return;
     loadMessages(selectedChatId);
   }, [loadMessages, selectedChatId]);
@@ -370,19 +277,7 @@ const PacienteChatScreen: React.FC = () => {
     setIsTyping(false);
   }, [selectedChatId]);
 
-<<<<<<< HEAD
-  const fullName = useMemo(() => getPatientDisplayName(user, 'Paciente'), [user]);
 
-  const planLabel = useMemo(() => {
-    const plan = (user?.plan || '').trim();
-    return plan ? `Paciente ${plan}` : 'Paciente';
-  }, [user?.plan]);
-
-  const userAvatarSource: ImageSourcePropType = useMemo(() => resolveRemoteImageSource(user?.fotoUrl, DefaultAvatar), [user?.fotoUrl]);
-  const hasProfilePhoto = useMemo(() => Boolean(sanitizeRemoteImageUrl(user?.fotoUrl)), [user?.fotoUrl]);
-
-=======
->>>>>>> feature-cris
   const filteredContacts = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
     if (!q) return contacts;
@@ -444,137 +339,6 @@ const PacienteChatScreen: React.FC = () => {
           onCloseMobileMenu={toggleSidebar}
         />
       )}
-<<<<<<< HEAD
-
-      <View style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]}>
-        {(isDesktopLayout || !selectedChatId) && (
-          <View style={[styles.leftPanel, !isDesktopLayout ? styles.leftPanelMobile : null]}>
-            <View style={styles.leftPanelHeader}>
-              <Text style={styles.sectionTitle}>Chats</Text>
-              <View style={styles.contactCountBadge}>
-                <Text style={styles.contactCountText}>{filteredContacts.length}</Text>
-              </View>
-            </View>
-            <View style={styles.searchBox}>
-              <MaterialIcons name="search" size={18} color={colors.muted} />
-              <TextInput style={styles.searchInput} placeholder="Buscar médico..." placeholderTextColor="#8aa7bf" value={searchText} onChangeText={setSearchText} />
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {loadingUser || loadingContacts ? (
-                <View style={styles.emptyState}><MaterialIcons name="hourglass-top" size={32} color={colors.muted} /><Text style={styles.emptyTitle}>Cargando chats...</Text></View>
-              ) : !filteredContacts.length ? (
-                <View style={styles.emptyState}>
-                  <View style={styles.emptyIconBox}><MaterialIcons name="chat-bubble-outline" size={32} color={colors.primary} /></View>
-                  <Text style={styles.emptyTitle}>Sin conversaciones</Text>
-                  <Text style={styles.emptySubtitle}>Agenda una cita para chatear con un especialista.</Text>
-                  <TouchableOpacity style={styles.emptyCta} activeOpacity={0.8} onPress={() => navigation.navigate('NuevaConsultaPaciente')}>
-                    <MaterialIcons name="add" size={16} color="#fff" /><Text style={styles.emptyCtaText}>Agendar consulta</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                filteredContacts.map((chat) => {
-                  const latest = (messagesByChat[chat.id] || []).slice(-1)[0];
-                  const isActive = selectedChat?.id === chat.id;
-                  return (
-                    <TouchableOpacity key={chat.id} style={[styles.chatRow, isActive && styles.chatRowActive]} onPress={() => setSelectedChatId(chat.id)} activeOpacity={0.75}>
-                      <View style={styles.chatAvatarWrap}>
-                        <Image source={resolveRemoteImageSource(chat.avatarUrl, DefaultAvatar)} style={styles.chatAvatar} />
-                        <View style={styles.onlineDot} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <View style={styles.rowBetween}>
-                          <Text style={[styles.chatName, isActive && styles.chatNameActive]} numberOfLines={1}>{chat.name}</Text>
-                          <Text style={styles.chatTime}>{latest?.time || chat.timeLabel}</Text>
-                        </View>
-                        <Text style={styles.chatSpec} numberOfLines={1}>{chat.specialty}</Text>
-                        <Text style={styles.chatMsg} numberOfLines={1}>{latest?.text || 'Inicia la conversación...'}</Text>
-                      </View>
-                      {chat.unreadCount > 0 && (<View style={styles.unreadBadge}><Text style={styles.unreadBadgeText}>{chat.unreadCount}</Text></View>)}
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </ScrollView>
-          </View>
-        )}
-
-        {(isDesktopLayout || selectedChatId) && (
-          <View style={styles.chatPanel}>
-            <View style={styles.chatHeader}>
-              {selectedChat ? (
-                <View style={styles.chatHeaderInner}>
-                  {!isDesktopLayout && (
-                    <TouchableOpacity onPress={() => setSelectedChatId('')} style={styles.backButton}>
-                      <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
-                    </TouchableOpacity>
-                  )}
-                  <Image source={resolveRemoteImageSource(selectedChat.avatarUrl, DefaultAvatar)} style={styles.chatHeaderAvatar} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.chatHeaderName}>{selectedChat.name}</Text>
-                    <Text style={styles.chatHeaderSpec}>{selectedChat.specialty}</Text>
-                  </View>
-                  {selectedChat.citaId && isDesktopLayout ? (
-                    <TouchableOpacity style={styles.joinBtn} activeOpacity={0.8} onPress={() => navigation.navigate('SalaEsperaVirtualPaciente', { citaId: selectedChat.citaId })}>
-                      <MaterialIcons name="videocam" size={16} color="#fff" /><Text style={styles.joinBtnText}>Unirse</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              ) : (
-                <View style={styles.chatHeaderInner}>
-                   <Text style={styles.chatHeaderName}>Selecciona un chat</Text>
-                </View>
-              )}
-            </View>
-            {isTyping && selectedChat && (
-              <View style={styles.typingBar}>
-                <View style={styles.typingDots}>
-                  <View style={styles.typingDot} /><View style={[styles.typingDot, styles.typingDot2]} /><View style={[styles.typingDot, styles.typingDot3]} />
-                </View>
-                <Text style={styles.typingText}>{selectedChat.name.split(' ')[0]} está escribiendo…</Text>
-              </View>
-            )}
-            <ScrollView ref={scrollRef} onScroll={handleScroll} scrollEventThrottle={100} contentContainerStyle={styles.messagesWrap} showsVerticalScrollIndicator={false}>
-              {loadingMessages ? (
-                <View style={styles.emptyState}><MaterialIcons name="hourglass-top" size={28} color={colors.muted} /><Text style={styles.emptyTitle}>Cargando mensajes...</Text></View>
-              ) : !selectedChat ? (
-                <View style={styles.emptyState}>
-                  <MaterialIcons name="chat-bubble-outline" size={64} color="#dbe8f5" />
-                  <Text style={styles.emptyTitle}>Selecciona un médico</Text>
-                  <Text style={styles.emptySubtitle}>Elige una conversación de la lista para ver los mensajes.</Text>
-                </View>
-              ) : (
-                messages.map((msg, index) => (
-                  <React.Fragment key={msg.id}>
-                    {(msg.dateLabel || index === 0) && (
-                      <View style={styles.dateSeparator}><View style={styles.dateLine} /><Text style={styles.dateLabel}>{msg.dateLabel || 'Hoy'}</Text><View style={styles.dateLine} /></View>
-                    )}
-                    <View style={[styles.msgWrap, msg.from === 'me' && styles.msgWrapMe]}>
-                      <View style={[styles.msgBubble, msg.from === 'me' && styles.msgBubbleMe]}>
-                        <Text style={[styles.msgText, msg.from === 'me' && styles.msgTextMe]}>{msg.text}</Text>
-                      </View>
-                      <View style={styles.msgMeta}>
-                        <Text style={[styles.msgTime, msg.from === 'me' && styles.msgTimeMe]}>{msg.time}</Text>
-                        {msg.from === 'me' && (
-                          <Text style={styles.msgStatus}>{msg.status === 'read' ? '✓✓' : '✓'}</Text>
-                        )}
-                      </View>
-                    </View>
-                  </React.Fragment>
-                ))
-              )}
-            </ScrollView>
-            <View style={styles.inputRow}>
-              <TouchableOpacity style={styles.attachBtn} activeOpacity={0.7}>
-                <MaterialIcons name="attach-file" size={20} color={colors.muted} />
-              </TouchableOpacity>
-              <TextInput value={reply} onChangeText={setReply} placeholder={selectedChat ? 'Escribe tu mensaje...' : 'Selecciona un chat'} placeholderTextColor="#8aa7bf" style={styles.input} multiline editable={Boolean(selectedChat)} />
-              <TouchableOpacity style={[styles.sendBtn, (!selectedChat || !reply.trim()) && styles.sendBtnDisabled]} onPress={handleSend} disabled={!selectedChat || !reply.trim()} activeOpacity={0.8}>
-                <MaterialIcons name="send" size={18} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-=======
       <View style={styles.main}>
         <View style={styles.headerWrap}>
           <PacienteHeader title="Mensajes" />
@@ -664,7 +428,7 @@ const PacienteChatScreen: React.FC = () => {
                     ) : (
                       (messagesByChat[selectedChatId] || []).map((message) => (
                         <View
-                          key={message.id}
+                           key={message.id}
                           style={[styles.msgWrap, message.from === 'me' && styles.msgWrapMe]}
                         >
                           <View style={[styles.msgBubble, message.from === 'me' && styles.msgBubbleMe]}>
@@ -713,7 +477,6 @@ const PacienteChatScreen: React.FC = () => {
             </View>
           )}
         </View>
->>>>>>> feature-cris
       </View>
     </View>
   );
@@ -785,19 +548,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 1,
   },
-<<<<<<< HEAD
   logoutText: { color: '#fff', fontWeight: '800' },
-  main: { flex: 1, flexDirection: 'row', gap: 12, padding: 16 },
-  mainMobile: { flexDirection: 'column' },
-  leftPanel: { width: 320, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e4edf7', padding: 14, shadowColor: colors.dark, shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
-  leftPanelMobile: { width: '100%' },
-  leftPanelHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  sectionTitle: { fontSize: 22, fontWeight: '900', color: colors.dark },
-  contactCountBadge: { backgroundColor: '#eef4fb', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  contactCountText: { fontSize: 12, fontWeight: '900', color: colors.primary },
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f4f8fc', borderWidth: 1, borderColor: '#e3edf7', borderRadius: 12, paddingHorizontal: 12, marginBottom: 12 },
-  searchInput: { flex: 1, height: 38, color: colors.dark, fontWeight: '600', fontSize: 13 },
-  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 30, paddingHorizontal: 16 },
   emptyIconBox: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#f0f6ff', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   emptyTitle: { color: colors.dark, fontSize: 15, fontWeight: '800', marginTop: 6 },
   emptySubtitle: { color: colors.muted, fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 4, lineHeight: 17 },
@@ -817,10 +568,10 @@ const styles = StyleSheet.create({
   unreadBadge: { backgroundColor: colors.primary, borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   unreadBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
   chatPanel: { flex: 1, backgroundColor: '#f8fbff', borderRadius: 18, borderWidth: 1, borderColor: '#e4edf7', overflow: 'hidden' },
-  chatHeader: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5edf6', paddingHorizontal: 14, paddingVertical: 12 },
   chatHeaderInner: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   chatHeaderAvatar: { width: 38, height: 38, borderRadius: 38, borderWidth: 2, borderColor: '#f2f6fb' },
   chatHeaderName: { fontSize: 15, fontWeight: '800', color: colors.dark },
+  chatHeaderSub: { color: colors.muted, fontSize: 12, marginTop: 2, fontWeight: '600' },
   chatHeaderSpec: { fontSize: 11, fontWeight: '600', color: colors.muted, marginTop: 1 },
   backButton: { marginRight: 8, padding: 4 },
   joinBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.primary, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
@@ -829,8 +580,6 @@ const styles = StyleSheet.create({
   dateSeparator: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 8, alignSelf: 'stretch' },
   dateLine: { flex: 1, height: 1, backgroundColor: '#e4edf7' },
   dateLabel: { color: '#8aa7bf', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-  msgWrap: { maxWidth: '78%' },
-=======
   contactRowActive: { borderColor: colors.primary, backgroundColor: '#eef6ff' },
   contactAvatar: { width: 42, height: 42, borderRadius: 42 },
   contactName: { color: colors.dark, fontSize: 14, fontWeight: '800' },
@@ -848,13 +597,8 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#fff',
   },
-  chatHeaderAvatar: { width: 42, height: 42, borderRadius: 42 },
-  chatHeaderName: { color: colors.dark, fontSize: 15, fontWeight: '900' },
-  chatHeaderSub: { color: colors.muted, fontSize: 12, marginTop: 2, fontWeight: '600' },
   messagesList: { flex: 1, marginTop: 10 },
   emptyConversation: { color: colors.muted, fontSize: 13, fontWeight: '700', marginTop: 8 },
-  msgWrap: { maxWidth: '85%', marginBottom: 6, alignSelf: 'flex-start' },
->>>>>>> feature-cris
   msgWrapMe: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   msgBubble: { 
     backgroundColor: colors.bubbleOther, 

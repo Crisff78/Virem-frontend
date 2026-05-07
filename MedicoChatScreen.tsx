@@ -12,25 +12,20 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import type { ImageSourcePropType } from 'react-native';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MedicoHeader from './components/MedicoHeader';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
-
 import type { RootStackParamList } from './navigation/types';
 import { useSocketEvent } from './hooks/useSocketEvent';
 import { useSocketRoom } from './hooks/useSocketRoom';
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 
-const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
-
 const MIN_REFRESH_INTERVAL_MS = 12000;
 
 type SessionUser = {
@@ -65,10 +60,6 @@ const normalizeText = (value: unknown) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-<<<<<<< HEAD
-
-=======
->>>>>>> feature-cris
 const parseDateMs = (value: string | null | undefined) => {
   if (!value) return Number.POSITIVE_INFINITY;
   const ms = new Date(value).getTime();
@@ -89,11 +80,10 @@ const formatDateTime = (value: string | null | undefined) => {
 
 const MedicoChatScreen: React.FC = () => {
   const navigation = usePortalAwareMedicoNavigation();
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
+  const { isInsidePortal } = useMedicoModule();
   const route = useRoute<RouteProp<RootStackParamList, 'MedicoChat'>>();
-  const { user: sessionUser, signOut } = useAuth<SessionUser>();
-  const { loadingUser, refreshUser, doctorName, doctorSpec, fotoUrl: doctorFotoUrl } =
-    useMedicoPortalSession({ syncOnMount: true, addDoctorPrefix: true });
+  const { user: sessionUser } = useAuth<SessionUser>();
+  const { loadingUser, refreshUser } = useMedicoPortalSession({ syncOnMount: true, addDoctorPrefix: true });
   const { width: viewportWidth } = useWindowDimensions();
 
   const [loadingContacts, setLoadingContacts] = useState(false);
@@ -112,29 +102,7 @@ const MedicoChatScreen: React.FC = () => {
 
   const loadUser = useCallback(async () => {
     try {
-<<<<<<< HEAD
-      let nextUser = sessionUser || null;
-      const dashboardPayload = await apiClient.get<any>('/api/users/me/dashboard-medico', {
-        authenticated: true,
-      });
-
-      if (dashboardPayload?.success && dashboardPayload?.dashboard?.profile) {
-        const profile = dashboardPayload.dashboard.profile;
-        nextUser = {
-          ...(nextUser || {}),
-          nombreCompleto: normalizeText(profile?.nombreCompleto || nextUser?.nombreCompleto),
-          especialidad: normalizeText(profile?.especialidad || nextUser?.especialidad),
-          fotoUrl: sanitizeRemoteImageUrl(profile?.fotoUrl || nextUser?.fotoUrl),
-        };
-        if (nextUser) {
-          await updateUser(nextUser);
-        }
-      }
-
-      setUser(nextUser);
-=======
       await refreshUser();
->>>>>>> feature-cris
     } catch {
       // noop
     }
@@ -152,7 +120,6 @@ const MedicoChatScreen: React.FC = () => {
         return;
       }
 
-      // El servidor ya devuelve una conversacion por par paciente/medico
       const mapped: ChatContact[] = (payload.conversaciones as any[])
         .map((conv) => {
           const pId = normalizeText(conv?.paciente?.pacienteid);
@@ -259,7 +226,6 @@ const MedicoChatScreen: React.FC = () => {
         setViewMode('chat');
         return;
       }
-      // No existe conversacion aun: la creamos con el endpoint del backend
       let cancelled = false;
       (async () => {
         try {
@@ -282,45 +248,23 @@ const MedicoChatScreen: React.FC = () => {
       };
     }
 
-    if (!contacts.length) {
-      setSelectedChatId('');
-      return;
-    }
-
-    if (routePatientName) {
+    if (routePatientName && contacts.length > 0) {
       const byName = contacts.find(
         (c) => normalizeText(c.name).toLowerCase() === routePatientName.toLowerCase()
       );
       if (byName) {
         setSelectedChatId(byName.id);
+        setViewMode('chat');
         return;
       }
     }
 
-<<<<<<< HEAD
     if (!contacts.some((c) => c.id === selectedChatId)) {
-      // On mobile, we don't auto-select the first one to allow seeing the list
-      if (isDesktopLayout) {
+      if (isDesktopLayout && contacts.length > 0) {
         setSelectedChatId(contacts[0].id);
-      } else {
-        setSelectedChatId('');
       }
     }
   }, [contacts, route.params?.patientId, route.params?.patientName, selectedChatId, isDesktopLayout]);
-=======
-    const exists = contacts.some((c) => c.id === selectedChatId);
-    if (!exists && contacts.length > 0) {
-      if (viewMode === 'chat') setViewMode('list');
-    }
-  }, [
-    contacts,
-    loadContacts,
-    route.params?.patientId,
-    route.params?.patientName,
-    selectedChatId,
-    viewMode,
-  ]);
->>>>>>> feature-cris
 
   useEffect(() => {
     if (!selectedChatId) return;
@@ -336,7 +280,6 @@ const MedicoChatScreen: React.FC = () => {
       if (current.some((message) => message.id === nextMessage.id)) {
         return prev;
       }
-
       return {
         ...prev,
         [cleanConversationId]: [...current, nextMessage],
@@ -398,47 +341,6 @@ const MedicoChatScreen: React.FC = () => {
 
   const currentMessages = messagesByChat[selectedChatId] || [];
 
-<<<<<<< HEAD
-  const doctorName = useMemo(() => {
-    const base = normalizeText(user?.nombreCompleto);
-    if (!base) return 'Doctor';
-    const lowered = base.toLowerCase();
-    if (lowered.startsWith('dr ') || lowered.startsWith('dr.')) return base;
-    return `Dr. ${base}`;
-  }, [user?.nombreCompleto]);
-
-  const doctorSpec = useMemo(
-    () => normalizeText(user?.especialidad) || 'Especialidad no definida',
-    [user?.especialidad]
-  );
-
-  const doctorAvatarSource: ImageSourcePropType = useMemo(() => {
-    const foto = sanitizeRemoteImageUrl(user?.fotoUrl);
-    if (foto) return { uri: foto };
-    return DefaultAvatar;
-  }, [user?.fotoUrl]);
-
-  const dateText = useMemo(
-    () =>
-      new Intl.DateTimeFormat('es-DO', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-      }).format(new Date()),
-    []
-  );
-
-  const timeText = useMemo(
-    () =>
-      new Intl.DateTimeFormat('es-DO', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(new Date()),
-    []
-  );
-
-=======
->>>>>>> feature-cris
   const sendMessage = async () => {
     const text = normalizeText(reply);
     if (!text || !selectedChatId) return;
@@ -479,7 +381,7 @@ const MedicoChatScreen: React.FC = () => {
   if (loadingUser) {
     return (
       <View style={styles.loaderWrap}>
-        <Text style={styles.loadingText}>Cargando chat medico...</Text>
+        <Text style={styles.loadingText}>Cargando chat médico...</Text>
       </View>
     );
   }
@@ -492,11 +394,7 @@ const MedicoChatScreen: React.FC = () => {
         </View>
 
         <View style={[styles.chatShell, !isDesktopLayout && styles.chatShellMobile]}>
-<<<<<<< HEAD
-          {(isDesktopLayout || !selectedChatId) && (
-=======
           {(viewMode === 'list' || isDesktopLayout) && (
->>>>>>> feature-cris
             <View style={[styles.contactsPane, !isDesktopLayout && styles.contactsPaneMobile]}>
               <View style={styles.searchRow}>
                 <MaterialIcons name="search" size={18} color={colors.muted} />
@@ -512,7 +410,7 @@ const MedicoChatScreen: React.FC = () => {
               <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
                 {loadingContacts ? <Text style={styles.loadingText}>Cargando pacientes...</Text> : null}
                 {!loadingContacts && !filteredContacts.length ? (
-                  <Text style={styles.loadingText}>No tienes pacientes para chat aun.</Text>
+                  <Text style={styles.loadingText}>No tienes pacientes para chat aún.</Text>
                 ) : null}
                 {filteredContacts.map((chat) => {
                   const active = chat.id === selectedChatId;
@@ -520,14 +418,10 @@ const MedicoChatScreen: React.FC = () => {
                     <TouchableOpacity
                       key={chat.id}
                       style={[styles.contactRow, active && styles.contactRowActive]}
-<<<<<<< HEAD
-                      onPress={() => setSelectedChatId(chat.id)}
-=======
                       onPress={() => {
                         setSelectedChatId(chat.id);
                         setViewMode('chat');
                       }}
->>>>>>> feature-cris
                       activeOpacity={0.85}
                     >
                       <Image source={DefaultAvatar} style={styles.contactAvatar} />
@@ -545,45 +439,25 @@ const MedicoChatScreen: React.FC = () => {
             </View>
           )}
 
-<<<<<<< HEAD
-          {(isDesktopLayout || selectedChatId) && (
-=======
           {(viewMode === 'chat' || isDesktopLayout) && (
->>>>>>> feature-cris
             <View style={styles.messagesPane}>
               {selectedContact ? (
                 <>
                   <View style={styles.chatHeader}>
                     {!isDesktopLayout && (
-<<<<<<< HEAD
-                      <TouchableOpacity 
-                        onPress={() => setSelectedChatId('')}
-                        style={styles.backButton}
-                      >
-                        <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
+                      <TouchableOpacity style={styles.backBtn} onPress={() => setViewMode('list')}>
+                        <MaterialIcons name="arrow-back" size={24} color={colors.dark} />
                       </TouchableOpacity>
                     )}
                     <Image source={DefaultAvatar} style={styles.chatHeaderAvatar} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.chatHeaderName}>{selectedContact.name}</Text>
                       <Text style={styles.chatHeaderSub} numberOfLines={1}>
-=======
-                      <TouchableOpacity style={styles.backBtn} onPress={() => setViewMode('list')}>
-                        <MaterialIcons name="arrow-back" size={24} color={colors.dark} />
-                      </TouchableOpacity>
-                    )}
-                    <Image source={DefaultAvatar} style={styles.chatHeaderAvatar} />
-                    <View>
-                      <Text style={styles.chatHeaderName}>{selectedContact.name}</Text>
-                      <Text style={styles.chatHeaderSub}>
->>>>>>> feature-cris
-                        Ultima referencia: {selectedContact.status} · {selectedContact.timeLabel}
+                        Última referencia: {selectedContact.status} · {selectedContact.timeLabel}
                       </Text>
                     </View>
                   </View>
 
-<<<<<<< HEAD
-=======
                   {isTyping && selectedContact && (
                     <View style={styles.typingBar}>
                       <View style={styles.typingDots}>
@@ -593,28 +467,17 @@ const MedicoChatScreen: React.FC = () => {
                     </View>
                   )}
 
->>>>>>> feature-cris
                   <ScrollView style={styles.messagesList} contentContainerStyle={{ paddingBottom: 12 }}>
                     {loadingMessages ? (
                       <Text style={styles.emptyConversation}>Cargando mensajes...</Text>
                     ) : !currentMessages.length ? (
                       <Text style={styles.emptyConversation}>
-                        Inicia la conversacion con {selectedContact.name}.
+                        Inicia la conversación con {selectedContact.name}.
                       </Text>
                     ) : (
                       currentMessages.map((message) => (
                         <View
                           key={message.id}
-<<<<<<< HEAD
-                          style={[styles.messageBubble, message.from === 'me' ? styles.messageMe : styles.messageOther]}
-                        >
-                          <Text style={[styles.messageText, message.from === 'me' ? styles.messageTextMe : null]}>
-                            {message.text}
-                          </Text>
-                          <Text style={[styles.messageTime, message.from === 'me' ? styles.messageTimeMe : null]}>
-                            {message.time}
-                          </Text>
-=======
                           style={[styles.msgWrap, message.from === 'me' && styles.msgWrapMe]}
                         >
                           <View style={[styles.msgBubble, message.from === 'me' && styles.msgBubbleMe]}>
@@ -635,22 +498,11 @@ const MedicoChatScreen: React.FC = () => {
                               )}
                             </View>
                           </View>
->>>>>>> feature-cris
                         </View>
                       ))
                     )}
                   </ScrollView>
 
-<<<<<<< HEAD
-                  <View style={styles.replyRow}>
-                    <TextInput
-                      value={reply}
-                      onChangeText={setReply}
-                      placeholder={selectedContact ? `Escribe a ${selectedContact.name}` : 'Selecciona un paciente'}
-                      placeholderTextColor="#8ca7bd"
-                      style={styles.replyInput}
-                      editable={Boolean(selectedContact)}
-=======
                   <View style={styles.inputRow}>
                     <TouchableOpacity style={styles.attachBtn}>
                       <MaterialIcons name="insert-emoticon" size={24} color={colors.muted} />
@@ -663,7 +515,6 @@ const MedicoChatScreen: React.FC = () => {
                       style={styles.replyInput}
                       editable={Boolean(selectedContact)}
                       multiline
->>>>>>> feature-cris
                     />
                     <TouchableOpacity
                       style={[styles.sendBtn, !reply.trim().length && styles.sendBtnDisabled]}
@@ -676,11 +527,7 @@ const MedicoChatScreen: React.FC = () => {
                 </>
               ) : (
                 <View style={styles.emptyChatState}>
-<<<<<<< HEAD
-                  <MaterialIcons name="chat-bubble-outline" size={64} color="#dbe8f5" />
-=======
                   <MaterialIcons name="chat" size={48} color="#e1edf8" />
->>>>>>> feature-cris
                   <Text style={styles.loadingText}>Selecciona un paciente para iniciar chat.</Text>
                 </View>
               )}
@@ -705,22 +552,11 @@ const colors = {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  loaderWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.bg,
-  },
+  container: { flex: 1, backgroundColor: colors.bg },
+  loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   loadingText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
   main: { flex: 1, paddingHorizontal: 20 },
-  headerWrap: {
-    paddingTop: Platform.OS === 'web' ? 32 : 14,
-    paddingBottom: 12,
-  },
+  headerWrap: { paddingTop: Platform.OS === 'web' ? 32 : 14, paddingBottom: 12 },
   chatShell: {
     flex: 1,
     marginBottom: 20,
@@ -731,29 +567,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
   },
-  chatShellMobile: {
-    flexDirection: 'column',
-  },
+  chatShellMobile: { flexDirection: 'column' },
   contactsPane: {
     width: Platform.OS === 'web' ? 320 : '100%',
     flex: 1,
     borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-    borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
     borderRightColor: '#e4edf7',
-    borderBottomColor: '#e4edf7',
     padding: 12,
     backgroundColor: '#f8fbff',
   },
-  contactsPaneMobile: {
-    width: '100%',
-    borderRightWidth: 0,
-<<<<<<< HEAD
-    borderBottomWidth: 0,
-    flex: 1,
-=======
-    borderBottomWidth: 1,
->>>>>>> feature-cris
-  },
+  contactsPaneMobile: { width: '100%', borderRightWidth: 0, flex: 1 },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -787,27 +610,22 @@ const styles = StyleSheet.create({
   contactName: { color: colors.dark, fontSize: 14, fontWeight: '800' },
   contactNameActive: { color: colors.primary },
   contactMeta: { color: colors.muted, fontSize: 11, marginTop: 2, fontWeight: '600' },
-<<<<<<< HEAD
-  messagesPane: { flex: 1, backgroundColor: '#fff' },
-=======
   messagesPane: { flex: 1, padding: 12, backgroundColor: colors.chatBg },
->>>>>>> feature-cris
   chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#dfeaf7',
-    padding: 12,
-    backgroundColor: '#fff',
+    paddingBottom: 12,
+    backgroundColor: 'transparent',
   },
   chatHeaderAvatar: { width: 42, height: 42, borderRadius: 42 },
   chatHeaderName: { color: colors.dark, fontSize: 16, fontWeight: '900' },
   chatHeaderSub: { color: colors.muted, fontSize: 12, fontWeight: '700', marginTop: 1 },
-  backButton: { marginRight: 10, padding: 4 },
-  messagesList: { flex: 1, paddingHorizontal: 16, paddingTop: 10 },
-  emptyConversation: { color: colors.muted, fontSize: 13, fontWeight: '700', marginTop: 8 },
-  msgWrap: { maxWidth: '85%', marginBottom: 6, alignSelf: 'flex-start' },
+  messagesList: { flex: 1, paddingHorizontal: 10, paddingTop: 10 },
+  emptyConversation: { color: colors.muted, fontSize: 13, fontWeight: '700', marginTop: 8, textAlign: 'center' },
+  msgWrap: { maxWidth: '85%', marginBottom: 8, alignSelf: 'flex-start' },
   msgWrapMe: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   msgBubble: { 
     backgroundColor: colors.bubbleOther, 
@@ -851,16 +669,6 @@ const styles = StyleSheet.create({
     color: colors.dark, 
     maxHeight: 100 
   },
-<<<<<<< HEAD
-  sendBtnDisabled: { opacity: 0.55 },
-  emptyChatState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    gap: 16,
-  },
-=======
   sendBtn: { 
     width: 44, 
     height: 44, 
@@ -889,12 +697,8 @@ const styles = StyleSheet.create({
   typingDot2: { opacity: 0.7 },
   typingDot3: { opacity: 0.9 },
   typingText: { fontSize: 11, fontWeight: '700', color: colors.muted, fontStyle: 'italic' },
-  backBtn: {
-    padding: 4,
-    marginRight: 6,
-  },
+  backBtn: { padding: 4, marginRight: 6 },
   emptyChatState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
->>>>>>> feature-cris
 });
 
 export default MedicoChatScreen;

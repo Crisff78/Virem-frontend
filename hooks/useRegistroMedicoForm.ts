@@ -118,8 +118,6 @@ const INITIAL_MODALS: RegistroMedicoModalState = {
   showEspModal: false,
 };
 
-const DOCUMENT_FIELDS: any[] = [];
-
 export function useRegistroMedicoForm(
   navigation: NavigationProps
 ): RegistroMedicoFormController {
@@ -301,15 +299,6 @@ export function useRegistroMedicoForm(
       Alert.alert("Error", "No se pudo abrir el selector de imágenes.");
     }
   }, [updateErrors, updateValues]);
-
-<<<<<<< HEAD
-  const pickSupportingDocument = useCallback(async () => {}, []);
-=======
-  const pickSupportingDocument = useCallback(
-    async (field: any) => {},
-    []
-  );
->>>>>>> feature-cris
 
   const handleContinue = useCallback(async () => {
     setErrors((current: RegistroMedicoFormErrors) => ({
