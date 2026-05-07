@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Image,
+  Modal,
   View,
   Text,
   StyleSheet,
@@ -23,21 +24,24 @@ import { useLanguage } from './localization/LanguageContext';
 import { usePatientSessionProfile, type PatientSessionUser } from './hooks/usePatientSessionProfile';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
 
+import sharedColors from './theme/colors';
+
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 
 const MIN_REFRESH_INTERVAL_MS = 15000;
 
+// Use the shared palette so the patient dashboard matches the doctor dashboard exactly.
 const colors = {
-  primary: '#1e40af',
-  brand: '#1e40af',
-  dark: '#0f172a',
-  muted: '#64748b',
-  light: '#f8fafc',
-  bg: '#f5f7fb',
-  white: '#ffffff',
-  green: '#22c55e',
-  red: '#ef4444',
+  primary: sharedColors.primary,
+  brand: sharedColors.brand,
+  dark: sharedColors.dark,
+  muted: sharedColors.muted,
+  light: sharedColors.light,
+  bg: sharedColors.bg,
+  white: sharedColors.white,
+  green: sharedColors.green,
+  red: sharedColors.red,
 };
 
 /* ===================== HELPERS ===================== */
@@ -120,7 +124,8 @@ const DashboardPacienteScreen: React.FC = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isExpressModalOpen, setIsExpressModalOpen] = useState(true);
   const [user, setUser] = useState<User | null>(() => (ensurePatientSessionUser(sessionUser) as User | null) || null);
-  const [loadingCitas, setLoadingCitas] = useState(false);
+  const [loadingCitas, setLoadingCitas] = useState(true);
+  const [dataError, setDataError] = useState(false);
   const [upcomingCitas, setUpcomingCitas] = useState<CitaItem[]>([]);
   const [historyCitas, setHistoryCitas] = useState<CitaItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -147,6 +152,27 @@ const DashboardPacienteScreen: React.FC = () => {
       <TouchableOpacity onPress={onPress}>
         <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
       </TouchableOpacity>
+    </View>
+  );
+
+  // StatPill: same visual language as DashboardMedico's stats area, adapted to patient metrics.
+  const StatPill: React.FC<{ title: string; value: string; icon: any; trendText: string; trendUp?: boolean }> = ({ title, value, icon, trendText, trendUp = true }) => (
+    <View style={styles.statCard}>
+      <View style={styles.statTopRow}>
+        <Text style={styles.statTitle}>{title}</Text>
+        <MaterialIcons name={icon} size={20} color={colors.primary} />
+      </View>
+      <View style={styles.statBottomRow}>
+        <Text style={styles.statValue}>{value}</Text>
+        <View style={styles.trendRow}>
+          <MaterialIcons
+            name={trendUp ? 'trending-up' : 'trending-down'}
+            size={16}
+            color={trendUp ? colors.green : colors.red}
+          />
+          <Text style={[styles.trendText, { color: trendUp ? colors.green : colors.red }]}>{trendText}</Text>
+        </View>
+      </View>
     </View>
   );
 
@@ -230,10 +256,11 @@ const DashboardPacienteScreen: React.FC = () => {
     },
 
     container: { flex: 1, backgroundColor: '#F6FAFD' },
-    
-    // Sidebar Overlay (Drawer)
-    overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 2000 },
-    drawer: { position: 'absolute', top: 0, bottom: 0, backgroundColor: '#fff', zIndex: 2001, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
+
+    // Modal-portal root — covers full viewport with dim backdrop, used by RN Modal which on Web auto-renders at body root
+    modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
+
+    drawer: { position: 'absolute', top: 0, bottom: 0, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 18, elevation: 10 },
     drawerLeft: { left: 0, width: rs(300) },
     drawerRight: { right: 0, width: rs(320) },
 
@@ -281,9 +308,18 @@ const DashboardPacienteScreen: React.FC = () => {
     secondaryBtnText: { color: colors.muted, fontWeight: '900', fontSize: fs(14) },
 
     quickRow: { flexDirection: 'row', gap: rs(10), marginBottom: rs(18), flexWrap: 'wrap' },
-    quickTile: { flex: 1, minWidth: rs(100), backgroundColor: '#fff', borderRadius: rs(16), paddingVertical: rs(16), paddingHorizontal: rs(10), alignItems: 'center', borderWidth: 1, borderColor: '#eef3fa', shadowColor: colors.dark, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+    quickTile: { flex: 1, minWidth: rs(100), backgroundColor: '#fff', borderRadius: rs(16), paddingVertical: rs(14), paddingHorizontal: rs(10), alignItems: 'center', borderWidth: 1, borderColor: '#eef3fa', shadowColor: colors.dark, shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
     quickTileIcon: { width: rs(44), height: rs(44), borderRadius: rs(12), alignItems: 'center', justifyContent: 'center', marginBottom: rs(8) },
-    quickTileLabel: { fontSize: fs(12), fontWeight: '800', color: colors.dark, textAlign: 'center' },
+    quickTileLabel: { fontSize: fs(12), fontWeight: '700', color: colors.dark, textAlign: 'center' },
+
+    // Stats pills — same shape and metrics layout as DashboardMedico
+    statCard: { flex: 1, minWidth: rs(140), backgroundColor: '#fff', padding: rs(16), borderRadius: rs(18), shadowColor: colors.dark, shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+    statTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(12) },
+    statTitle: { color: colors.muted, fontWeight: '700', fontSize: fs(11), textTransform: 'uppercase', letterSpacing: 0.5 },
+    statBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+    statValue: { fontSize: fs(20), fontWeight: '900', color: colors.dark },
+    trendRow: { flexDirection: 'row', alignItems: 'center', gap: rs(4), backgroundColor: '#f8fafc', paddingHorizontal: rs(8), paddingVertical: rs(4), borderRadius: rs(8) },
+    trendText: { fontSize: fs(11), fontWeight: '800' },
 
     twoCols: { flexDirection: isDesktop ? 'row' : 'column', gap: rs(16), marginTop: rs(16) },
     colLeft: { flex: 2 },
@@ -317,9 +353,7 @@ const DashboardPacienteScreen: React.FC = () => {
     notifMsg: { color: colors.muted, fontSize: fs(12), marginTop: rs(4), lineHeight: fs(18) },
     notifTime: { color: '#94a3b8', fontSize: fs(11), marginTop: rs(6), fontWeight: '700' },
 
-    // Modal Express
-    modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 3000, alignItems: 'center', justifyContent: 'center', padding: rs(20) },
-    modalContent: { backgroundColor: '#0f172a', borderRadius: rs(28), padding: rs(24), width: '100%', maxWidth: rs(450), shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 },
+    modalContent: { backgroundColor: '#0f172a', borderRadius: rs(28), padding: rs(24), width: '90%', maxWidth: rs(450), shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 },
     modalHeader: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: rs(10) },
     modalIconBox: { width: rs(60), height: rs(60), borderRadius: rs(30), backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: rs(20), alignSelf: 'center' },
     modalTitle: { color: '#fff', fontSize: fs(22), fontWeight: '900', textAlign: 'center', marginBottom: rs(10) },
@@ -329,24 +363,38 @@ const DashboardPacienteScreen: React.FC = () => {
   }), [fs, rs, isDesktop]);
 
   const loadData = useCallback(async () => {
-    try {
-      const sessionUser = (await syncProfile()) as PatientSessionUser | null;
-      setUser((ensurePatientSessionUser(sessionUser) as User | null) || null);
+    setLoadingCitas(true);
+    setDataError(false);
 
-      setLoadingCitas(true);
-      try {
-        const [up, hist, notifs] = await Promise.all([
-          apiClient.get<any>('/api/agenda/me/citas', { authenticated: true, query: { scope: 'upcoming', limit: 5 } }),
-          apiClient.get<any>('/api/agenda/me/citas', { authenticated: true, query: { scope: 'history', limit: 5 } }),
-          apiClient.get<any>('/api/agenda/me/notificaciones', { authenticated: true, query: { limit: 15 } }),
-        ]);
-        if (up?.success) setUpcomingCitas(up.citas.sort((a: any, b: any) => parseDateMs(a.fechaHoraInicio) - parseDateMs(b.fechaHoraInicio)));
-        if (hist?.success) setHistoryCitas(hist.citas);
-        if (notifs?.success) setNotifications(notifs.notificaciones || []);
-      } finally {
-        setLoadingCitas(false);
-      }
-    } catch {}
+    // Hide the skeleton fast (2s max) — render real content or empty state instead.
+    const timeoutId = setTimeout(() => {
+      setLoadingCitas(false);
+      setDataError(true);
+    }, 2000);
+
+    // Profile sync runs in parallel so a slow profile call doesn't block the dashboard.
+    syncProfile()
+      .then((sessionUser) => {
+        setUser((ensurePatientSessionUser(sessionUser as PatientSessionUser | null) as User | null) || null);
+      })
+      .catch(() => {});
+
+    try {
+      const [up, hist, notifs] = await Promise.all([
+        apiClient.get<any>('/api/agenda/me/citas', { authenticated: true, query: { scope: 'upcoming', limit: 5 } }).catch(() => null),
+        apiClient.get<any>('/api/agenda/me/citas', { authenticated: true, query: { scope: 'history', limit: 5 } }).catch(() => null),
+        apiClient.get<any>('/api/agenda/me/notificaciones', { authenticated: true, query: { limit: 15 } }).catch(() => null),
+      ]);
+      clearTimeout(timeoutId);
+      if (up?.success) setUpcomingCitas(up.citas.sort((a: any, b: any) => parseDateMs(a.fechaHoraInicio) - parseDateMs(b.fechaHoraInicio)));
+      if (hist?.success) setHistoryCitas(hist.citas);
+      if (notifs?.success) setNotifications(notifs.notificaciones || []);
+    } catch {
+      clearTimeout(timeoutId);
+      setDataError(true);
+    } finally {
+      setLoadingCitas(false);
+    }
   }, [syncProfile]);
 
   useFocusEffect(
@@ -373,48 +421,64 @@ const DashboardPacienteScreen: React.FC = () => {
   return (
     <View style={styles.container}>
 
-      {/* Drawer Overlay for Notifications (Optional: keep separate or unify) */}
-      {isNotificationsOpen && (
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setIsNotificationsOpen(false)} />
-      )}
-      {/* Ya no hay sidebar fija en Desktop. Todo se maneja a través del Drawer (Hamburguesa). */}
-
-      {/* Notificaciones Sidebar (Drawer Derecho) */}
-      {isNotificationsOpen && (
-        <View style={[styles.drawer, styles.drawerRight]}>
-          <View style={styles.drawerHeader}>
-            <Text style={styles.drawerTitle}>Notificaciones</Text>
-            <TouchableOpacity onPress={() => setIsNotificationsOpen(false)}>
-              <MaterialIcons name="close" size={24} color={colors.dark} />
-            </TouchableOpacity>
+      {/* Notificaciones Drawer — renders as a true overlay above sidebar/content on Web */}
+      <Modal
+        visible={isNotificationsOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsNotificationsOpen(false)}
+      >
+        <View style={styles.modalRoot}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setIsNotificationsOpen(false)}
+          />
+          <View style={[styles.drawer, styles.drawerRight]}>
+            <View style={styles.drawerHeader}>
+              <Text style={styles.drawerTitle}>Notificaciones</Text>
+              <TouchableOpacity onPress={() => setIsNotificationsOpen(false)}>
+                <MaterialIcons name="close" size={24} color={colors.dark} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {notifications.length > 0 ? (
+                notifications.map((n) => (
+                  <TouchableOpacity key={n.id} style={[styles.notifItem, !n.leida && styles.notifUnread]}>
+                    <Text style={styles.notifTitle}>{n.titulo}</Text>
+                    <Text style={styles.notifMsg} numberOfLines={2}>{n.contenido}</Text>
+                    <Text style={styles.notifTime}>Hace un momento</Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={[styles.emptyCard, { borderStyle: 'solid', marginTop: rs(40) }]}>
+                  <MaterialIcons name="notifications-none" size={40} color={colors.muted} />
+                  <Text style={styles.emptyText}>No tienes notificaciones</Text>
+                </View>
+              )}
+            </ScrollView>
           </View>
-          <ScrollView>
-            {notifications.length > 0 ? (
-              notifications.map((n) => (
-                <TouchableOpacity key={n.id} style={[styles.notifItem, !n.leida && styles.notifUnread]}>
-                  <Text style={styles.notifTitle}>{n.titulo}</Text>
-                  <Text style={styles.notifMsg} numberOfLines={2}>{n.contenido}</Text>
-                  <Text style={styles.notifTime}>Hace un momento</Text>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <View style={[styles.emptyCard, { borderStyle: 'solid', marginTop: rs(40) }]}>
-                <MaterialIcons name="notifications-none" size={40} color={colors.muted} />
-                <Text style={styles.emptyText}>No tienes notificaciones</Text>
-              </View>
-            )}
-          </ScrollView>
         </View>
-      )}
+      </Modal>
 
       {/* Modal Consulta Express */}
-      {isExpressModalOpen && (
-        <View style={styles.modalOverlay}>
+      <Modal
+        visible={isExpressModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsExpressModalOpen(false)}
+      >
+        <View style={styles.modalRoot}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setIsExpressModalOpen(false)}
+          />
           <View style={styles.modalContent}>
             <TouchableOpacity style={styles.modalHeader} onPress={() => setIsExpressModalOpen(false)}>
               <MaterialIcons name="close" size={24} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
-            
+
             <View style={styles.modalIconBox}>
               <MaterialIcons name="emergency" size={32} color="#fff" />
             </View>
@@ -430,7 +494,7 @@ const DashboardPacienteScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         </View>
-      )}
+      </Modal>
 
       {/* Main Content */}
       <View style={{ flex: 1 }}>
@@ -464,6 +528,19 @@ const DashboardPacienteScreen: React.FC = () => {
                 ))}
               </View>
               <View style={{ backgroundColor: '#e8eff5', borderRadius: rs(18), height: rs(80), width: '100%' }} />
+            </View>
+          )}
+
+          {dataError && !loadingCitas && (
+            <View style={{ backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: rs(14), padding: rs(14), marginBottom: rs(12), flexDirection: 'row', alignItems: 'center', gap: rs(10) }}>
+              <MaterialIcons name="wifi-off" size={20} color={colors.red} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: fs(13), fontWeight: '700', color: colors.dark }}>Conexión lenta</Text>
+                <Text style={{ fontSize: fs(11), color: colors.muted, marginTop: rs(2) }}>Algunos datos podrían no estar actualizados.</Text>
+              </View>
+              <TouchableOpacity onPress={() => loadData()} style={{ paddingHorizontal: rs(12), paddingVertical: rs(6), backgroundColor: colors.primary, borderRadius: rs(8) }}>
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: fs(11) }}>Reintentar</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -572,6 +649,30 @@ const DashboardPacienteScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* Stats overview — mirrors DashboardMedico's StatPill row */}
+          <View style={styles.quickRow}>
+            <StatPill
+              title="Próximas citas"
+              value={String(upcomingCitas.length)}
+              icon="event"
+              trendText={upcomingCitas.length > 0 ? 'Activas' : 'Sin citas'}
+              trendUp={upcomingCitas.length > 0}
+            />
+            <StatPill
+              title="Médicos consultados"
+              value={String(historyCitas.length)}
+              icon="people"
+              trendText={historyCitas.length > 0 ? 'Historial' : 'Nuevo'}
+            />
+            <StatPill
+              title="Notificaciones"
+              value={String(unreadCount)}
+              icon="notifications"
+              trendText={unreadCount > 0 ? 'Sin leer' : 'Al día'}
+              trendUp={unreadCount === 0}
+            />
+          </View>
+
           {/* Quick Actions */}
           <View style={styles.quickRow}>
             <TouchableOpacity style={styles.quickTile} onPress={() => navigation.navigate('NuevaConsultaPaciente')}>
@@ -582,7 +683,7 @@ const DashboardPacienteScreen: React.FC = () => {
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickTile} onPress={() => navigation.navigate('PacienteCitas')}>
               <View style={[styles.quickTileIcon, { backgroundColor: 'rgba(34,197,94,0.1)' }]}>
-                <MaterialIcons name="event" size={24} color="#22c55e" />
+                <MaterialIcons name="event" size={24} color={colors.green} />
               </View>
               <Text style={styles.quickTileLabel}>Mis Citas</Text>
             </TouchableOpacity>

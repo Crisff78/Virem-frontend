@@ -71,6 +71,23 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
     addDoctorPrefix: true,
   });
 
+  const [overlayLocked, setOverlayLocked] = React.useState(false);
+  const wasOpen = React.useRef(isMobileMenuOpen);
+  React.useEffect(() => {
+    if (!wasOpen.current && isMobileMenuOpen) {
+      setOverlayLocked(true);
+      const id = setTimeout(() => setOverlayLocked(false), 250);
+      wasOpen.current = isMobileMenuOpen;
+      return () => clearTimeout(id);
+    }
+    wasOpen.current = isMobileMenuOpen;
+  }, [isMobileMenuOpen]);
+
+  const handleOverlayPress = () => {
+    if (overlayLocked) return;
+    onCloseMobileMenu();
+  };
+
   const userAvatarSource: ImageSourcePropType = useMemo(
     () => resolveRemoteImageSource(fotoUrl, DefaultAvatar),
     [fotoUrl]
@@ -147,15 +164,16 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
   return (
     <>
       {!isDesktopLayout && isMobileMenuOpen && (
-        <TouchableOpacity
-          style={styles.drawerOverlay}
-          activeOpacity={1}
-          onPress={onCloseMobileMenu}
-        >
-          <View style={styles.drawerContent} onStartShouldSetResponder={() => true}>
+        <View style={styles.drawerOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={handleOverlayPress}
+          />
+          <View style={styles.drawerContent} onStartShouldSetResponder={() => true} onTouchEnd={(e) => e.stopPropagation()}>
             {sidebarContent}
           </View>
-        </TouchableOpacity>
+        </View>
       )}
 
       {isDesktopLayout && isSidebarOpen && (

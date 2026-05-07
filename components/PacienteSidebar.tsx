@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Platform,
@@ -76,6 +76,25 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
     [fotoUrl]
   );
 
+  // When the menu opens, ignore the first overlay tap for ~250ms so the same
+  // click that triggered the open doesn't bubble through to the close handler.
+  const [overlayLocked, setOverlayLocked] = useState(false);
+  const wasOpen = useRef(isMobileMenuOpen);
+  useEffect(() => {
+    if (!wasOpen.current && isMobileMenuOpen) {
+      setOverlayLocked(true);
+      const id = setTimeout(() => setOverlayLocked(false), 250);
+      wasOpen.current = isMobileMenuOpen;
+      return () => clearTimeout(id);
+    }
+    wasOpen.current = isMobileMenuOpen;
+  }, [isMobileMenuOpen]);
+
+  const handleOverlayPress = () => {
+    if (overlayLocked) return;
+    onCloseMobileMenu();
+  };
+
   const handleModulePress = (module: PortalModule) => {
     setActiveModule(module);
   };
@@ -90,12 +109,19 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
     <>
       {/* Drawer Overlay for Mobile */}
       {!isDesktopLayout && isMobileMenuOpen && (
-        <TouchableOpacity
-          style={styles.drawerOverlay}
-          activeOpacity={1}
-          onPress={onCloseMobileMenu}
-        >
-          <View style={styles.drawerContent}>
+        <View style={styles.drawerOverlay}>
+          {/* Overlay background - tapping here closes the menu */}
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={handleOverlayPress}
+          />
+          {/* Drawer panel - captures touches so they don't bubble to overlay */}
+          <View
+            style={styles.drawerContent}
+            onStartShouldSetResponder={() => true}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
             {/* Logo & Close Button */}
             <View style={styles.sidebarHeader}>
               <View style={styles.logoBox}>
@@ -151,7 +177,7 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
               <Text style={styles.logoutText}>{t('menu.logout')}</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       )}
 
       {/* Persistent Sidebar for Desktop */}

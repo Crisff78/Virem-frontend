@@ -247,6 +247,69 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     }
   }, [roomCanJoin, roomReadyPulse]);
 
+  // ── Reprogramar cita ──
+  const [rescheduling, setRescheduling] = useState(false);
+
+  const doReschedule = useCallback(async (hoursAhead: number) => {
+    if (!nextCita?.citaid) return;
+    setRescheduling(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        Alert.alert('Sesión expirada', 'Inicia sesión nuevamente.');
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
+      }
+
+      const currentStart = nextCita.fechaHoraInicio ? new Date(nextCita.fechaHoraInicio) : new Date();
+      const newStart = new Date(currentStart.getTime() + hoursAhead * 60 * 60 * 1000);
+
+      const response = await fetch(apiUrl(`/api/agenda/me/citas/${nextCita.citaid}/reprogramar`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fechaHoraInicio: newStart.toISOString(),
+          motivo: `Reprogramada desde sala de espera (+${hoursAhead}h)`,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) {
+        Alert.alert('No se pudo reprogramar', payload?.message || 'Intenta nuevamente.');
+        return;
+      }
+
+      const newDateStr = formatDateTime(payload?.cita?.fechaHoraInicio || newStart.toISOString());
+      Alert.alert(
+        'Cita reprogramada ✓',
+        `Tu nueva cita es para: ${newDateStr}`,
+        [{ text: 'Ver mis citas', onPress: () => navigation.navigate('PacienteCitas') }]
+      );
+    } catch {
+      Alert.alert('Error', 'No se pudo conectar para reprogramar la cita.');
+    } finally {
+      setRescheduling(false);
+    }
+  }, [nextCita, navigation]);
+
+  const handleReschedule = useCallback(() => {
+    if (!nextCita?.citaid) {
+      navigation.navigate('PacienteCitas');
+      return;
+    }
+    Alert.alert(
+      'Reprogramar cita',
+      '¿Cuándo deseas reagendar tu consulta?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Mañana (+24h)', onPress: () => doReschedule(24) },
+        { text: 'Pasado mañana (+48h)', onPress: () => doReschedule(48) },
+      ]
+    );
+  }, [nextCita, doReschedule, navigation]);
+
   useEffect(() => {
     const loadNextCita = async () => {
       setLoadingCita(true);
@@ -682,9 +745,9 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                 <View style={styles.timeoutCard}>
                   <Text style={styles.timeoutMsg}>Puedes reprogramar tu cita o contactar a soporte si necesitas ayuda.</Text>
                   <View style={styles.timeoutActions}>
-                    <TouchableOpacity style={styles.timeoutBtnPrimary} onPress={() => navigation.navigate('PacienteCitas')} activeOpacity={0.8}>
+                    <TouchableOpacity style={[styles.timeoutBtnPrimary, rescheduling && { opacity: 0.5 }]} onPress={handleReschedule} activeOpacity={0.8} disabled={rescheduling}>
                       <MaterialIcons name="event" size={14} color="#fff" />
-                      <Text style={styles.timeoutBtnPrimaryText}>Reprogramar</Text>
+                      <Text style={styles.timeoutBtnPrimaryText}>{rescheduling ? 'Reprogramando...' : 'Reprogramar'}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.timeoutBtnSecondary} activeOpacity={0.8}>
                       <MaterialIcons name="support-agent" size={14} color={colors.primary} />

@@ -1,13 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  LayoutAnimation,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -87,6 +89,17 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
   const [backendDoctors, setBackendDoctors] = useState<Doctor[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // Enable LayoutAnimation on Android
+  if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+
+  const toggleFilters = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setFiltersOpen(prev => !prev);
+  };
 
   const rs = (size: number) => size; // Simple responsive size mock for now
 
@@ -176,6 +189,11 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
 
   const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
   const { isDesktop: isDesktopLayout } = useResponsive();
+  
+  // Dedicated close function to avoid toggle-on-close race conditions
+  const closeSidebar = useCallback(() => {
+    if (isSidebarOpen) toggleSidebar();
+  }, [isSidebarOpen, toggleSidebar]);
 
   return (
     <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
@@ -183,7 +201,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
         <PacienteSidebar
           isMobileMenuOpen={isSidebarOpen}
           onToggleMobileMenu={toggleSidebar}
-          onCloseMobileMenu={toggleSidebar}
+          onCloseMobileMenu={closeSidebar}
         />
       )}
       <View style={{ flex: 1 }}>
@@ -242,6 +260,19 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
 
         <View style={[styles.layoutRow, !isDesktopLayout && styles.layoutRowMobile]}>
           <View style={[styles.filtersCol, !isDesktopLayout && styles.filtersColMobile]}>
+            {/* Collapsible toggle button — available on all screen sizes */}
+            <TouchableOpacity
+              style={styles.filtersToggleBtn}
+              onPress={toggleFilters}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="tune" size={18} color={colors.primary} />
+              <Text style={styles.filtersToggleText}>{filtersOpen ? 'Ocultar filtros' : 'Mostrar filtros'}</Text>
+              <MaterialIcons name={filtersOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'} size={20} color={colors.primary} />
+            </TouchableOpacity>
+
+            {/* Filters content - shown only when toggled open */}
+            {filtersOpen && (
             <View style={styles.filtersCard}>
               <View style={styles.filtersHeader}>
                 <Text style={styles.filtersTitle}>Filtros</Text>
@@ -279,6 +310,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
                 <Text style={styles.optionText}>4.0 +</Text>
               </TouchableOpacity>
             </View>
+            )}
           </View>
 
           <View style={styles.resultsCol}>
@@ -501,10 +533,32 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  layoutRow: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
+  layoutRow: { flexDirection: 'column', gap: 12, alignItems: 'stretch' },
   layoutRowMobile: { flexDirection: 'column' },
-  filtersCol: { width: 240 },
-  filtersColMobile: { width: '100%' },
+  filtersCol: { width: '100%' },
+  filtersColMobile: { width: '100%', marginBottom: 10 },
+  filtersToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e4edf6',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  filtersToggleText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '800',
+  },
   resultsCol: { flex: 1 },
 
   filtersCard: {
