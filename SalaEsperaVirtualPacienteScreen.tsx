@@ -171,7 +171,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const signaler = useCallSignaler();
   const IS_WEB = Platform.OS === 'web';
   const initiate = false;
-  const { state, emitSignal, pc } = useWebRTCCall(selectedCitaId, initiate);
+  const { state } = useWebRTCCall(selectedCitaId, initiate);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -351,15 +351,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
           setNextCita(chosen);
           
           const cleanCitaId = String(chosen?.citaid || '').trim();
-          if (cleanCitaId && !initiate) {
-            emitSignal('rtc:ready', { citaId: cleanCitaId });
-            setTimeout(() => {
-              if (state !== 'live' && state !== 'ended') {
-                console.log('[WebRTC] Retrying rtc:ready...');
-                emitSignal('rtc:ready', { citaId: cleanCitaId });
-              }
-            }, 3000);
-          }
+          // Zego manejará la sincronización automáticamente al entrar
         } else {
           setUpcomingCitas([]);
           setSelectedCitaId('');
@@ -461,9 +453,10 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     }).start();
 
     // Sound notification (using browser beep if possible or just visual pulse)
-    if (Platform.OS === 'web') {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && (window.AudioContext || (window as any).webkitAudioContext)) {
       try {
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        const ctx = new AudioCtx();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
@@ -963,18 +956,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                           key={camera.id}
                           style={[styles.selectOption, selectedCameraId === camera.id && styles.selectOptionActive]}
                           onPress={() => {
-                            // ICE → relay via socket
-                            if (pc) {
-                              pc.onicecandidate = (e) => {
-                                if (e.candidate) {
-                                  emitSignal('rtc:ice', { 
-                                    citaId: selectedCitaId, 
-                                    candidate: e.candidate.toJSON(),
-                                    fromRole: IS_WEB ? 'web' : 'native'
-                                  });
-                                }
-                              };
-                            }
+                            // Con Zego no necesitamos gestionar candidatos ICE manualmente
                             setSelectedCameraId(camera.id);
                             setOpenSelect(null);
                           }}
