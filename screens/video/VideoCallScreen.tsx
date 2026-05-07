@@ -186,6 +186,7 @@ const VideoCallScreen: React.FC = () => {
         enabled={Boolean(call.remoteStreamId || call.remoteStream)}
         avatarLabel={waitingLabel}
         fullscreen
+        fit="contain"
       />
 
       {/* ── "La consulta finalizará en 5 min" warning ── */}

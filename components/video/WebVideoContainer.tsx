@@ -20,6 +20,8 @@ type Props = {
   avatarLabel?: string;
   /** Si false, muestra avatar aunque haya stream (cámara apagada). */
   enabled?: boolean;
+  /** Ajuste del video: 'cover' (llena) o 'contain' (completo sin recorte). */
+  fit?: 'cover' | 'contain';
 };
 
 const WebVideoContainer: React.FC<Props> = ({
@@ -28,6 +30,7 @@ const WebVideoContainer: React.FC<Props> = ({
   fullscreen = false,
   avatarLabel,
   enabled = true,
+  fit = 'cover',
 }) => {
   const containerRef = useRef<any>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -59,7 +62,7 @@ const WebVideoContainer: React.FC<Props> = ({
       video.playsInline = true;
       video.style.width = '100%';
       video.style.height = '100%';
-      video.style.objectFit = 'cover';
+      video.style.objectFit = fit;
       video.style.display = 'block';
       video.style.background = '#000';
       domNode.appendChild(video);
@@ -75,19 +78,22 @@ const WebVideoContainer: React.FC<Props> = ({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
     video.muted = muted;
+    video.style.objectFit = fit;
+
     if (stream && enabled) {
       if (video.srcObject !== stream) {
         video.srcObject = stream;
         // Ensure play is called and state is updated
-        video.play().catch(e => console.warn('[WebVideo] play error:', e));
+        video.play().catch((e) => console.warn('[WebVideo] play error:', e));
       }
       video.style.display = 'block';
     } else {
       video.srcObject = null;
       video.style.display = 'none';
     }
-  }, [stream, muted, enabled]);
+  }, [stream, muted, enabled, fit]);
 
   // Limpiar al desmontar
   useEffect(() => {

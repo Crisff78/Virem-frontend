@@ -15,6 +15,8 @@ type Props = {
   enabled: boolean;
   fullscreen?: boolean;
   avatarLabel?: string;
+  /** Ajuste del video: 'cover' (llena) o 'contain' (completo). Solo web. */
+  fit?: 'cover' | 'contain';
 };
 
 // ── Componente nativo Zego (solo iOS/Android) ─────────────────────────────
@@ -121,6 +123,7 @@ const VideoContainer: React.FC<Props> = ({
   enabled,
   fullscreen,
   avatarLabel,
+  fit,
 }) => {
   // ── Web: usa MediaStream nativo del navegador ─────────────────────────
   if (Platform.OS === 'web') {
@@ -131,6 +134,7 @@ const VideoContainer: React.FC<Props> = ({
         fullscreen={fullscreen}
         avatarLabel={avatarLabel}
         enabled={enabled}
+        fit={fit}
       />
     );
   }

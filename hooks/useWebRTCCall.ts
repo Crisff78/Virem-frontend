@@ -164,77 +164,79 @@ export function useWebRTCCall(
     [cleanCitaId, emitSignal]
   );
 
-  // ── Socket: rtc:ready — receptor listo, el iniciador crea el offer ────────
-  useSocketEvent<{ fromRole?: string }>(
-    'rtc:ready',
-    async () => {
-      if (!IS_WEB || !initiate || !pcRef.current) return;
-      try {
-        const offer = await pcRef.current.createOffer();
-        await pcRef.current.setLocalDescription(offer);
-        pendingOfferRef.current = offer;
-        emitSignal('rtc:offer', { citaId: cleanCitaId, offer });
-      } catch (err) {
-        console.warn('[WebRTC] rtc:ready → createOffer error:', err);
-      }
-    },
-    IS_WEB && !!cleanCitaId && initiate
-  );
+  // ── Signaling Handlers ───────────────────────────────────────────────────
+  
+  const onRtcReady = useCallback(async () => {
+    if (!IS_WEB || !initiate || !pcRef.current) return;
+    console.log('[WebRTC] Received rtc:ready, creating offer...');
+    try {
+      const offer = await pcRef.current.createOffer();
+      await pcRef.current.setLocalDescription(offer);
+      emitSignal('rtc:offer', { citaId: cleanCitaId, offer });
+    } catch (err) {
+      console.warn('[WebRTC] rtc:ready → createOffer error:', err);
+    }
+  }, [IS_WEB, initiate, cleanCitaId, emitSignal]);
 
-  // ── Socket: rtc:offer — receptor recibe el offer y devuelve answer ────────
-  useSocketEvent<{ offer: RTCSessionDescriptionInit; fromRole?: string }>(
-    'rtc:offer',
-    async (payload) => {
-      if (!IS_WEB || !payload?.offer || !cleanCitaId || !pcRef.current) return;
-      const pc = pcRef.current;
-      try {
-        await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
-        remoteDescSetRef.current = true;
-        await flushICEQueue(pc);
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        emitSignal('rtc:answer', { citaId: cleanCitaId, answer });
-        if (payload.fromRole) {
-          setRemoteUserName(payload.fromRole === 'medico' ? 'Tu médico' : 'Tu paciente');
-        }
-        setState('connecting');
-      } catch (err) {
-        console.warn('[WebRTC] rtc:offer handler error:', err);
-        setError('Error al establecer la conexión de video.');
-        setState('error');
+  const onRtcOffer = useCallback(async (payload: any) => {
+    if (!IS_WEB || !payload?.offer || !cleanCitaId || !pcRef.current) return;
+    if (initiate) return; // Initiator shouldn't receive offer
+    
+    console.log('[WebRTC] Received offer, creating answer...');
+    try {
+      await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
+      remoteDescSetRef.current = true;
+      await flushICEQueue(pcRef.current);
+      
+      const answer = await pcRef.current.createAnswer();
+      await pcRef.current.setLocalDescription(answer);
+      emitSignal('rtc:answer', { citaId: cleanCitaId, answer });
+      
+      if (payload.fromRole) {
+        setRemoteUserName(payload.fromRole === 'medico' ? 'Tu médico' : 'Tu paciente');
       }
-    },
-    IS_WEB && !!cleanCitaId && !initiate
-  );
+      setState('connecting');
+    } catch (err) {
+      console.warn('[WebRTC] rtc:offer handler error:', err);
+      setError('Error al establecer la conexión de video.');
+      setState('error');
+    }
+  }, [IS_WEB, cleanCitaId, initiate, emitSignal, flushICEQueue]);
 
-  // ── Socket: rtc:answer — iniciador recibe el answer ──────────────────────
-  useSocketEvent<{ answer: RTCSessionDescriptionInit; fromRole?: string }>(
-    'rtc:answer',
-    async (payload) => {
-      if (!IS_WEB || !payload?.answer || !pcRef.current) return;
-      try {
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
-        remoteDescSetRef.current = true;
-        await flushICEQueue(pcRef.current);
-        if (payload.fromRole) {
-          setRemoteUserName(payload.fromRole === 'medico' ? 'Tu médico' : 'Tu paciente');
-        }
-      } catch (err) {
-        console.warn('[WebRTC] rtc:answer handler error:', err);
+  const onRtcAnswer = useCallback(async (payload: any) => {
+    if (!IS_WEB || !payload?.answer || !pcRef.current) return;
+    console.log('[WebRTC] Received answer, setting remote description...');
+    try {
+      await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+      remoteDescSetRef.current = true;
+      await flushICEQueue(pcRef.current);
+      if (payload.fromRole) {
+        setRemoteUserName(payload.fromRole === 'medico' ? 'Tu médico' : 'Tu paciente');
       }
-    },
-    IS_WEB && !!cleanCitaId && initiate
-  );
+    } catch (err) {
+      console.warn('[WebRTC] rtc:answer handler error:', err);
+    }
+  }, [IS_WEB, flushICEQueue]);
 
-  // ── Socket: rtc:ice — agregar candidato ICE ───────────────────────────────
-  useSocketEvent<{ candidate: RTCIceCandidateInit }>(
-    'rtc:ice',
-    async (payload) => {
-      if (!IS_WEB || !payload?.candidate) return;
-      await addIceCandidate(payload.candidate);
-    },
-    IS_WEB && !!cleanCitaId
-  );
+  const onRtcIce = useCallback(async (payload: any) => {
+    if (!IS_WEB || !payload?.candidate) return;
+    await addIceCandidate(payload.candidate);
+  }, [IS_WEB, addIceCandidate]);
+
+  const onCallIncoming = useCallback(() => {
+    if (!IS_WEB || initiate || !pcRef.current) return;
+    // The other party (initiator) just joined or re-sent an invitation.
+    // If we are already in the call screen, let's signal we are ready.
+    console.log('[WebRTC] Received call:incoming, sending rtc:ready...');
+    emitSignal('rtc:ready', { citaId: cleanCitaId });
+  }, [IS_WEB, initiate, cleanCitaId, emitSignal]);
+
+  useSocketEvent('rtc:ready', onRtcReady, IS_WEB && !!cleanCitaId && initiate);
+  useSocketEvent('rtc:offer', onRtcOffer, IS_WEB && !!cleanCitaId && !initiate);
+  useSocketEvent('rtc:answer', onRtcAnswer, IS_WEB && !!cleanCitaId && initiate);
+  useSocketEvent('rtc:ice', onRtcIce, IS_WEB && !!cleanCitaId);
+  useSocketEvent('call:incoming', onCallIncoming, IS_WEB && !!cleanCitaId && !initiate);
+  useSocketEvent('call:accepted', onRtcReady, IS_WEB && !!cleanCitaId && initiate);
 
   // ── Socket: la otra punta cuelga ─────────────────────────────────────────
   useSocketEvent<{ citaId?: string }>(
@@ -324,15 +326,13 @@ export function useWebRTCCall(
       if (initiate) {
         emitSignal('call:invite', { citaId: cleanCitaId });
       } else {
-        // Emit ready, then retry once after 3s if no offer received (mutual visibility fix)
+        // Emit ready immediately
         emitSignal('rtc:ready', { citaId: cleanCitaId });
-        setTimeout(() => {
-          // If after 3 seconds we are still not live, the initiator might have missed the first 'ready'
-          if (pcRef.current && !remoteDescSetRef.current) {
-            console.log('[WebRTC] Retrying rtc:ready...');
-            emitSignal('rtc:ready', { citaId: cleanCitaId });
-          }
-        }, 3000);
+      }
+
+      // 5. Unirse al cuarto de socket para asegurar recepción de mensajes
+      if (socket) {
+        socket.emit('join:cita', cleanCitaId);
       }
     } catch (err: any) {
       const msg =
@@ -342,8 +342,27 @@ export function useWebRTCCall(
       setError(msg);
       setState('error');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleanCitaId, initiate, buildPC, emitSignal]);
+
+  // ── Signaling Retry Loop ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!IS_WEB || !cleanCitaId || state === 'live' || state === 'ended') return;
+    
+    const interval = setInterval(() => {
+      // If we are not yet connected, keep signaling presence
+      if (!remoteDescSetRef.current && pcRef.current) {
+        if (initiate) {
+          console.log('[WebRTC] Periodic call:invite retry...');
+          emitSignal('call:invite', { citaId: cleanCitaId });
+        } else {
+          console.log('[WebRTC] Periodic rtc:ready retry...');
+          emitSignal('rtc:ready', { citaId: cleanCitaId });
+        }
+      }
+    }, 4000); // Every 4 seconds until connected
+
+    return () => clearInterval(interval);
+  }, [IS_WEB, cleanCitaId, state, initiate, emitSignal]);
 
   // ── end ───────────────────────────────────────────────────────────────────
   const end = useCallback(

@@ -502,6 +502,9 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
   const enterVideoRoom = () => {
     if (!nextCita?.citaid) return;
+    // Notify doctor that patient is joining (breaks handshake deadlocks)
+    signaler.accept(nextCita.citaid).catch(() => undefined);
+    
     navigation.navigate('VideoCall', {
       citaId: nextCita.citaid,
       initiate: false // Patients wait for doctors to initiate or just join
