@@ -206,6 +206,7 @@ const VerificarEmailScreen: React.FC = () => {
             ))}
           </View>
 
+<<<<<<< HEAD
           <TouchableOpacity
             style={[styles.verifyButton, isLoading && styles.verifyButtonDisabled]}
             onPress={handleVerifyCode}
@@ -218,6 +219,29 @@ const VerificarEmailScreen: React.FC = () => {
               <Text style={[styles.verifyButtonText, { fontSize: fs(16) }]}>Confirmar Código</Text>
             )}
           </TouchableOpacity>
+=======
+                <View style={styles.otpContainer}>
+                    {otp.map((digit: string, index: number) => (
+                        <TextInput
+                            key={index}
+                            ref={inputRefs.current[index]}
+                            style={[
+                                styles.otpInput, 
+                                { width: otpBoxSize, height: otpBoxSize + 12 },
+                                digit ? styles.otpInputFilled : null
+                            ]}
+                            value={digit}
+                            onChangeText={(text: string) => handleOtpChange(text, index)}
+                            onKeyPress={(e: any) => handleKeyPress(e, index)}
+                            keyboardType="numeric"
+                            maxLength={1}
+                            autoFocus={index === 0}
+                            placeholder="-"
+                            placeholderTextColor={colors.border}
+                        />
+                    ))}
+                </View>
+>>>>>>> feature-cris
 
           <View style={styles.resendContainer}>
             <Text style={[styles.resendLabel, { fontSize: fs(14) }]}>¿No recibiste el correo?</Text>

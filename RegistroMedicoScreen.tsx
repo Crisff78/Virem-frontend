@@ -22,8 +22,6 @@ const RegistroMedicoScreen: React.FC = () => {
 
   const isWideLayout = isDesktop || isTablet;
   const isTabletLayout = isTablet;
-  const isMobileWeb = Platform.OS === "web" && isMobile;
-  const mobileScrollHeight = Math.max(viewportHeight - 64, 320);
 
   return (
     <View style={styles.mainWrapper}>
@@ -43,12 +41,8 @@ const RegistroMedicoScreen: React.FC = () => {
         style={[
           styles.mainContent,
           isWideLayout && styles.mainContentWide,
-          isMobileWeb && ({ flex: 0, height: mobileScrollHeight } as any),
         ]}
-        contentContainerStyle={[
-          styles.mainContentContainer,
-          isMobileWeb && styles.mainContentContainerMobileWeb,
-        ]}
+        contentContainerStyle={styles.mainContentContainer}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.contentWrapper}>
@@ -58,7 +52,7 @@ const RegistroMedicoScreen: React.FC = () => {
             <Text style={styles.breadcrumbCurrent}>Registro de Médico</Text>
           </View>
 
-          <View style={{ gap: 8, alignItems: "center" }}>
+          <View style={{ gap: 8, alignItems: "center", marginBottom: 24 }}>
             <Text style={styles.pageTitle}>Nuevo Médico</Text>
           </View>
 

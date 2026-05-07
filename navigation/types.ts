@@ -110,4 +110,17 @@ export type RootStackParamList = {
     description: string;
     image: string;
   };
+
+  /** Videollamada Zego basada en cita */
+  VideoCall: {
+    citaId: string;
+    /** True si este lado es el que inicia (envia call:invite) */
+    initiate?: boolean;
+  };
+  /** Pantalla "telefono sonando" cuando llega una invitacion entrante */
+  IncomingCall: {
+    citaId: string;
+    callerName: string;
+    callerRole: 'medico' | 'paciente';
+  };
 };

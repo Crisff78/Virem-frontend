@@ -17,8 +17,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+<<<<<<< HEAD
+=======
+import type { RootStackParamList } from './navigation/types';
+import MedicoHeader from './components/MedicoHeader';
+>>>>>>> feature-cris
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
+import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 import { useMedicoSessionProfile, type MedicoSessionUser } from './hooks/useMedicoSessionProfile';
 import { useResponsive } from './hooks/useResponsive';
 import { colors } from './theme/colors';
@@ -74,34 +80,32 @@ const formatDateTime = (value: string | null | undefined) => {
 
 const MedicoPacientesScreen: React.FC = () => {
   const navigation = usePortalAwareMedicoNavigation();
-  const { isInsidePortal } = useMedicoModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
   const { signOut } = useAuth();
+<<<<<<< HEAD
   const { sessionUser, syncProfile } = useMedicoSessionProfile();
   const { fs, rs, isDesktop, isTablet, isMobile } = useResponsive();
   
   const [user, setUser] = useState<MedicoSessionUser | null>(sessionUser);
   const [loadingUser, setLoadingUser] = useState(true);
+=======
+  const { loadingUser, refreshUser, doctorName, doctorSpec, fotoUrl } =
+    useMedicoPortalSession({ syncOnMount: true, addDoctorPrefix: true });
+
+>>>>>>> feature-cris
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [patients, setPatients] = useState<PatientRow[]>([]);
 
-  useEffect(() => {
-    if (sessionUser) {
-      setUser(sessionUser);
-      setLoadingUser(false);
-    }
-  }, [sessionUser]);
+
 
   const loadUser = useCallback(async () => {
     try {
-      const nextUser = (await syncProfile()) as MedicoSessionUser | null;
-      setUser(nextUser);
+      await refreshUser();
     } catch {
-      setUser(null);
-    } finally {
-      setLoadingUser(false);
+      // noop
     }
-  }, [syncProfile]);
+  }, [refreshUser]);
 
   const loadPatients = useCallback(async () => {
     setLoadingPatients(true);
@@ -174,6 +178,14 @@ const MedicoPacientesScreen: React.FC = () => {
     }, [loadPatients, loadUser])
   );
 
+<<<<<<< HEAD
+=======
+  const userAvatarSource: ImageSourcePropType = useMemo(() => {
+    if (fotoUrl) return { uri: fotoUrl };
+    return DefaultAvatar;
+  }, [fotoUrl]);
+
+>>>>>>> feature-cris
   const filteredPatients = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
     if (!q) return patients;
@@ -220,6 +232,7 @@ const MedicoPacientesScreen: React.FC = () => {
   }
 
   return (
+<<<<<<< HEAD
     <View style={styles.container}>
       <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: spacing.xl }}>
         <View style={styles.headerWrap}>
@@ -236,6 +249,11 @@ const MedicoPacientesScreen: React.FC = () => {
             </View>
           </View>
         </View>
+=======
+    <View style={{ flex: 1 }}>
+        <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+          <MedicoHeader title="Mis Pacientes" />
+>>>>>>> feature-cris
 
         <View style={styles.kpiGrid}>
           <View style={styles.kpiCard}>
@@ -321,8 +339,8 @@ const MedicoPacientesScreen: React.FC = () => {
             <Text style={styles.emptyText}>No se encontraron pacientes.</Text>
           )}
         </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
   );
 };
 
@@ -339,11 +357,73 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+<<<<<<< HEAD
   main: { flex: 1 },
   headerWrap: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
+=======
+  sidebar: {
+    width: Platform.OS === 'web' ? 280 : '100%',
+    backgroundColor: colors.white,
+    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
+    borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
+    borderRightColor: '#eef2f7',
+    borderBottomColor: '#eef2f7',
+    padding: Platform.OS === 'web' ? 20 : 14,
+    justifyContent: 'space-between',
+  },
+  logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logo: { width: 44, height: 44, resizeMode: 'contain' },
+  logoTitle: { color: colors.dark, fontSize: 20, fontWeight: '800' },
+  logoSub: { color: colors.muted, fontSize: 11, fontWeight: '700' },
+  userCard: { alignItems: 'center', marginTop: 18, marginBottom: 10 },
+  userAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 80,
+    borderWidth: 4,
+    borderColor: '#f0f4f9',
+    marginBottom: 10,
+  },
+  userName: { color: colors.dark, fontSize: 16, fontWeight: '800', textAlign: 'center' },
+  userSpec: { color: colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 2 },
+  menu: { marginTop: 12, gap: 6 },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  menuItemActive: { backgroundColor: 'rgba(19,127,236,0.12)' },
+  menuText: { color: colors.muted, fontSize: 14, fontWeight: '700' },
+  menuTextActive: { color: colors.primary, fontWeight: '800' },
+  badge: {
+    marginLeft: 'auto',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  logoutBtn: {
+    marginTop: 16,
+    backgroundColor: colors.blue,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  logoutText: { color: '#fff', fontWeight: '800' },
+  main: { flex: 1, paddingHorizontal: 20 },
+  headerWrap: {
+    paddingTop: Platform.OS === 'web' ? 32 : 14,
+    paddingBottom: 12,
+>>>>>>> feature-cris
   },
   headerRow: {
     flexDirection: 'row',
@@ -364,7 +444,10 @@ const styles = StyleSheet.create({
   pageSubtitle: { color: colors.muted, marginTop: 4, fontWeight: '600' },
   
   kpiGrid: {
+<<<<<<< HEAD
     paddingHorizontal: spacing.md,
+=======
+>>>>>>> feature-cris
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
@@ -389,7 +472,10 @@ const styles = StyleSheet.create({
   kpiValue: { color: colors.dark, fontWeight: '900', marginTop: 2 },
   
   searchWrap: {
+<<<<<<< HEAD
     marginHorizontal: spacing.md,
+=======
+>>>>>>> feature-cris
     backgroundColor: '#fff',
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -404,9 +490,14 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, color: colors.dark, fontSize: 14, fontWeight: '600', paddingVertical: 8 },
   
   sectionHead: {
+<<<<<<< HEAD
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
+=======
+    marginTop: 12,
+    marginBottom: 8,
+>>>>>>> feature-cris
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -415,7 +506,10 @@ const styles = StyleSheet.create({
   sectionCount: { color: colors.muted, fontSize: 12, fontWeight: '800' },
   
   sectionCard: {
+<<<<<<< HEAD
     marginHorizontal: spacing.md,
+=======
+>>>>>>> feature-cris
     backgroundColor: '#fff',
     borderRadius: radii.xl,
     borderWidth: 1,

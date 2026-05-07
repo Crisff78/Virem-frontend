@@ -4,6 +4,8 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
 import { useWindowDimensions } from 'react-native';
+import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
+import MedicoHeader from './components/MedicoHeader';
 import { apiClient } from './utils/api';
 
 const colors = {
@@ -39,7 +41,8 @@ const formatDate = (isoString: string) => {
 };
 
 const MedicoHorariosScreen: React.FC = () => {
-  const { isInsidePortal } = useMedicoModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
+  const { doctorName } = useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
   const navigation = usePortalAwareMedicoNavigation();
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
@@ -235,9 +238,242 @@ const MedicoHorariosScreen: React.FC = () => {
     }
   };
 
+
+
+  const renderContent = () => {
+    if (viewMode === 'recurring') {
+      return (
+        <View style={styles.recurringContainer}>
+          <View style={styles.cardHeader}>
+            <MaterialIcons name="auto-awesome" size={24} color={colors.primary} />
+            <View>
+              <Text style={styles.cardTitle}>Configuración Semanal Recurrente</Text>
+              <Text style={styles.cardSubtitle}>Define tu horario estándar para generar los próximos 30 días automáticamente.</Text>
+            </View>
+          </View>
+
+          <View style={styles.patternGrid}>
+            {weeklyPattern.map((day) => (
+              <View key={day.dayOfWeek} style={[styles.dayRow, !day.active && styles.dayRowInactive]}>
+                <TouchableOpacity style={styles.daySelect} onPress={() => toggleDay(day.dayOfWeek)}>
+                  <MaterialIcons 
+                    name={day.active ? "check-circle" : "radio-button-unchecked"} 
+                    size={24} 
+                    color={day.active ? colors.primary : colors.muted} 
+                  />
+                  <Text style={[styles.dayName, day.active && styles.dayNameActive]}>{dayNames[day.dayOfWeek]}</Text>
+                </TouchableOpacity>
+
+                {day.active && (
+                  <View style={styles.dayTimes}>
+                    <TextInput 
+                      style={styles.timeInput} 
+                      value={day.start} 
+                      onChangeText={(v) => updateDayTime(day.dayOfWeek, 'start', v)} 
+                      placeholder="08:00"
+                    />
+                    <Text style={styles.timeSep}>-</Text>
+                    <TextInput 
+                      style={styles.timeInput} 
+                      value={day.end} 
+                      onChangeText={(v) => updateDayTime(day.dayOfWeek, 'end', v)} 
+                      placeholder="17:00"
+                    />
+                  </View>
+                )}
+                {!day.active && (
+                  <Text style={styles.inactiveText}>No laborable</Text>
+                )}
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.configFooter}>
+            <View style={styles.configInputGroup}>
+              <Text style={styles.configLabel}>Modalidad</Text>
+              <View style={styles.miniSegmented}>
+                {['virtual', 'presencial', 'ambas'].map(m => (
+                  <TouchableOpacity 
+                    key={m} 
+                    style={[styles.miniSegBtn, modalidad === m && styles.miniSegBtnActive]}
+                    onPress={() => setModalidad(m)}
+                  >
+                    <Text style={[styles.miniSegText, modalidad === m && styles.miniSegTextActive]}>{m}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            
+            <TouchableOpacity style={styles.generateBtn} onPress={handleGenerarRecurrente} disabled={generating}>
+              {generating ? <ActivityIndicator color="#fff" /> : <Text style={styles.generateBtnText}>Generar Agenda (30 días)</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <>
+        {showForm && (
+          <View style={styles.formContainer}>
+            <View style={styles.formHeader}>
+              <Text style={styles.sectionTitle}>Nueva Disponibilidad</Text>
+              <TouchableOpacity onPress={() => setShowForm(false)}>
+                <MaterialIcons name="close" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Fecha</Text>
+                <View style={styles.quickSelectRow}>
+                  <TouchableOpacity style={styles.quickBtn} onPress={() => setQuickDate('today')}>
+                    <Text style={styles.quickBtnText}>Hoy</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.quickBtn} onPress={() => setQuickDate('tomorrow')}>
+                    <Text style={styles.quickBtnText}>Mañana</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <TextInput 
+                style={styles.input} 
+                value={fecha} 
+                onChangeText={setFecha} 
+                placeholder="YYYY-MM-DD" 
+                keyboardType="numbers-and-punctuation"
+              />
+            </View>
+
+            <View style={styles.rowInputs}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Inicio (HH:MM)</Text>
+                <TextInput style={styles.input} value={horaInicio} onChangeText={setHoraInicio} placeholder="08:00" />
+                <View style={styles.timePresets}>
+                  {['08:00', '09:00', '14:00'].map(t => (
+                    <TouchableOpacity key={t} style={styles.miniBtn} onPress={() => setHoraInicio(t)}>
+                      <Text style={styles.miniBtnText}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Fin (HH:MM)</Text>
+                <TextInput style={styles.input} value={horaFin} onChangeText={setHoraFin} placeholder="13:00" />
+                <View style={styles.timePresets}>
+                  {['12:00', '13:00', '18:00'].map(t => (
+                    <TouchableOpacity key={t} style={styles.miniBtn} onPress={() => setHoraFin(t)}>
+                      <Text style={styles.miniBtnText}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Modalidad de atención</Text>
+              <View style={styles.segmentedControl}>
+                {['virtual', 'presencial', 'ambas'].map((m) => (
+                  <TouchableOpacity 
+                    key={m}
+                    style={[styles.segmentBtn, modalidad === m && styles.segmentBtnActive]}
+                    onPress={() => setModalidad(m)}
+                  >
+                    <Text style={[styles.segmentText, modalidad === m && styles.segmentTextActive]}>
+                      {m.charAt(0).toUpperCase() + m.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Duración de cada cita (minutos)</Text>
+              <View style={styles.chipsRow}>
+                {['15', '20', '30', '45', '60'].map((s) => (
+                  <TouchableOpacity 
+                    key={s}
+                    style={[styles.chip, slot === s && styles.chipActive]}
+                    onPress={() => setSlot(s)}
+                  >
+                    <Text style={[styles.chipText, slot === s && styles.chipTextActive]}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TextInput 
+                  style={[styles.chipInput, !['15','20','30','45','60'].includes(slot) && styles.chipActive]} 
+                  value={['15','20','30','45','60'].includes(slot) ? "" : slot}
+                  onChangeText={setSlot}
+                  placeholder="Otro"
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.submitBtn} onPress={handleAgregar} disabled={guardando}>
+              {guardando ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.submitBtnText}>Confirmar Horario</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.listContainer}>
+          {loading ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ padding: 40 }} />
+          ) : horarios.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <MaterialIcons name="event-busy" size={40} color={colors.muted} />
+              <Text style={styles.emptyText}>No tienes horarios configurados</Text>
+              <Text style={styles.emptySub}>Los pacientes no podrán agendar citas contigo hasta que agregues disponibilidad.</Text>
+            </View>
+          ) : (
+            horarios.map((h) => (
+              <View key={h.id} style={[styles.row, h.bloqueado && styles.rowBlocked]}>
+                <View style={styles.rowLeft}>
+                  <View style={[styles.iconBox, { backgroundColor: h.bloqueado ? '#fee2e2' : '#dcfce7' }]}>
+                    <MaterialIcons name={h.bloqueado ? 'lock' : 'event-available'} size={24} color={h.bloqueado ? colors.red : colors.green} />
+                  </View>
+                  <View>
+                    <Text style={[styles.dateText, h.bloqueado && { color: colors.muted }]}>
+                      {formatDate(h.fechaInicio)}
+                    </Text>
+                    <Text style={styles.timeText}>
+                      {formatTime(h.fechaInicio)} - {formatTime(h.fechaFin)}
+                    </Text>
+                    <View style={styles.badgesRow}>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{h.modalidad}</Text>
+                      </View>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{h.slotMinutos} min</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                <TouchableOpacity 
+                  style={[styles.toggleBtn, h.bloqueado ? styles.toggleBtnUnblock : styles.toggleBtnBlock]}
+                  onPress={() => handleBloquear(h.id, h.bloqueado)}
+                >
+                  <Text style={[styles.toggleBtnText, h.bloqueado && { color: colors.primary }]}>
+                    {h.bloqueado ? 'Desbloquear' : 'Bloquear'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
+      </>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+        <MedicoHeader title="Mis Horarios" />
+      </View>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20 }]}>
         
         <View style={styles.header}>
           <View>
@@ -264,227 +500,7 @@ const MedicoHorariosScreen: React.FC = () => {
           </View>
         </View>
 
-        {viewMode === 'recurring' ? (
-          <View style={styles.recurringContainer}>
-            <View style={styles.cardHeader}>
-              <MaterialIcons name="auto-awesome" size={24} color={colors.primary} />
-              <View>
-                <Text style={styles.cardTitle}>Configuración Semanal Recurrente</Text>
-                <Text style={styles.cardSubtitle}>Define tu horario estándar para generar los próximos 30 días automáticamente.</Text>
-              </View>
-            </View>
-
-            <View style={styles.patternGrid}>
-              {weeklyPattern.map((day) => (
-                <View key={day.dayOfWeek} style={[styles.dayRow, !day.active && styles.dayRowInactive]}>
-                  <TouchableOpacity style={styles.daySelect} onPress={() => toggleDay(day.dayOfWeek)}>
-                    <MaterialIcons 
-                      name={day.active ? "check-circle" : "radio-button-unchecked"} 
-                      size={24} 
-                      color={day.active ? colors.primary : colors.muted} 
-                    />
-                    <Text style={[styles.dayName, day.active && styles.dayNameActive]}>{dayNames[day.dayOfWeek]}</Text>
-                  </TouchableOpacity>
-
-                  {day.active && (
-                    <View style={styles.dayTimes}>
-                      <TextInput 
-                        style={styles.timeInput} 
-                        value={day.start} 
-                        onChangeText={(v) => updateDayTime(day.dayOfWeek, 'start', v)} 
-                        placeholder="08:00"
-                      />
-                      <Text style={styles.timeSep}>-</Text>
-                      <TextInput 
-                        style={styles.timeInput} 
-                        value={day.end} 
-                        onChangeText={(v) => updateDayTime(day.dayOfWeek, 'end', v)} 
-                        placeholder="17:00"
-                      />
-                    </View>
-                  )}
-                  {!day.active && (
-                    <Text style={styles.inactiveText}>No laborable</Text>
-                  )}
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.configFooter}>
-              <View style={styles.configInputGroup}>
-                <Text style={styles.configLabel}>Modalidad</Text>
-                <View style={styles.miniSegmented}>
-                  {['virtual', 'presencial', 'ambas'].map(m => (
-                    <TouchableOpacity 
-                      key={m} 
-                      style={[styles.miniSegBtn, modalidad === m && styles.miniSegBtnActive]}
-                      onPress={() => setModalidad(m)}
-                    >
-                      <Text style={[styles.miniSegText, modalidad === m && styles.miniSegTextActive]}>{m}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-              
-              <TouchableOpacity style={styles.generateBtn} onPress={handleGenerarRecurrente} disabled={generating}>
-                {generating ? <ActivityIndicator color="#fff" /> : <Text style={styles.generateBtnText}>Generar Agenda (30 días)</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <>
-            {showForm && (
-              <View style={styles.formContainer}>
-                <View style={styles.formHeader}>
-                  <Text style={styles.sectionTitle}>Nueva Disponibilidad</Text>
-                  <TouchableOpacity onPress={() => setShowForm(false)}>
-                    <MaterialIcons name="close" size={20} color={colors.muted} />
-                  </TouchableOpacity>
-                </View>
-                
-                <View style={styles.inputGroup}>
-                  <View style={styles.labelRow}>
-                    <Text style={styles.label}>Fecha</Text>
-                    <View style={styles.quickSelectRow}>
-                      <TouchableOpacity style={styles.quickBtn} onPress={() => setQuickDate('today')}>
-                        <Text style={styles.quickBtnText}>Hoy</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.quickBtn} onPress={() => setQuickDate('tomorrow')}>
-                        <Text style={styles.quickBtnText}>Mañana</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  <TextInput 
-                    style={styles.input} 
-                    value={fecha} 
-                    onChangeText={setFecha} 
-                    placeholder="YYYY-MM-DD" 
-                    keyboardType="numbers-and-punctuation"
-                  />
-                </View>
-
-                <View style={styles.rowInputs}>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.label}>Inicio (HH:MM)</Text>
-                    <TextInput style={styles.input} value={horaInicio} onChangeText={setHoraInicio} placeholder="08:00" />
-                    <View style={styles.timePresets}>
-                      {['08:00', '09:00', '14:00'].map(t => (
-                        <TouchableOpacity key={t} style={styles.miniBtn} onPress={() => setHoraInicio(t)}>
-                          <Text style={styles.miniBtnText}>{t}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.label}>Fin (HH:MM)</Text>
-                    <TextInput style={styles.input} value={horaFin} onChangeText={setHoraFin} placeholder="13:00" />
-                    <View style={styles.timePresets}>
-                      {['12:00', '13:00', '18:00'].map(t => (
-                        <TouchableOpacity key={t} style={styles.miniBtn} onPress={() => setHoraFin(t)}>
-                          <Text style={styles.miniBtnText}>{t}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Modalidad de atención</Text>
-                  <View style={styles.segmentedControl}>
-                    {['virtual', 'presencial', 'ambas'].map((m) => (
-                      <TouchableOpacity 
-                        key={m}
-                        style={[styles.segmentBtn, modalidad === m && styles.segmentBtnActive]}
-                        onPress={() => setModalidad(m)}
-                      >
-                        <Text style={[styles.segmentText, modalidad === m && styles.segmentTextActive]}>
-                          {m.charAt(0).toUpperCase() + m.slice(1)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Duración de cada cita (minutos)</Text>
-                  <View style={styles.chipsRow}>
-                    {['15', '20', '30', '45', '60'].map((s) => (
-                      <TouchableOpacity 
-                        key={s}
-                        style={[styles.chip, slot === s && styles.chipActive]}
-                        onPress={() => setSlot(s)}
-                      >
-                        <Text style={[styles.chipText, slot === s && styles.chipTextActive]}>{s}</Text>
-                      </TouchableOpacity>
-                    ))}
-                    <TextInput 
-                      style={[styles.chipInput, !['15','20','30','45','60'].includes(slot) && styles.chipActive]} 
-                      value={['15','20','30','45','60'].includes(slot) ? "" : slot}
-                      onChangeText={setSlot}
-                      placeholder="Otro"
-                      keyboardType="numeric"
-                    />
-                  </View>
-                </View>
-
-                <TouchableOpacity style={styles.submitBtn} onPress={handleAgregar} disabled={guardando}>
-                  {guardando ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.submitBtnText}>Confirmar Horario</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <View style={styles.listContainer}>
-              {loading ? (
-                <ActivityIndicator size="large" color={colors.primary} style={{ padding: 40 }} />
-              ) : horarios.length === 0 ? (
-                <View style={styles.emptyBox}>
-                  <MaterialIcons name="event-busy" size={40} color={colors.muted} />
-                  <Text style={styles.emptyText}>No tienes horarios configurados</Text>
-                  <Text style={styles.emptySub}>Los pacientes no podrán agendar citas contigo hasta que agregues disponibilidad.</Text>
-                </View>
-              ) : (
-                horarios.map((h) => (
-                  <View key={h.id} style={[styles.row, h.bloqueado && styles.rowBlocked]}>
-                    <View style={styles.rowLeft}>
-                      <View style={[styles.iconBox, { backgroundColor: h.bloqueado ? '#fee2e2' : '#dcfce7' }]}>
-                        <MaterialIcons name={h.bloqueado ? 'lock' : 'event-available'} size={24} color={h.bloqueado ? colors.red : colors.green} />
-                      </View>
-                      <View>
-                        <Text style={[styles.dateText, h.bloqueado && { color: colors.muted }]}>
-                          {formatDate(h.fechaInicio)}
-                        </Text>
-                        <Text style={styles.timeText}>
-                          {formatTime(h.fechaInicio)} - {formatTime(h.fechaFin)}
-                        </Text>
-                        <View style={styles.badgesRow}>
-                          <View style={styles.badge}>
-                            <Text style={styles.badgeText}>{h.modalidad}</Text>
-                          </View>
-                          <View style={styles.badge}>
-                            <Text style={styles.badgeText}>{h.slotMinutos} min</Text>
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-
-                    <TouchableOpacity 
-                      style={[styles.toggleBtn, h.bloqueado ? styles.toggleBtnUnblock : styles.toggleBtnBlock]}
-                      onPress={() => handleBloquear(h.id, h.bloqueado)}
-                    >
-                      <Text style={[styles.toggleBtnText, h.bloqueado && { color: colors.primary }]}>
-                        {h.bloqueado ? 'Desbloquear' : 'Bloquear'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ))
-              )}
-            </View>
-          </>
-        )}
+        {renderContent()}
 
       </ScrollView>
     </View>

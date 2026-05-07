@@ -29,6 +29,8 @@ type SocketContextValue = {
     leaveConversation: (conversationId: string) => void;
     joinCita: (citaId: string) => Promise<SocketJoinAck>;
     leaveCita: (citaId: string) => void;
+    joinAdminMonitoring: () => Promise<SocketJoinAck>;
+    leaveAdminMonitoring: () => void;
 };
 
 const SocketContext = createContext<SocketContextValue | null>(null);
@@ -163,6 +165,35 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         [ensureConnected]
     );
 
+    const joinAdminMonitoring = useCallback(async () => {
+        const nextSocket = await ensureConnected();
+        if (!nextSocket) return { ok: false, code: 'socket_unavailable' } as SocketJoinAck;
+
+        return await new Promise<SocketJoinAck>((resolve) => {
+            let settled = false;
+            const finish = (value: SocketJoinAck) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                resolve(value);
+            };
+
+            const timer = setTimeout(
+                () => finish({ ok: false, code: 'socket_ack_timeout' }),
+                SOCKET_ACK_TIMEOUT_MS
+            );
+
+            nextSocket.emit('join:admin_monitoring', (response: SocketJoinAck) => {
+                finish(response || { ok: false, code: 'socket_ack_invalid' });
+            });
+        });
+    }, [ensureConnected]);
+
+    const leaveAdminMonitoring = useCallback(() => {
+        if (!socketRef.current) return;
+        socketRef.current.emit('leave:admin_monitoring');
+    }, []);
+
     const joinConversation = useCallback(
         async (conversationId: string) => emitWithAck('join:conversation', conversationId),
         [emitWithAck]
@@ -217,6 +248,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             leaveConversation,
             joinCita,
             leaveCita,
+            joinAdminMonitoring,
+            leaveAdminMonitoring,
         }),
         [
             ensureConnected,
@@ -226,6 +259,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             lastError,
             leaveCita,
             leaveConversation,
+            joinAdminMonitoring,
+            leaveAdminMonitoring,
             socket,
         ]
     );

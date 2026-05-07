@@ -255,11 +255,9 @@ const styles = StyleSheet.create({
 
 const RegistroPacienteScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
-  const { isDesktop, isTablet, isMobile, height: viewportHeight } = useResponsive();
+  const { isDesktop, isTablet } = useResponsive();
   const isWideLayout = isDesktop || isTablet;
   const isTabletLayout = isTablet;
-  const isMobileWeb = Platform.OS === 'web' && isMobile;
-  const mobileScrollHeight = Math.max(viewportHeight - 64, 320);
 
   const [names, setNames] = useState('');
   const [lastNames, setLastNames] = useState('');
@@ -370,11 +368,10 @@ const RegistroPacienteScreen: React.FC = () => {
         style={[
           styles.mainContent,
           isWideLayout && styles.mainContentWide,
-          isMobileWeb && ({ flex: 0, height: mobileScrollHeight } as any),
         ]}
         contentContainerStyle={[
           styles.mainContentContainer,
-          isMobileWeb && styles.mainContentContainerMobileWeb,
+          { flexGrow: 1 }
         ]}
         keyboardShouldPersistTaps="handled"
       >

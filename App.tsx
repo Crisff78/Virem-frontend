@@ -65,6 +65,34 @@ import PerfilEspecialistaAgendarScreen from "./screens/public/PerfilEspecialista
 // Admin
 import AdminPanelScreen from "./screens/admin/AdminPanelScreen";
 
+<<<<<<< HEAD
+=======
+import DashboardPacienteScreen from "./DashboardPacienteScreen";
+import PacientePortalScreen from "./PacientePortalScreen";
+import DashboardMedico from "./DashboardMedico";
+import MedicoPortalScreen from "./MedicoPortalScreen";
+import MedicoCitasScreen from "./MedicoCitasScreen";
+import MedicoPacientesScreen from "./MedicoPacientesScreen";
+import MedicoChatScreen from "./MedicoChatScreen";
+import AdminPanelScreen from "./AdminPanelScreen";
+import NuevaConsultaPacienteScreen from "./NuevaConsultaPacienteScreen";
+import SalaEsperaVirtualPacienteScreen from "./SalaEsperaVirtualPacienteScreen";
+import EspecialistasPorEspecialidadScreen from "./EspecialistasPorEspecialidadScreen";
+import PerfilEspecialistaAgendarScreen from "./PerfilEspecialistaAgendarScreen";
+import PacienteRecetasDocumentosScreen from "./PacienteRecetasDocumentosScreen";
+import PacientePerfilScreen from "./PacientePerfilScreen";
+import MedicoPerfilScreen from "./MedicoPerfilScreen";
+import MedicoConfiguracionScreen from "./MedicoConfiguracionScreen";
+import PacienteNotificacionesScreen from "./PacienteNotificacionesScreen";
+import PacienteConfiguracionScreen from "./PacienteConfiguracionScreen";
+import PacienteCambiarContrasenaScreen from "./PacienteCambiarContrasenaScreen";
+import PacienteHistorialSesionesScreen from "./PacienteHistorialSesionesScreen";
+import PacienteChatScreen from "./PacienteChatScreen";
+import PacienteCitasScreen from "./PacienteCitasScreen";
+import VideoCallScreen from "./screens/video/VideoCallScreen";
+import IncomingCallScreen from "./screens/video/IncomingCallScreen";
+import IncomingCallListener from "./components/video/IncomingCallListener";
+>>>>>>> feature-cris
 import { LanguageProvider } from "./localization/LanguageContext";
 import { RootStackParamList } from "./navigation/types";
 import {
@@ -120,6 +148,8 @@ const linking = {
       BlogDetail: "blog-detail",
       Especialidades: "especialidades-virem",
       EspecialidadDetalle: "especialidad-detalle/:title",
+      VideoCall: "videollamada/:citaId",
+      IncomingCall: "llamada-entrante/:citaId",
     },
   },
 };
@@ -209,7 +239,18 @@ const App: React.FC = () => {
                   <Stack.Screen name="BlogDetail" component={BlogDetailScreen} />
                   <Stack.Screen name="Especialidades" component={EspecialidadesScreen} />
                   <Stack.Screen name="EspecialidadDetalle" component={EspecialidadDetalleScreen} />
+                  <Stack.Screen
+                    name="VideoCall"
+                    component={VideoCallScreen}
+                    options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+                  />
+                  <Stack.Screen
+                    name="IncomingCall"
+                    component={IncomingCallScreen}
+                    options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+                  />
                 </Stack.Navigator>
+                <IncomingCallListener />
               </NavigationContainer>
             </SocketProvider>
           </AuthProvider>

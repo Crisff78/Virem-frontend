@@ -1,7 +1,26 @@
+<<<<<<< HEAD
 import React, { useCallback, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ImageSourcePropType } from 'react-native';
+=======
+import React, { useMemo, useState } from 'react';
+import {
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import type { ImageSourcePropType } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { MaterialIcons } from '@expo/vector-icons';
+>>>>>>> feature-cris
 
 import { useLanguage } from '../localization/LanguageContext';
 import type { RootStackParamList } from '../navigation/types';
@@ -12,7 +31,17 @@ import { PortalSidebar, type PortalSidebarMenuItem } from './PortalSidebar';
 
 const DefaultAvatar = require('../assets/imagenes/avatar-default.jpg');
 
+<<<<<<< HEAD
 const MENU_ITEMS_BASE: { module: PortalModule; icon: string; labelKey: string }[] = [
+=======
+type MenuItem = {
+  module: PortalModule;
+  icon: React.ComponentProps<typeof MaterialIcons>['name'];
+  labelKey: string;
+};
+
+const MENU_ITEMS: MenuItem[] = [
+>>>>>>> feature-cris
   { module: 'DashboardPaciente', icon: 'grid-view', labelKey: 'menu.home' },
   { module: 'NuevaConsultaPaciente', icon: 'person-search', labelKey: 'menu.searchDoctor' },
   { module: 'PacienteCitas', icon: 'calendar-today', labelKey: 'menu.appointments' },
@@ -46,6 +75,7 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
     [fotoUrl]
   );
 
+<<<<<<< HEAD
   const menuItems = useMemo<PortalSidebarMenuItem<PortalModule>[]>(
     () =>
       MENU_ITEMS_BASE.map((item) => ({
@@ -55,6 +85,11 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
       })),
     [t]
   );
+=======
+  const handleModulePress = (module: PortalModule) => {
+    setActiveModule(module);
+  };
+>>>>>>> feature-cris
 
   const handleModulePress = useCallback(
     (module: PortalModule) => {
@@ -71,6 +106,7 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
   }, [navigation, onCloseMobileMenu, signOut]);
 
   return (
+<<<<<<< HEAD
     <PortalSidebar
       portalSubtitle="Portal Paciente"
       primaryName={fullName}
@@ -85,7 +121,261 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
       isMobileMenuOpen={isMobileMenuOpen}
       onToggleMobileMenu={onToggleMobileMenu}
     />
+=======
+    <>
+      {/* Drawer Overlay for Mobile */}
+      {!isDesktopLayout && isMobileMenuOpen && (
+        <TouchableOpacity
+          style={styles.drawerOverlay}
+          activeOpacity={1}
+          onPress={onCloseMobileMenu}
+        >
+          <View style={styles.drawerContent}>
+            {/* Logo & Close Button */}
+            <View style={styles.sidebarHeader}>
+              <View style={styles.logoBox}>
+                <Image source={ViremLogo} style={styles.logo} />
+                <View>
+                  <Text style={styles.logoTitle}>VIREM</Text>
+                  <Text style={styles.logoSubtitle}>Portal Paciente</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={onCloseMobileMenu} style={styles.closeBtn}>
+                <MaterialIcons name="close" size={24} color={colors.dark} />
+              </TouchableOpacity>
+            </View>
+
+            {/* User mini */}
+            <View style={styles.userBox}>
+              <Image source={userAvatarSource} style={styles.userAvatar} />
+              <Text style={styles.userName}>{fullName}</Text>
+              <Text style={styles.userPlan}>{planLabel}</Text>
+            </View>
+
+            {/* Menu Items */}
+            <ScrollView style={{ flex: 1, marginTop: 10 }}>
+              {MENU_ITEMS.map((item) => {
+                const isActive = activeModule === item.module;
+                return (
+                  <Pressable
+                    key={item.module}
+                    onPress={() => handleModulePress(item.module)}
+                    style={({ pressed, hovered }: any) => [
+                      styles.menuItem,
+                      isActive && styles.menuItemActive,
+                      hovered && !isActive && styles.menuItemHover,
+                      pressed && styles.menuItemPressed,
+                    ]}
+                  >
+                    <MaterialIcons
+                      name={item.icon}
+                      size={20}
+                      color={isActive ? colors.primary : colors.muted}
+                    />
+                    <Text style={[styles.menuText, isActive && styles.menuTextActive]}>
+                      {t(item.labelKey as any)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {/* Logout */}
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <MaterialIcons name="logout" size={18} color="#fff" />
+              <Text style={styles.logoutText}>{t('menu.logout')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Persistent Sidebar for Desktop */}
+      {isDesktopLayout && isMobileMenuOpen && (
+        <View style={[styles.sidebar, styles.sidebarDesktop]}>
+          <View>
+            {/* Logo & Close Button */}
+            <View style={styles.sidebarHeader}>
+              <View style={styles.logoBox}>
+                <Image source={ViremLogo} style={styles.logo} />
+                <View>
+                  <Text style={styles.logoTitle}>VIREM</Text>
+                  <Text style={styles.logoSubtitle}>Portal Paciente</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={onCloseMobileMenu} style={styles.closeBtn}>
+                <MaterialIcons name="close" size={24} color={colors.dark} />
+              </TouchableOpacity>
+            </View>
+
+            {/* User mini */}
+            <View style={styles.userBox}>
+              <Image source={userAvatarSource} style={styles.userAvatar} />
+              <Text style={styles.userName}>{fullName}</Text>
+              <Text style={styles.userPlan}>{planLabel}</Text>
+            </View>
+
+            {/* Menu Items */}
+            <View style={{ marginTop: 10 }}>
+              {MENU_ITEMS.map((item) => {
+                const isActive = activeModule === item.module;
+                return (
+                  <Pressable
+                    key={item.module}
+                    onPress={() => handleModulePress(item.module)}
+                    style={({ pressed, hovered }: any) => [
+                      styles.menuItem,
+                      isActive && styles.menuItemActive,
+                      hovered && !isActive && styles.menuItemHover,
+                      pressed && styles.menuItemPressed,
+                    ]}
+                  >
+                    <MaterialIcons
+                      name={item.icon}
+                      size={20}
+                      color={isActive ? colors.primary : colors.muted}
+                    />
+                    <Text style={[styles.menuText, isActive && styles.menuTextActive]}>
+                      {t(item.labelKey as any)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Logout */}
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <MaterialIcons name="logout" size={18} color="#fff" />
+            <Text style={styles.logoutText}>{t('menu.logout')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </>
+>>>>>>> feature-cris
   );
 };
 
 export default PacienteSidebar;
+<<<<<<< HEAD
+=======
+
+const styles = StyleSheet.create({
+  mobileMenuBar: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: colors.bg,
+  },
+  mobileMenuButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d8e4f0',
+    backgroundColor: colors.white,
+  },
+  mobileMenuButtonText: { color: colors.dark, fontWeight: '700', fontSize: 13 },
+
+  sidebar: {
+    backgroundColor: colors.white,
+    justifyContent: 'space-between',
+  },
+  sidebarDesktop: {
+    width: 280,
+    height: '100%',
+    borderRightWidth: 1,
+    borderRightColor: '#eef2f7',
+    padding: 20,
+  },
+  sidebarMobile: {
+    width: '100%',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef2f7',
+    padding: 14,
+  },
+
+  drawerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 999,
+  },
+  drawerContent: {
+    width: 280,
+    height: '100%',
+    backgroundColor: colors.white,
+    padding: 20,
+    justifyContent: 'space-between',
+  },
+
+  logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  logo: { width: 44, height: 44, resizeMode: 'contain' },
+  logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
+  logoSubtitle: { fontSize: 11, fontWeight: '700', color: colors.muted },
+
+  userBox: { marginTop: 18, alignItems: 'center', paddingVertical: 12 },
+  userAvatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 76,
+    marginBottom: 10,
+    borderWidth: 4,
+    borderColor: '#f5f7fb',
+  },
+  userName: { fontWeight: '800', color: colors.dark, fontSize: 14, textAlign: 'center' },
+  userPlan: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 2 },
+  hintText: {
+    marginTop: 6,
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  menuItemActive: {
+    backgroundColor: 'rgba(19,127,236,0.10)',
+    borderRightWidth: 3,
+    borderRightColor: colors.primary,
+  },
+  menuItemHover: { backgroundColor: '#f4f8fc' },
+  menuItemPressed: { opacity: 0.7, transform: [{ scale: 0.985 }] },
+  menuText: { fontSize: 14, color: colors.muted, fontWeight: '700' },
+  menuTextActive: { color: colors.primary },
+
+  logoutButton: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.blue,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  logoutText: { color: '#fff', fontWeight: '800' },
+});
+>>>>>>> feature-cris

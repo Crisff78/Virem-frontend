@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,10 @@ import type { RootStackParamList } from './navigation/types';
 import { useAuth } from './providers/AuthProvider';
 import { ApiError, apiClient } from './utils/api';
 import { getApiErrorMessage } from './utils/apiErrors';
+import AdminSidebar from './components/AdminSidebar';
+import { useSocket } from './providers/SocketProvider';
+import { useSocketEvent } from './hooks/useSocketEvent';
+import { FlatList } from 'react-native';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'AdminPanel'>;
 type TabKey = 'resumen' | 'usuarios' | 'citas' | 'pagos' | 'moderacion' | 'auditoria';
@@ -181,14 +185,7 @@ type AdminBudget = {
   };
 };
 
-const tabs: Array<{ key: TabKey; label: string; icon: string }> = [
-  { key: 'resumen', label: 'Resumen', icon: 'dashboard' },
-  { key: 'usuarios', label: 'Usuarios', icon: 'groups' },
-  { key: 'citas', label: 'Citas', icon: 'event-note' },
-  { key: 'pagos', label: 'Pagos', icon: 'receipt-long' },
-  { key: 'moderacion', label: 'Moderacion', icon: 'verified-user' },
-  { key: 'auditoria', label: 'Auditoria', icon: 'manage-search' },
-];
+
 
 const roleFilters = [
   { key: 'all', label: 'Todos' },
@@ -367,15 +364,16 @@ const AdminPanelScreen: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [citaScope, setCitaScope] = useState('all');
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
-
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(Platform.OS === 'web' && width >= 1024);
   const [panel, setPanel] = useState<PanelStats | null>(null);
-  const [pendingDoctors, setPendingDoctors] = useState<PendingMedico[]>([]);
   const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [citas, setCitas] = useState<AdminCita[]>([]);
   const [pagos, setPagos] = useState<AdminPago[]>([]);
   const [budget, setBudget] = useState<AdminBudget | null>(null);
   const [audit, setAudit] = useState<AuditItem[]>([]);
+  const [userPage, setUserPage] = useState(1);
+  const USERS_PER_PAGE = 6;
 
   const handleAuthExpired = useCallback(
     async (message = 'Inicia sesion nuevamente para continuar.') => {
@@ -401,51 +399,42 @@ const AdminPanelScreen: React.FC = () => {
     }
 
     try {
-      const [panelRes, doctorsRes, reviewsRes, usersRes, citasRes, pagosRes, budgetRes, auditRes] =
+      // Helper to fetch safely without crashing the whole sequence
+      const safeGet = async (url: string, params?: any) => {
+        try {
+          const res = await apiClient.get<any>(url, { authenticated: true, query: params });
+          return res?.success ? res : null;
+        } catch (e) {
+          console.warn(`SafeGet failed for ${url}:`, e);
+          return null;
+        }
+      };
+
+      const [panelRes, reviewsRes, usersRes, citasRes, pagosRes, budgetRes, auditRes] =
         await Promise.all([
-          apiClient.get<any>('/api/admin/panel', { authenticated: true }),
-          apiClient.get<any>('/api/admin/medicos/pendientes', {
-            authenticated: true,
-            query: { limit: 60 },
-          }),
-          apiClient.get<any>('/api/admin/valoraciones/pendientes', {
-            authenticated: true,
-            query: { limit: 80 },
-          }),
-          apiClient.get<any>('/api/admin/usuarios', {
-            authenticated: true,
-            query: { limit: 160 },
-          }),
-          apiClient.get<any>('/api/admin/citas', {
-            authenticated: true,
-            query: { scope: 'all', limit: 140 },
-          }),
-          apiClient.get<any>('/api/admin/pagos', {
-            authenticated: true,
-            query: { limit: 120 },
-          }),
-          apiClient.get<any>('/api/admin/presupuesto', {
-            authenticated: true,
-          }),
-          apiClient.get<any>('/api/admin/usuarios/modificaciones', {
-            authenticated: true,
-            query: { limit: 80 },
-          }),
+          safeGet('/api/admin/panel'),
+          safeGet('/api/admin/valoraciones/pendientes', { limit: 80 }),
+          safeGet('/api/admin/usuarios', { limit: 160 }),
+          safeGet('/api/admin/citas', { scope: 'all', limit: 140 }),
+          safeGet('/api/admin/pagos', { limit: 120 }),
+          safeGet('/api/admin/presupuesto'),
+          safeGet('/api/admin/usuarios/modificaciones', { limit: 80 }),
         ]);
 
-      if (!panelRes?.success) {
-        await handleAuthExpired(panelRes?.message || 'No se pudo abrir panel admin.');
-        return;
+      if (panelRes) {
+        setPanel(panelRes.panel || null);
+      } else {
+        // If panelRes fails, we still try to show what we have, but panel might be null
+        console.error('Critical: Panel data could not be loaded');
       }
 
-      setPanel(panelRes?.panel || null);
-      setPendingDoctors(Array.isArray(doctorsRes?.pendientes) ? doctorsRes.pendientes : []);
       setPendingReviews(Array.isArray(reviewsRes?.valoraciones) ? reviewsRes.valoraciones : []);
       setUsers(Array.isArray(usersRes?.usuarios) ? usersRes.usuarios : []);
       setCitas(Array.isArray(citasRes?.citas) ? citasRes.citas : []);
       setPagos(Array.isArray(pagosRes?.pagos) ? pagosRes.pagos : []);
       setBudget(budgetRes?.success ? (budgetRes?.presupuesto as AdminBudget) || null : null);
       setAudit(Array.isArray(auditRes?.modificaciones) ? auditRes.modificaciones : []);
+      
       setLastUpdatedAt(new Date().toISOString());
       hasLoadedRef.current = true;
     } catch (error) {
@@ -468,6 +457,7 @@ const AdminPanelScreen: React.FC = () => {
       refresh();
     }, [isReady, refresh])
   );
+
 
   const handleLogout = useCallback(async () => {
     try {
@@ -612,12 +602,6 @@ const AdminPanelScreen: React.FC = () => {
         tone: 'info' as Tone,
       },
       {
-        label: 'Medicos pendientes',
-        value: String(toInt(usuarios?.medicos_pendientes)),
-        icon: 'pending-actions',
-        tone: toInt(usuarios?.medicos_pendientes) ? 'warning' : ('success' as Tone),
-      },
-      {
         label: 'Citas hoy',
         value: String(toInt(citasStats?.citas_hoy)),
         icon: 'today',
@@ -633,6 +617,12 @@ const AdminPanelScreen: React.FC = () => {
         label: 'Pagos registrados',
         value: formatMoney(pagosStats?.monto_total),
         icon: 'payments',
+        tone: 'success' as Tone,
+      },
+      {
+        label: 'Ganancias VIREM',
+        value: formatMoney(toMoney(pagosStats?.monto_total) * 0.1),
+        icon: 'savings',
         tone: 'success' as Tone,
       },
       {
@@ -663,6 +653,18 @@ const AdminPanelScreen: React.FC = () => {
       return haystack.includes(query);
     });
   }, [roleFilter, statusFilter, userSearch, users]);
+
+  // Reset page on filter change
+  useEffect(() => {
+    setUserPage(1);
+  }, [roleFilter, statusFilter, userSearch]);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (userPage - 1) * USERS_PER_PAGE;
+    return filteredUsers.slice(start, start + USERS_PER_PAGE);
+  }, [filteredUsers, userPage]);
+
+  const userTotalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE) || 1;
 
   const filteredCitas = useMemo(() => {
     const list = citas.filter((cita) => {
@@ -705,7 +707,7 @@ const AdminPanelScreen: React.FC = () => {
   const budgetVariationTone: Tone =
     budgetVariation > 0 ? 'success' : budgetVariation < 0 ? 'danger' : 'neutral';
 
-  const pendingTasks = pendingDoctors.length + pendingReviews.length;
+  const pendingTasks = pendingReviews.length;
 
   const renderKpis = () => (
     <View style={styles.kpiGrid}>
@@ -768,54 +770,6 @@ const AdminPanelScreen: React.FC = () => {
     );
   };
 
-  const renderDoctorCard = (doctor: PendingMedico, compact = false) => (
-    <View key={`doctor-${doctor.usuarioid}`} style={styles.itemCard}>
-      <View style={styles.rowTop}>
-        <View style={styles.itemMain}>
-          <Text style={styles.itemTitle} numberOfLines={1}>
-            {normalizeText(doctor?.medico?.nombreCompleto) || 'Medico'}
-          </Text>
-          <Text style={styles.itemSub} numberOfLines={1}>
-            {doctor?.medico?.especialidad || 'Especialidad no definida'}
-          </Text>
-        </View>
-        <Badge label={`${doctor?.documentos?.length || 0} docs`} tone="info" />
-      </View>
-
-      {!compact ? (
-        <View style={styles.metaGrid}>
-          <Text style={styles.metaText} numberOfLines={1}>
-            {doctor.email}
-          </Text>
-          <Text style={styles.metaText} numberOfLines={1}>
-            Cedula: {doctor?.medico?.cedula || 'N/D'}
-          </Text>
-          <Text style={styles.metaText} numberOfLines={1}>
-            Tel: {doctor?.medico?.telefono || 'N/D'}
-          </Text>
-        </View>
-      ) : null}
-
-      <View style={styles.actionsRow}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.approveButton]}
-          disabled={workingId === `aprobar-${doctor.usuarioid}`}
-          onPress={() => moderateDoctor(doctor.usuarioid, 'aprobar')}
-        >
-          <MaterialIcons name="check" size={16} color={colors.successDark} />
-          <Text style={[styles.actionText, styles.approveText]}>Aprobar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.rejectButton]}
-          disabled={workingId === `rechazar-${doctor.usuarioid}`}
-          onPress={() => moderateDoctor(doctor.usuarioid, 'rechazar')}
-        >
-          <MaterialIcons name="close" size={16} color={colors.dangerDark} />
-          <Text style={[styles.actionText, styles.rejectText]}>Rechazar</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   const renderReviewCard = (review: PendingReview, compact = false) => (
     <View key={`review-${review.valoracionId}`} style={styles.itemCard}>
@@ -947,10 +901,6 @@ const AdminPanelScreen: React.FC = () => {
             {pendingTasks ? (
               <View style={styles.taskList}>
                 <View style={styles.metricLine}>
-                  <Text style={styles.metricLabel}>Medicos por aprobar</Text>
-                  <Text style={styles.metricValue}>{pendingDoctors.length}</Text>
-                </View>
-                <View style={styles.metricLine}>
                   <Text style={styles.metricLabel}>Valoraciones por revisar</Text>
                   <Text style={styles.metricValue}>{pendingReviews.length}</Text>
                 </View>
@@ -994,93 +944,132 @@ const AdminPanelScreen: React.FC = () => {
     <View style={styles.tabContent}>
       <View style={styles.panelSection}>
         {renderSectionHeader('Usuarios', 'groups', filteredUsers.length)}
-        <View style={styles.searchRow}>
-          <View style={styles.searchBox}>
-            <MaterialIcons name="search" size={18} color={colors.muted} />
-            <TextInput
-              value={userSearch}
-              onChangeText={setUserSearch}
-              placeholder="Buscar por nombre, email, cedula"
-              placeholderTextColor={colors.muted}
-              style={styles.searchInput}
-            />
+        
+        <View style={styles.filterSection}>
+          <View style={styles.searchRow}>
+            <View style={styles.searchBox}>
+              <MaterialIcons name="search" size={18} color={colors.muted} />
+              <TextInput
+                value={userSearch}
+                onChangeText={setUserSearch}
+                placeholder="Buscar por nombre, email, cedula..."
+                placeholderTextColor={colors.muted}
+                style={styles.searchInput}
+              />
+            </View>
+          </View>
+
+          <View style={styles.filterGroup}>
+             <Text style={styles.filterGroupLabel}>Rol:</Text>
+             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                {roleFilters.map((item) => (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={[styles.filterChip, roleFilter === item.key && styles.filterChipActive]}
+                    onPress={() => setRoleFilter(item.key)}
+                  >
+                    <Text style={[styles.filterText, roleFilter === item.key && styles.filterTextActive]}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+             </ScrollView>
+          </View>
+
+          <View style={styles.filterGroup}>
+             <Text style={styles.filterGroupLabel}>Estado:</Text>
+             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                {statusFilters.map((item) => (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={[styles.filterChip, statusFilter === item.key && styles.filterChipActive]}
+                    onPress={() => setStatusFilter(item.key)}
+                  >
+                    <Text style={[styles.filterText, statusFilter === item.key && styles.filterTextActive]}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+             </ScrollView>
           </View>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-          {roleFilters.map((item) => (
-            <TouchableOpacity
-              key={item.key}
-              style={[styles.filterChip, roleFilter === item.key && styles.filterChipActive]}
-              onPress={() => setRoleFilter(item.key)}
-            >
-              <Text style={[styles.filterText, roleFilter === item.key && styles.filterTextActive]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-          {statusFilters.map((item) => (
-            <TouchableOpacity
-              key={item.key}
-              style={[styles.filterChip, statusFilter === item.key && styles.filterChipActive]}
-              onPress={() => setStatusFilter(item.key)}
-            >
-              <Text style={[styles.filterText, statusFilter === item.key && styles.filterTextActive]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
 
-      <View style={styles.panelSection}>
-        {filteredUsers.length ? (
-          filteredUsers.map((user) => {
-            const blocked = normalizeSearch(user.accountStatus) === 'bloqueada' || !user.activo;
-            const isSelf = Number(panel?.admin?.usuarioid || 0) === user.usuarioid;
-            return (
-              <View key={`user-${user.usuarioid}`} style={styles.userRow}>
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarText}>{normalizeText(user.perfilNombre || user.email).slice(0, 1).toUpperCase()}</Text>
-                </View>
-                <View style={styles.flexCell}>
-                  <Text style={styles.itemTitle} numberOfLines={1}>
-                    {user.perfilNombre || user.email}
-                  </Text>
-                  <Text style={styles.itemSub} numberOfLines={1}>
-                    {user.email}
-                  </Text>
-                  <View style={styles.inlineBadges}>
-                    <Badge label={user.rol || 'Sin rol'} tone={user.rolid === 3 ? 'info' : 'neutral'} />
-                    <Badge
-                      label={blocked ? 'Inactiva' : accountStatusLabel(user.accountStatus)}
-                      tone={accountTone(user.accountStatus, user.activo)}
-                    />
-                    {user.especialidad ? <Badge label={user.especialidad} tone="info" /> : null}
+        <View style={styles.userListContainer}>
+          {paginatedUsers.length ? (
+            <>
+              {paginatedUsers.map((user) => {
+                const blocked = normalizeSearch(user.accountStatus) === 'bloqueada' || !user.activo;
+                const isSelf = Number(panel?.admin?.usuarioid || 0) === user.usuarioid;
+                return (
+                  <View key={`user-${user.usuarioid}`} style={styles.userRow}>
+                    <View style={styles.avatarCircle}>
+                      <Text style={styles.avatarText}>{normalizeText(user.perfilNombre || user.email).slice(0, 1).toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.flexCell}>
+                      <Text style={styles.itemTitle} numberOfLines={1}>
+                        {user.perfilNombre || user.email}
+                      </Text>
+                      <Text style={styles.itemSub} numberOfLines={1}>
+                        {user.email}
+                      </Text>
+                      <View style={styles.inlineBadges}>
+                        <Badge label={user.rol || 'Sin rol'} tone={user.rolid === 3 ? 'info' : 'neutral'} />
+                        <Badge
+                          label={blocked ? 'Inactiva' : accountStatusLabel(user.accountStatus)}
+                          tone={accountTone(user.accountStatus, user.activo)}
+                        />
+                        {user.especialidad ? <Badge label={user.especialidad} tone="info" /> : null}
+                      </View>
+                    </View>
+                    <View style={styles.userStats}>
+                      <Text style={styles.smallStat}>{user.totalCitas || 0}</Text>
+                      <Text style={styles.smallStatLabel}>citas</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.iconAction, blocked ? styles.activateAction : styles.blockAction]}
+                      disabled={isSelf || workingId === `user-${user.usuarioid}`}
+                      onPress={() => toggleUserStatus(user)}
+                    >
+                      <MaterialIcons
+                        name={blocked ? 'lock-open' : 'block'}
+                        size={18}
+                        color={isSelf ? colors.muted : blocked ? colors.successDark : colors.dangerDark}
+                      />
+                    </TouchableOpacity>
                   </View>
+                );
+              })}
+
+              {userTotalPages > 1 && (
+                <View style={styles.paginationRow}>
+                  <TouchableOpacity
+                    style={[styles.paginationBtn, userPage === 1 && styles.paginationBtnDisabled]}
+                    disabled={userPage === 1}
+                    onPress={() => setUserPage(p => Math.max(1, p - 1))}
+                  >
+                    <MaterialIcons name="chevron-left" size={24} color={userPage === 1 ? colors.muted : colors.primary} />
+                    <Text style={[styles.paginationBtnText, userPage === 1 && { color: colors.muted }]}>Anterior</Text>
+                  </TouchableOpacity>
+                  
+                  <View style={styles.pageIndicator}>
+                    <Text style={styles.pageText}>Página {userPage} de {userTotalPages}</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.paginationBtn, userPage === userTotalPages && styles.paginationBtnDisabled]}
+                    disabled={userPage === userTotalPages}
+                    onPress={() => setUserPage(p => Math.min(userTotalPages, p + 1))}
+                  >
+                    <Text style={[styles.paginationBtnText, userPage === userTotalPages && { color: colors.muted }]}>Siguiente</Text>
+                    <MaterialIcons name="chevron-right" size={24} color={userPage === userTotalPages ? colors.muted : colors.primary} />
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.userStats}>
-                  <Text style={styles.smallStat}>{user.totalCitas || 0}</Text>
-                  <Text style={styles.smallStatLabel}>citas</Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.iconAction, blocked ? styles.activateAction : styles.blockAction]}
-                  disabled={isSelf || workingId === `user-${user.usuarioid}`}
-                  onPress={() => toggleUserStatus(user)}
-                >
-                  <MaterialIcons
-                    name={blocked ? 'lock-open' : 'block'}
-                    size={18}
-                    color={isSelf ? colors.muted : blocked ? colors.successDark : colors.dangerDark}
-                  />
-                </TouchableOpacity>
-              </View>
-            );
-          })
-        ) : (
-          <EmptyState icon="person-search" text="No hay usuarios con esos filtros." />
-        )}
+              )}
+            </>
+          ) : (
+            <EmptyState icon="person-search" text="No hay usuarios con esos filtros." />
+          )}
+        </View>
       </View>
     </View>
   );
@@ -1089,27 +1078,30 @@ const AdminPanelScreen: React.FC = () => {
     <View style={styles.tabContent}>
       <View style={styles.panelSection}>
         {renderSectionHeader('Citas', 'event-note', filteredCitas.length)}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-          {citaScopes.map((item) => (
-            <TouchableOpacity
-              key={item.key}
-              style={[styles.filterChip, citaScope === item.key && styles.filterChipActive]}
-              onPress={() => setCitaScope(item.key)}
-            >
-              <Text style={[styles.filterText, citaScope === item.key && styles.filterTextActive]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+        
+        <View style={styles.filterSection}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {citaScopes.map((item) => (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.filterChip, citaScope === item.key && styles.filterChipActive]}
+                onPress={() => setCitaScope(item.key)}
+              >
+                <Text style={[styles.filterText, citaScope === item.key && styles.filterTextActive]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
-      <View style={styles.panelSection}>
-        {filteredCitas.length ? (
-          filteredCitas.map(renderCitaRow)
-        ) : (
-          <EmptyState icon="event-busy" text="No hay citas en esta vista." />
-        )}
+        <View style={styles.userListContainer}>
+          {filteredCitas.length ? (
+            filteredCitas.map(renderCitaRow)
+          ) : (
+            <EmptyState icon="event-busy" text="No hay citas en esta vista." />
+          )}
+        </View>
       </View>
     </View>
   );
@@ -1184,24 +1176,13 @@ const AdminPanelScreen: React.FC = () => {
 
   const renderModeracion = () => (
     <View style={styles.tabContent}>
-      <View style={[styles.gridTwo, isWide && styles.gridTwoWide]}>
-        <View style={styles.panelSection}>
-          {renderSectionHeader('Medicos pendientes', 'badge', pendingDoctors.length)}
-          {pendingDoctors.length ? (
-            pendingDoctors.map((doctor) => renderDoctorCard(doctor))
-          ) : (
-            <EmptyState icon="verified" text="No hay medicos pendientes." />
-          )}
-        </View>
-
-        <View style={styles.panelSection}>
-          {renderSectionHeader('Valoraciones pendientes', 'rate-review', pendingReviews.length)}
-          {pendingReviews.length ? (
-            pendingReviews.map((review) => renderReviewCard(review))
-          ) : (
-            <EmptyState icon="reviews" text="No hay valoraciones pendientes." />
-          )}
-        </View>
+      <View style={styles.panelSection}>
+        {renderSectionHeader('Valoraciones pendientes', 'rate-review', pendingReviews.length)}
+        {pendingReviews.length ? (
+          pendingReviews.map((review) => renderReviewCard(review))
+        ) : (
+          <EmptyState icon="reviews" text="No hay valoraciones pendientes." />
+        )}
       </View>
     </View>
   );
@@ -1248,6 +1229,7 @@ const AdminPanelScreen: React.FC = () => {
     return renderResumen();
   };
 
+
   if (loading) {
     return (
       <View style={styles.loaderWrap}>
@@ -1258,50 +1240,51 @@ const AdminPanelScreen: React.FC = () => {
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={[styles.content, isWide && styles.contentWide]}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />
-      }
-    >
-      <View style={styles.header}>
-        <View style={styles.headerTitleWrap}>
-          <Text style={styles.title}>Panel Administrativo</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>
-            {panel?.admin?.email || 'Administrador'}
-            {lastUpdatedAt ? ` · ${formatDateTime(lastUpdatedAt)}` : ''}
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerIconButton} onPress={refresh} disabled={refreshing}>
-            <MaterialIcons name="refresh" size={20} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <MaterialIcons name="logout" size={18} color="#fff" />
-            <Text style={styles.logoutText}>Salir</Text>
-          </TouchableOpacity>
-        </View>
+    <View style={styles.appContainer}>
+      <AdminSidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+        adminEmail={panel?.admin?.email}
+        onLogout={handleLogout}
+      />
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          style={styles.screen}
+          contentContainerStyle={[styles.content, isWide && styles.contentWide]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />
+          }
+        >
+          <View style={styles.header}>
+            <View style={styles.headerTitleWrap}>
+              <View style={styles.headerTitleRow}>
+                {!isMobileMenuOpen && (
+                  <TouchableOpacity 
+                    onPress={() => setIsMobileMenuOpen(true)} 
+                    style={styles.menuToggleBtn}
+                  >
+                    <MaterialIcons name="menu" size={26} color={colors.text} />
+                  </TouchableOpacity>
+                )}
+                <View>
+                  <Text style={styles.title}>Panel Administrativo</Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.headerActions}>
+              {loading && <ActivityIndicator size="small" color={colors.primary} />}
+              <TouchableOpacity style={styles.headerIconButton} onPress={refresh} disabled={refreshing || loading}>
+                <MaterialIcons name="refresh" size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {renderActiveTab()}
+        </ScrollView>
       </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow}>
-        {tabs.map((tab) => {
-          const active = activeTab === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.tabButton, active && styles.tabButtonActive]}
-              onPress={() => setActiveTab(tab.key)}
-            >
-              <MaterialIcons name={tab.icon as any} size={18} color={active ? '#fff' : colors.muted} />
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {renderActiveTab()}
-    </ScrollView>
+    </View>
   );
 };
 
@@ -1357,10 +1340,17 @@ const iconColorStyles: Record<Tone, string> = {
 };
 
 const styles = StyleSheet.create({
+  appContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: colors.bg,
+  },
+  appContainerTech: { backgroundColor: '#0A0E17' },
   screen: {
     flex: 1,
     backgroundColor: colors.bg,
   },
+  screenTech: { backgroundColor: '#0A0E17' },
   content: {
     padding: 14,
     gap: 12,
@@ -1389,6 +1379,18 @@ const styles = StyleSheet.create({
   headerTitleWrap: {
     flex: 1,
     minWidth: 0,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  menuToggleBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   title: {
     fontSize: 24,
@@ -1686,6 +1688,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginBottom: 4,
   },
   searchBox: {
     flex: 1,
@@ -1706,9 +1709,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     outlineStyle: 'none' as any,
   },
+  filterSection: {
+    gap: 12,
+    backgroundColor: '#f1f5f9',
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  userListContainer: {
+    marginTop: 4,
+    minHeight: 200,
+  },
+  filterGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  filterGroupLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.muted,
+    width: 60,
+  },
   chipRow: {
     gap: 8,
-    paddingRight: 4,
+    paddingRight: 10,
   },
   filterChip: {
     minHeight: 34,
@@ -1874,7 +1899,47 @@ const styles = StyleSheet.create({
     gap: 10,
     borderTopWidth: 1,
     borderTopColor: '#edf2f7',
-    paddingVertical: 10,
+    paddingVertical: 12,
+  },
+  paginationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  paginationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  paginationBtnDisabled: {
+    opacity: 0.5,
+    backgroundColor: '#f8fafc',
+  },
+  paginationBtnText: {
+    color: colors.primary,
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  pageIndicator: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  pageText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '900',
   },
   auditIcon: {
     width: 34,
@@ -1897,6 +1962,214 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
   },
+
+  // IT Specific Styles
+  itTabContent: { gap: 24 },
+  itStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  itStatCard: {
+    flex: 1,
+    minWidth: 200,
+    backgroundColor: '#161B22',
+    borderWidth: 1,
+    borderColor: '#30363D',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  itStatIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itStatLabel: { color: '#8B949E', fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  itStatValue: { fontSize: 24, fontWeight: '900', color: '#C9D1D9' },
+  itSection: { marginTop: 12 },
+  itSectionTitle: { color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 16 },
+  itSectionTitleLarge: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 8 },
+  itSectionSubtitle: { color: '#8B949E', fontSize: 14, fontWeight: '500', marginBottom: 24 },
+  itInfraList: { gap: 12 },
+  itInfraItem: {
+    backgroundColor: '#161B22',
+    padding: 16,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#30363D',
+  },
+  itInfraLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  itInfraName: { color: '#C9D1D9', fontWeight: '700', fontSize: 14 },
+  itInfraRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  itInfraUptime: { color: '#8B949E', fontSize: 12 },
+  itStatusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  itStatusBadgeText: { fontSize: 11, fontWeight: '900' },
+  
+  itInfraGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 20,
+    marginTop: 10,
+  },
+  infraCard: {
+    width: 320,
+    backgroundColor: '#161B22',
+    borderWidth: 1,
+    borderColor: '#30363D',
+    borderRadius: 16,
+    padding: 20,
+    gap: 12,
+  },
+  infraCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infraIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#0D1117',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#30363D',
+  },
+  statusIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#161B22',
+  },
+  infraCardName: { color: '#C9D1D9', fontSize: 18, fontWeight: '800' },
+  infraCardStatus: { color: '#8B949E', fontSize: 14, fontWeight: '600' },
+  infraCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#30363D',
+  },
+  infraCardUptime: { color: '#238636', fontSize: 12, fontWeight: '700' },
+  infraCardLatency: { color: '#58A6FF', fontSize: 12, fontWeight: '700' },
+  infraCardDetails: { color: '#8B949E', fontSize: 11, fontStyle: 'italic', marginTop: 4 },
+
+  itTerminalShort: {
+    backgroundColor: '#010409',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#30363D',
+    minHeight: 180,
+  },
+  itTerminalText: {
+    color: '#D1D5DA',
+    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 2,
+  },
+  itTerminalTextError: { color: '#F85149' },
+  itTerminalTextServer: { color: '#58A6FF', fontWeight: 'bold' },
+  itTerminalTextSuccess: { color: '#3FB950' },
+  itTerminalTextMuted: { color: '#484F58', fontStyle: 'italic' },
+  itTerminalStatus: {
+    backgroundColor: '#21262D',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  itTerminalStatusText: { color: '#8B949E', fontSize: 10, fontWeight: '700' },
+  
+  itLinkText: { color: '#58A6FF', fontSize: 13, fontWeight: '700' },
+  itLogsExpandBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 8,
+    backgroundColor: '#0D1117',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#30363D',
+  },
+  itLogsExpandText: { color: '#58A6FF', fontSize: 13, fontWeight: '800' },
+
+  itLogsContainer: {
+    flex: 1,
+    backgroundColor: '#010409',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#30363D',
+    minHeight: 600,
+  },
+  itLogsHeader: {
+    height: 48,
+    backgroundColor: '#161B22',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#30363D',
+  },
+  itLogsHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  itLogsTitle: { color: '#C9D1D9', fontSize: 13, fontWeight: '700' },
+  itTerminalLargeBox: { flex: 1, padding: 12 },
+  itLogsFlatList: { paddingBottom: 20 },
+  logLine: { 
+    paddingVertical: 4, 
+    borderBottomWidth: 0.5, 
+    borderBottomColor: '#161B22' 
+  },
+  itTerminalTextLarge: {
+    color: '#D1D5DA',
+    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+
+  itPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  itPlaceholderText: { color: '#8B949E', fontSize: 16, fontWeight: '700' },
+  itPlaceholderCompact: { padding: 20, alignItems: 'center', gap: 8 },
+  itPlaceholderTextSmall: { color: '#8B949E', fontSize: 12, fontWeight: '600' },
+  itErrorBanner: {
+    backgroundColor: 'rgba(248, 81, 73, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(248, 81, 73, 0.4)',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  itErrorText: { color: '#F85149', fontSize: 13, fontWeight: '700' },
+  itSectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  itLiveDotRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  itLiveDot: { width: 8, height: 8, borderRadius: 4, shadowColor: '#3FB950', shadowOpacity: 0.5, shadowRadius: 4 },
+  itLiveText: { color: '#8B949E', fontSize: 12, fontWeight: '700' },
+  textWhite: { color: '#fff' },
+  textMuted: { color: '#8B949E' },
+  menuToggleBtnTech: { backgroundColor: '#161B22', borderColor: '#30363D' },
+  headerIconButtonTech: { backgroundColor: '#161B22', borderColor: '#30363D' },
 });
 
 export default AdminPanelScreen;

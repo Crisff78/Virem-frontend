@@ -17,8 +17,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { useResponsive } from './hooks/useResponsive';
+import PacienteSidebar from './components/PacienteSidebar';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
@@ -211,7 +213,12 @@ const PacientePerfilScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = usePortalAwareNavigation();
+<<<<<<< HEAD
   const { isInsidePortal, setNotificationsOpen } = usePacienteModule();
+=======
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isDesktop: isDesktopLayout } = useResponsive();
+>>>>>>> feature-cris
   const {
     user,
     loadingUser,
@@ -473,98 +480,26 @@ const PacientePerfilScreen: React.FC = () => {
     }
   };
 
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
       {!isInsidePortal && (
-      <View style={styles.sidebar}>
-        <View>
-          <View style={styles.logoBox}>
-            <Image source={ViremLogo} style={styles.logo} />
-            <View>
-              <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSubtitle}>Portal Paciente</Text>
-            </View>
-          </View>
-
-          <View style={styles.userBox}>
-            <Image source={userAvatarSource} style={styles.userAvatar} />
-            <Text style={styles.userName}>{fullName}</Text>
-            <Text style={styles.userPlan}>{planLabel}</Text>
-            {!hasProfilePhoto ? (
-              <Text style={styles.hintText}>No tienes foto. Ve a Perfil para agregarla.</Text>
-            ) : null}
-          </View>
-
-          <View style={styles.menu}>
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('DashboardPaciente')}>
-              <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.home')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('NuevaConsultaPaciente')}>
-              <MaterialIcons name="person-search" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>Buscar Médico</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteCitas')}
-            >
-              <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.appointments')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
-            >
-              <MaterialIcons name="videocam" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.videocall')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteChat')}
-            >
-              <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.chat')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
-            >
-              <MaterialIcons name="description" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.menuItemRow, styles.menuItemActive]}
-              onPress={() => navigation.navigate('PacientePerfil')}
-            >
-              <MaterialIcons name="account-circle" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.profile')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteConfiguracion')}
-            >
-              <MaterialIcons name="settings" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.settings')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>{t('menu.logout')}</Text>
-        </TouchableOpacity>
-      </View>
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
       )}
-
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+      <View style={{ flex: 1 }}>
         <View style={styles.header}>
+          {!isSidebarOpen && (
+            <TouchableOpacity 
+              style={styles.hamburgerBtn} 
+              onPress={toggleSidebar}
+            >
+              <MaterialIcons name="menu" size={26} color={colors.dark} />
+            </TouchableOpacity>
+          )}
           <View style={styles.searchBox}>
             <MaterialIcons name="search" size={20} color={colors.muted} />
             <TextInput
@@ -581,6 +516,8 @@ const PacientePerfilScreen: React.FC = () => {
             <View style={styles.notifDot} />
           </TouchableOpacity>
         </View>
+
+      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
 
         <View style={styles.titleWrap}>
           <Text style={styles.pageTitle}>
@@ -867,42 +804,37 @@ const PacientePerfilScreen: React.FC = () => {
         </View>
       </ScrollView>
     </View>
-  );
+  </View>
+);
 };
 
 const styles = StyleSheet.create({
-  container: {
+  drawerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 2000,
+  },
+  drawerContent: {
+    width: 280,
+    height: '100%',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 20,
+  },
+  sidebarContent: {
     flex: 1,
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-    backgroundColor: colors.bg,
+    padding: 20,
+    backgroundColor: '#fff',
   },
-  loaderWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
-  loaderText: { marginTop: 10, color: colors.muted, fontWeight: '700' },
-  sidebar: {
-    width: Platform.OS === 'web' ? 280 : '100%',
-    backgroundColor: colors.white,
-    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-    borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
-    borderRightColor: '#eef2f7',
-    borderBottomColor: '#eef2f7',
-    padding: Platform.OS === 'web' ? 20 : 14,
-    justifyContent: 'space-between',
-  },
-  logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, resizeMode: 'contain' },
-  logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
-  logoSubtitle: { fontSize: 11, fontWeight: '700', color: colors.muted },
-  userBox: { marginTop: 18, alignItems: 'center', paddingVertical: 12 },
-  userAvatar: { width: 76, height: 76, borderRadius: 76, marginBottom: 10, borderWidth: 4, borderColor: '#f5f7fb' },
-  userName: { fontWeight: '800', color: colors.dark, fontSize: 14, textAlign: 'center' },
-  userPlan: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 2 },
-  hintText: { marginTop: 6, color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  menu: {
-    marginTop: 10,
-    gap: 6,
-    flex: Platform.OS === 'web' ? 1 : 0,
-    flexDirection: Platform.OS === 'web' ? 'column' : 'row',
-    flexWrap: 'wrap',
+  menuScroll: {
+    flex: 1,
+    marginTop: 20,
   },
   menuItemRow: {
     flexDirection: 'row',
@@ -911,15 +843,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 12,
-    minWidth: Platform.OS === 'web' ? 0 : 150,
+    marginBottom: 4,
   },
   menuItemActive: {
-    backgroundColor: 'rgba(19,127,236,0.10)',
-    borderRightWidth: 3,
-    borderRightColor: colors.primary,
+    backgroundColor: 'rgba(19,127,236,0.1)',
   },
-  menuText: { fontSize: 14, fontWeight: '700', color: colors.muted },
-  menuTextActive: { color: colors.primary },
+  menuText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.muted,
+  },
+  menuTextActive: {
+    color: colors.primary,
+  },
   logoutButton: {
     flexDirection: 'row',
     gap: 10,
@@ -928,8 +864,74 @@ const styles = StyleSheet.create({
     backgroundColor: colors.blue,
     paddingVertical: 12,
     borderRadius: 12,
+    marginTop: 20,
   },
-  logoutText: { color: '#fff', fontWeight: '800' },
+  logoutText: {
+    color: '#fff',
+    fontWeight: '800',
+  },
+  logoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 30,
+    paddingHorizontal: 5,
+  },
+  logo: {
+    width: 44,
+    height: 44,
+    resizeMode: 'contain',
+  },
+  logoTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: 1,
+  },
+  logoSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.muted,
+    marginTop: -2,
+    textTransform: 'uppercase',
+  },
+  userBox: {
+    padding: 16,
+    backgroundColor: '#f8fbff',
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#eef4fb',
+  },
+  userAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  userName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.dark,
+    textAlign: 'center',
+  },
+  userPlan: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    marginTop: 2,
+  },
+
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  loaderWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
+  loaderText: { marginTop: 10, color: colors.muted, fontWeight: '700' },
+
   main: {
     flex: 1,
     paddingHorizontal: Platform.OS === 'web' ? 24 : 14,
@@ -939,9 +941,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: 14,
-    flexWrap: 'wrap',
+    gap: 12,
+    paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
+    paddingVertical: 12,
+    backgroundColor: colors.bg,
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef4fb',
+  },
+  hamburgerBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchBox: {
     flex: 1,
@@ -949,32 +967,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     backgroundColor: '#fff',
-    borderRadius: 14,
+    borderRadius: 18,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#ddeaf5',
+    paddingVertical: 8,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  searchInput: { flex: 1, color: colors.dark, fontWeight: '600', fontSize: 12 },
+  searchInput: { flex: 1, color: colors.dark, fontWeight: '600', fontSize: 13 },
   notifBtn: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: 12,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e6eef7',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  notifDot: {
-    position: 'absolute',
-    top: 11,
-    right: 11,
-    width: 8,
-    height: 8,
-    borderRadius: 8,
-    backgroundColor: '#ef4444',
-  },
+  notifDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 8, backgroundColor: '#ef4444', borderWidth: 2, borderColor: '#fff' },
   titleWrap: { marginBottom: 14 },
   pageTitle: { color: colors.dark, fontSize: 28, fontWeight: '900' },
   pageSubtitle: { color: colors.muted, fontSize: 14, fontWeight: '600', marginTop: 4 },
@@ -1120,7 +1135,13 @@ const styles = StyleSheet.create({
   successText: { color: '#166534', fontSize: 12, fontWeight: '700' },
 });
 
-export default PacientePerfilScreen;
+const PacientePerfilScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider>
+    <PacientePerfilScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default PacientePerfilScreenWrapper;
 
 
 

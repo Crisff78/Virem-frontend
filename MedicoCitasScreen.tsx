@@ -21,6 +21,7 @@ import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
+import MedicoHeader from './components/MedicoHeader';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
 import { useSocketEvent } from './hooks/useSocketEvent';
 import { apiClient } from './utils/api';
@@ -106,10 +107,10 @@ const formatPrice = (value: number | null | undefined) => {
 
 const MedicoCitasScreen: React.FC = () => {
   const navigation = usePortalAwareMedicoNavigation();
-  const { isInsidePortal } = useMedicoModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
   const { loadingUser, refreshUser, signOut, doctorName, doctorSpec, fotoUrl } =
     useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
-  const { isDesktop, isTablet, isMobile, select } = useResponsive();
+  const { isDesktop, isTablet, isMobile, rs, select } = useResponsive();
   const isDesktopLayout = isDesktop;
   const [loadingCitas, setLoadingCitas] = useState(false);
   const [workingCitaId, setWorkingCitaId] = useState('');
@@ -308,46 +309,17 @@ const MedicoCitasScreen: React.FC = () => {
     [handleAuthExpired, loadCitas, upsertCita]
   );
 
-  const openVideoSala = useCallback(async (cita: CitaItem) => {
+  const openVideoSala = useCallback((cita: CitaItem) => {
     if (normalizeText(cita?.modalidad).toLowerCase() !== 'virtual') {
       Alert.alert('Consulta presencial', 'Esta cita no tiene videollamada habilitada.');
       return;
     }
 
-    setWorkingCitaId(cita.citaid);
-    try {
-      const payload = await apiClient.post<any>(`/api/agenda/me/citas/${cita.citaid}/video-sala/abrir`, {
-        authenticated: true,
-      });
-      if (!payload?.success || !payload?.videoSala?.joinUrl) {
-        Alert.alert('No disponible', payload?.message || 'No se pudo abrir la videollamada.');
-        return;
-      }
-
-      const joinUrl = String(payload.videoSala.joinUrl || '').trim();
-      if (!joinUrl) {
-        Alert.alert('No disponible', 'La sala aun no tiene URL de acceso.');
-        return;
-      }
-
-      if (Platform.OS === 'web') {
-        const webOpen = (globalThis as any)?.open;
-        if (typeof webOpen === 'function') {
-          const opened = webOpen(joinUrl, '_blank');
-          if (opened) return;
-        }
-      }
-      await Linking.openURL(joinUrl);
-    } catch (error) {
-      if (isAuthError(error)) {
-        await handleAuthExpired();
-        return;
-      }
-      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo abrir la videollamada.'));
-    } finally {
-      setWorkingCitaId('');
-    }
-  }, [handleAuthExpired]);
+    navigation.navigate('VideoCall', {
+      citaId: cita.citaid,
+      initiate: true
+    });
+  }, [navigation]);
 
   const showDetails = (cita: CitaItem) => {
     Alert.alert(
@@ -394,6 +366,7 @@ const MedicoCitasScreen: React.FC = () => {
   }
 
   return (
+<<<<<<< HEAD
     <View style={[styles.container, isInsidePortal ? null : (!isDesktop && (isTablet ? styles.containerTablet : styles.containerMobile))]}>
       {!isInsidePortal && (
         <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : (isTablet ? styles.sidebarTablet : styles.sidebarMobile)]}>
@@ -457,6 +430,11 @@ const MedicoCitasScreen: React.FC = () => {
             </View>
           </View>
         </View>
+=======
+    <View style={{ flex: 1 }}>
+        <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+          <MedicoHeader title="Mi Agenda" />
+>>>>>>> feature-cris
 
         <View style={styles.searchWrap}>
           <MaterialIcons name="search" size={19} color={colors.muted} />
@@ -620,8 +598,8 @@ const MedicoCitasScreen: React.FC = () => {
             <Text style={styles.emptyText}>No hay historial para mostrar.</Text>
           )}
         </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
   );
 };
 
@@ -719,9 +697,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoutText: { color: '#fff', fontWeight: '800' },
-  main: { flex: 1 },
+  main: { flex: 1, paddingHorizontal: 20 },
   headerWrap: {
-    paddingHorizontal: Platform.OS === 'web' ? 32 : 14,
     paddingTop: Platform.OS === 'web' ? 32 : 14,
     paddingBottom: 12,
   },
@@ -743,7 +720,6 @@ const styles = StyleSheet.create({
   pageTitle: { color: colors.dark, fontSize: 30, fontWeight: '900' },
   pageSubtitle: { color: colors.muted, fontSize: 16, marginTop: 4, fontWeight: '500' },
   searchWrap: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
@@ -757,7 +733,6 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, color: colors.dark, fontSize: 14, fontWeight: '600', paddingVertical: 4 },
   sectionHead: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     marginTop: 12,
     marginBottom: 8,
     flexDirection: 'row',
@@ -767,7 +742,6 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.dark, fontSize: 20, fontWeight: '900' },
   sectionCount: { color: colors.muted, fontSize: 13, fontWeight: '800' },
   sectionCard: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     backgroundColor: '#fff',
     borderRadius: 14,
     borderWidth: 1,
@@ -836,7 +810,6 @@ const styles = StyleSheet.create({
 
   statsRow: {
     flexDirection: 'row',
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     gap: 12,
     marginBottom: 20,
     flexWrap: 'wrap',

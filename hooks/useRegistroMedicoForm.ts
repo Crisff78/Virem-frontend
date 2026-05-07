@@ -302,7 +302,14 @@ export function useRegistroMedicoForm(
     }
   }, [updateErrors, updateValues]);
 
+<<<<<<< HEAD
   const pickSupportingDocument = useCallback(async () => {}, []);
+=======
+  const pickSupportingDocument = useCallback(
+    async (field: any) => {},
+    []
+  );
+>>>>>>> feature-cris
 
   const handleContinue = useCallback(async () => {
     setErrors((current: RegistroMedicoFormErrors) => ({

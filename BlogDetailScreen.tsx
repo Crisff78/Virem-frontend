@@ -1,7 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+<<<<<<< HEAD
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+=======
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+>>>>>>> feature-cris
 import { RootStackParamList } from './navigation/types';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
@@ -19,7 +23,11 @@ const colors = {
 
 const BlogDetailScreen: React.FC = () => {
   const route = useRoute<BlogDetailRouteProp>();
+<<<<<<< HEAD
   const navigation = useNavigation<BlogDetailNavProp>();
+=======
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+>>>>>>> feature-cris
   const { category, title, description, image } = route.params;
 
   return (

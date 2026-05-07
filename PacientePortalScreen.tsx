@@ -14,6 +14,7 @@ import PacienteChatScreen from './PacienteChatScreen';
 import PacienteRecetasDocumentosScreen from './PacienteRecetasDocumentosScreen';
 import PacientePerfilScreen from './PacientePerfilScreen';
 import PacienteConfiguracionScreen from './PacienteConfiguracionScreen';
+import PacienteNotificacionesScreen from './PacienteNotificacionesScreen';
 
 const MODULE_COMPONENTS: Record<PortalModule, React.ComponentType<any>> = {
   DashboardPaciente: DashboardPacienteScreen,
@@ -24,6 +25,7 @@ const MODULE_COMPONENTS: Record<PortalModule, React.ComponentType<any>> = {
   PacienteRecetasDocumentos: PacienteRecetasDocumentosScreen,
   PacientePerfil: PacientePerfilScreen,
   PacienteConfiguracion: PacienteConfiguracionScreen,
+  PacienteNotificaciones: PacienteNotificacionesScreen,
 };
 
 /**
@@ -34,14 +36,14 @@ const MODULE_COMPONENTS: Record<PortalModule, React.ComponentType<any>> = {
 const PacientePortalInner: React.FC = () => {
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
 
   return (
     <View style={[styles.container, isDesktopLayout ? styles.containerDesktop : styles.containerMobile]}>
       <PacienteSidebar
-        isMobileMenuOpen={isMobileMenuOpen}
-        onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
-        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+        isMobileMenuOpen={isSidebarOpen}
+        onToggleMobileMenu={toggleSidebar}
+        onCloseMobileMenu={toggleSidebar}
       />
 
       <View style={styles.modulesContainer}>
@@ -79,10 +81,15 @@ const ModuleVisibility: React.FC<{ moduleName: PortalModule; children: React.Rea
   children,
 }) => {
   const { activeModule } = usePacienteModule();
-  const isActive = activeModule === moduleName;
+  const isVisible = activeModule === moduleName;
 
   return (
-    <View style={isActive ? styles.moduleVisible : styles.moduleHidden}>
+    <View 
+      style={[
+        { flex: 1 },
+        !isVisible && { display: 'none', height: 0, width: 0, opacity: 0 }
+      ]}
+    >
       {children}
     </View>
   );

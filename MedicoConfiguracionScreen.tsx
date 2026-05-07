@@ -22,6 +22,7 @@ import { useTheme } from "./providers/ThemeContext";
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage } from './localization/LanguageContext';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
+import MedicoHeader from './components/MedicoHeader';
 import { resolveRemoteImageSource } from './utils/imageSources';
 import { useResponsive, BREAKPOINTS } from './hooks/useResponsive';
 import { colors } from './theme/colors';
@@ -34,10 +35,10 @@ const SETTINGS_KEY = 'medicoSettings';
 
 const MedicoConfiguracionScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = useMedicoModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
   const { language: appLanguage, setLanguage, t, tx } = useLanguage();
-  const { user, refreshUser, signOut, fotoUrl } =
-    useMedicoPortalSession({ syncOnMount: false });
+  const { user, refreshUser, signOut, fotoUrl, doctorName } =
+    useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
 
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -173,9 +174,11 @@ const MedicoConfiguracionScreen: React.FC = () => {
         </View>
       )}
 
-      <ScrollView style={styles.main}>
-        <Text style={styles.title}>Configuración</Text>
-        <Text style={styles.subtitle}>Gestiona las preferencias de tu portal médico</Text>
+      <View style={styles.main}>
+        <MedicoHeader title="Configuración" />
+        <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+          <Text style={styles.title}>Configuración</Text>
+          <Text style={styles.subtitle}>Gestiona las preferencias de tu portal médico</Text>
 
         <View style={styles.grid}>
           {/* Cuenta */}
@@ -310,7 +313,8 @@ const MedicoConfiguracionScreen: React.FC = () => {
             </View>
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       <Modal visible={selectorOpen} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -371,6 +375,7 @@ const styles = StyleSheet.create({
   logoutButton: { flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blue, paddingVertical: 12, borderRadius: 12 },
   logoutText: { color: '#fff', fontWeight: '800' },
   main: { flex: 1, paddingHorizontal: 20, paddingTop: 18 },
+<<<<<<< HEAD
   title: { fontSize: 32, fontWeight: '900', color: colors.dark },
   subtitle: { fontSize: 16, color: colors.muted, marginTop: 6, marginBottom: 18, fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
@@ -378,6 +383,14 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   cardHeaderText: { flex: 1 },
   iconBox: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+=======
+  title: { fontSize: 42, fontWeight: '900', color: colors.dark },
+  subtitle: { fontSize: 20, color: colors.muted, marginTop: 6, marginBottom: 18, fontWeight: '600' },
+  grid: { flexDirection: Platform.OS === 'web' ? 'row' : 'column', flexWrap: 'wrap', gap: 14 },
+  cardHalf: { width: Platform.OS === 'web' ? '49%' : '100%', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e4edf7', padding: 16, minHeight: 230 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  iconBox: { width: 42, height: 42, borderRadius: 12, backgroundColor: 'rgba(19,127,236,0.12)', alignItems: 'center', justifyContent: 'center' },
+>>>>>>> feature-cris
   cardTitle: { color: colors.dark, fontSize: 16, fontWeight: '900' },
   cardHint: { color: colors.muted, fontSize: 11, fontWeight: '600' },
   itemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },

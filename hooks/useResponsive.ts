@@ -27,8 +27,12 @@ export const useResponsive = () => {
    * Garantiza min 75% (phones pequeños), max 1.6 móvil / 1.1 desktop.
    */
   const fs = (size: number): number => {
+<<<<<<< HEAD
     const maxScale = isDesktop ? 1.1 : 1.6;
     const scale = Math.min(Math.max(width / BASE_WIDTH, 0.75), maxScale);
+=======
+    const scale = Math.min(Math.max(width / BASE_WIDTH, 0.75), 1.15);
+>>>>>>> feature-cris
     return Math.round(size * scale);
   };
 
@@ -36,8 +40,12 @@ export const useResponsive = () => {
    * rs: spacing scale (más conservador que fs).
    */
   const rs = (size: number): number => {
+<<<<<<< HEAD
     const maxScale = isDesktop ? 1.05 : 1.4;
     const scale = Math.min(Math.max(width / BASE_WIDTH, 0.8), maxScale);
+=======
+    const scale = Math.min(Math.max(width / BASE_WIDTH, 0.8), 1.1);
+>>>>>>> feature-cris
     return Math.round(size * scale);
   };
 

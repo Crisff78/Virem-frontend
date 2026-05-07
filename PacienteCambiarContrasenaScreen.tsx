@@ -22,6 +22,9 @@ import { usePatientPortalSession } from './hooks/usePatientPortalSession';
 import { apiClient } from './utils/api';
 import { getApiErrorMessage, isAuthError } from './utils/apiErrors';
 import { resolveRemoteImageSource } from './utils/imageSources';
+import PacienteSidebar from './components/PacienteSidebar';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { useResponsive } from './hooks/useResponsive';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -29,8 +32,9 @@ const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
 const PacienteCambiarContrasenaScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { t, tx } = useLanguage();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isDesktop: isDesktopLayout } = useResponsive();
   const { signOut, fullName, planLabel, fotoUrl } = usePatientPortalSession();
-  const { width: viewportWidth } = useWindowDimensions();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -39,7 +43,6 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
   const avatarSource: ImageSourcePropType = useMemo(() => {
     return resolveRemoteImageSource(fotoUrl, DefaultAvatar);
@@ -163,73 +166,27 @@ const PacienteCambiarContrasenaScreen: React.FC = () => {
   const indicatorColor = passwordChecks.score >= 3 ? '#16a34a' : passwordChecks.score >= 2 ? '#137fec' : '#f59e0b';
 
   return (
-    <View style={[styles.container, !isDesktopLayout && styles.containerMobile]}>
-      <View style={[styles.sidebar, !isDesktopLayout && styles.sidebarMobile]}>
-        <View>
-          <View style={styles.logoBox}>
-            <Image source={ViremLogo} style={styles.logo} />
-            <View>
-              <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSubtitle}>Portal Paciente</Text>
-            </View>
-          </View>
-
-          <View style={styles.userBox}>
-            <Image source={avatarSource} style={styles.userAvatar} />
-            <Text style={styles.userName}>{fullName}</Text>
-            <Text style={styles.userPlan}>{planLabel}</Text>
-          </View>
-
-          <View style={[styles.menu, !isDesktopLayout && styles.menuMobile]}>
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('DashboardPaciente')}>
-              <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.home')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
-            >
-              <MaterialIcons name="person-search" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.searchDoctor')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteCitas')}
-            >
-              <MaterialIcons name="calendar-today" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.appointments')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
-            >
-              <MaterialIcons name="videocam" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.videocall')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('PacienteRecetasDocumentos')}>
-              <MaterialIcons name="description" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItemRow} onPress={() => navigation.navigate('PacientePerfil')}>
-              <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.profile')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.menuItemRow, styles.menuItemActive]} onPress={() => navigation.navigate('PacienteConfiguracion')}>
-              <MaterialIcons name="settings" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.settings')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>{t('menu.logout')}</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
 
       <ScrollView
         style={[styles.main, !isDesktopLayout && styles.mainMobile]}
         contentContainerStyle={{ paddingBottom: 30 }}
       >
+        {!isSidebarOpen && (
+          <TouchableOpacity 
+            style={styles.hamburgerBtn} 
+            onPress={toggleSidebar}
+          >
+            <MaterialIcons name="menu" size={26} color={colors.dark} />
+          </TouchableOpacity>
+        )}
         <View style={styles.contentWrap}>
           <Text style={styles.pageTitle}>
             {tx({ es: 'Cambiar Contrasena', en: 'Change Password', pt: 'Alterar Senha' })}
@@ -371,69 +328,24 @@ const colors = {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
   },
-  containerMobile: {
-    flexDirection: 'column',
-  },
-  sidebar: {
-    width: Platform.OS === 'web' ? 280 : '100%',
-    backgroundColor: colors.white,
-    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-    borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
-    borderRightColor: '#eef2f7',
-    borderBottomColor: '#eef2f7',
-    padding: Platform.OS === 'web' ? 20 : 14,
-    justifyContent: 'space-between',
-  },
-  sidebarMobile: {
-    width: '100%',
-    borderRightWidth: 0,
-    borderBottomWidth: 1,
-    padding: 14,
-  },
-  logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, resizeMode: 'contain' },
-  logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
-  logoSubtitle: { fontSize: 11, fontWeight: '700', color: colors.muted },
-  userBox: { marginTop: 18, alignItems: 'center', paddingVertical: 12 },
-  userAvatar: { width: 76, height: 76, borderRadius: 76, marginBottom: 10, borderWidth: 4, borderColor: '#f5f7fb' },
-  userName: { fontWeight: '800', color: colors.dark, fontSize: 14 },
-  userPlan: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 2 },
-  menu: {
-    marginTop: 10,
-    gap: 6,
-    flex: Platform.OS === 'web' ? 1 : 0,
-    flexDirection: Platform.OS === 'web' ? 'column' : 'row',
-    flexWrap: 'wrap',
-  },
-  menuMobile: {
-    flex: 0,
-    flexDirection: 'row',
-  },
-  menuItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    minWidth: Platform.OS === 'web' ? 0 : 150,
-  },
-  menuItemActive: { backgroundColor: 'rgba(19,127,236,0.10)', borderRightWidth: 3, borderRightColor: colors.primary },
-  menuText: { fontSize: 14, fontWeight: '700', color: colors.muted },
-  menuTextActive: { color: colors.primary },
-  logoutButton: {
-    flexDirection: 'row',
-    gap: 10,
+  hamburgerBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.blue,
-    paddingVertical: 12,
-    borderRadius: 12,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+    marginLeft: 20,
+    marginTop: 20,
+    marginBottom: 10,
   },
-  logoutText: { color: '#fff', fontWeight: '800' },
   main: {
     flex: 1,
     paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
@@ -507,5 +419,10 @@ const styles = StyleSheet.create({
   tipText: { flex: 1, color: colors.blue, fontSize: 13, fontWeight: '600', lineHeight: 19 },
 });
 
-export default PacienteCambiarContrasenaScreen;
+const PacienteCambiarContrasenaScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider initialModule="PacienteConfiguracion">
+    <PacienteCambiarContrasenaScreen {...props} />
+  </PacienteModuleProvider>
+);
 
+export default PacienteCambiarContrasenaScreenWrapper;

@@ -1,4 +1,20 @@
+<<<<<<< HEAD
 import React, { useCallback, useMemo } from 'react';
+=======
+import React, { useMemo } from 'react';
+import {
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import type { ImageSourcePropType } from 'react-native';
+>>>>>>> feature-cris
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ImageSourcePropType } from 'react-native';
@@ -11,8 +27,19 @@ import { PortalSidebar, type PortalSidebarMenuItem } from './PortalSidebar';
 
 const DefaultAvatar = require('../assets/imagenes/avatar-default.jpg');
 
+<<<<<<< HEAD
 const MENU_ITEMS: PortalSidebarMenuItem<MedicoPortalModule>[] = [
   { module: 'DashboardMedico', icon: 'dashboard', label: 'Dashboard' },
+=======
+type MenuItem = {
+  module: MedicoPortalModule;
+  icon: string;
+  label: string;
+};
+
+const MENU_ITEMS: MenuItem[] = [
+  { module: 'DashboardMedico', icon: 'grid-view', label: 'Inicio' },
+>>>>>>> feature-cris
   { module: 'MedicoCitas', icon: 'calendar-today', label: 'Agenda' },
   { module: 'MedicoHorarios', icon: 'schedule', label: 'Horarios' },
   { module: 'MedicoPacientes', icon: 'group', label: 'Pacientes' },
@@ -35,7 +62,7 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
   onCloseMobileMenu,
 }) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { activeModule, setActiveModule } = useMedicoModule();
+  const { activeModule, setActiveModule, isSidebarOpen } = useMedicoModule();
   const { doctorName, doctorSpec, fotoUrl, signOut } = useMedicoPortalSession({
     syncOnMount: true,
     addDoctorPrefix: true,
@@ -46,6 +73,7 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
     [fotoUrl]
   );
 
+<<<<<<< HEAD
   const handleModulePress = useCallback(
     (module: MedicoPortalModule) => {
       onCloseMobileMenu();
@@ -53,6 +81,12 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
     },
     [onCloseMobileMenu, setActiveModule]
   );
+=======
+  const handleModulePress = (module: MedicoPortalModule) => {
+    // Keep sidebar open on selection as per user request for consistency
+    setActiveModule(module);
+  };
+>>>>>>> feature-cris
 
   const handleLogout = useCallback(async () => {
     onCloseMobileMenu();
@@ -60,7 +94,65 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   }, [navigation, onCloseMobileMenu, signOut]);
 
+  const sidebarContent = (
+    <>
+      <View style={styles.sidebarHeader}>
+        <View style={styles.logoBox}>
+          <Image source={ViremLogo} style={styles.logo} />
+          <View>
+            <Text style={styles.logoTitle}>VIREM</Text>
+            <Text style={styles.logoSubtitle}>Portal Médico</Text>
+          </View>
+        </View>
+        {!isDesktopLayout && (
+          <TouchableOpacity onPress={onCloseMobileMenu} style={styles.closeBtn}>
+            <MaterialIcons name="close" size={24} color={colors.dark} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.userBox}>
+        <Image source={userAvatarSource} style={styles.userAvatar} />
+        <Text style={styles.userName} numberOfLines={1}>{doctorName}</Text>
+        <Text style={styles.userSpec} numberOfLines={1}>{doctorSpec}</Text>
+      </View>
+
+      <ScrollView style={{ flex: 1, marginTop: 10 }} showsVerticalScrollIndicator={false}>
+        {MENU_ITEMS.map((item) => {
+          const isActive = activeModule === item.module;
+          return (
+            <Pressable
+              key={item.module}
+              onPress={() => handleModulePress(item.module)}
+              style={({ pressed, hovered }: any) => [
+                styles.menuItem,
+                isActive && styles.menuItemActive,
+                hovered && !isActive && styles.menuItemHover,
+                pressed && styles.menuItemPressed,
+              ]}
+            >
+              <MaterialIcons
+                name={item.icon}
+                size={20}
+                color={isActive ? colors.primary : colors.muted}
+              />
+              <Text style={[styles.menuText, isActive && styles.menuTextActive]}>
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <MaterialIcons name="logout" size={18} color="#fff" />
+        <Text style={styles.logoutText}>Cerrar sesión</Text>
+      </TouchableOpacity>
+    </>
+  );
+
   return (
+<<<<<<< HEAD
     <PortalSidebar
       portalSubtitle="Portal Médico"
       primaryName={doctorName}
@@ -73,7 +165,115 @@ const MedicoSidebar: React.FC<MedicoSidebarProps> = ({
       isMobileMenuOpen={isMobileMenuOpen}
       onToggleMobileMenu={onToggleMobileMenu}
     />
+=======
+    <>
+      {!isDesktopLayout && isMobileMenuOpen && (
+        <TouchableOpacity
+          style={styles.drawerOverlay}
+          activeOpacity={1}
+          onPress={onCloseMobileMenu}
+        >
+          <View style={styles.drawerContent} onStartShouldSetResponder={() => true}>
+            {sidebarContent}
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {isDesktopLayout && isSidebarOpen && (
+        <View style={styles.sidebarDesktop}>
+          {sidebarContent}
+        </View>
+      )}
+    </>
+>>>>>>> feature-cris
   );
 };
 
 export default MedicoSidebar;
+<<<<<<< HEAD
+=======
+
+const styles = StyleSheet.create({
+  drawerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    zIndex: 2000,
+  },
+  drawerContent: {
+    width: 280,
+    height: '100%',
+    backgroundColor: '#fff',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  sidebarDesktop: {
+    width: 280,
+    height: '100%',
+    backgroundColor: '#fff',
+    padding: 20,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  closeBtn: {
+    padding: 8,
+    borderRadius: 10,
+    backgroundColor: '#f8fafc',
+  },
+  logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logo: { width: 44, height: 44, resizeMode: 'contain' },
+  logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
+  logoSubtitle: { fontSize: 11, fontWeight: '700', color: colors.muted },
+
+  userBox: { marginTop: 18, alignItems: 'center', paddingVertical: 12 },
+  userAvatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 76,
+    marginBottom: 10,
+    borderWidth: 4,
+    borderColor: '#f5f7fb',
+  },
+  userName: { fontWeight: '800', color: colors.dark, fontSize: 14, textAlign: 'center' },
+  userSpec: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 2 },
+
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  menuItemActive: {
+    backgroundColor: 'rgba(19,127,236,0.10)',
+  },
+  menuItemHover: { backgroundColor: '#f4f8fc' },
+  menuItemPressed: { opacity: 0.7, transform: [{ scale: 0.985 }] },
+  menuText: { fontSize: 14, color: colors.muted, fontWeight: '700' },
+  menuTextActive: { color: colors.primary },
+
+  logoutButton: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.blue,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 20,
+  },
+  logoutText: { color: '#fff', fontWeight: '800' },
+});
+>>>>>>> feature-cris

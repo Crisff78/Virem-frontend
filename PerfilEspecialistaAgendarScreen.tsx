@@ -24,11 +24,12 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { DoctorRouteSnapshot, RootStackParamList } from './navigation/types';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 import { usePatientSessionProfile, type PatientSessionUser } from './hooks/usePatientSessionProfile';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
+import PacienteSidebar from './components/PacienteSidebar';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -282,7 +283,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const { t } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'PerfilEspecialistaAgendar'>>();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
   const { signOut } = useAuth();
   const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { isDesktop, isTablet, isMobile, select } = useResponsive();
@@ -545,14 +546,12 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
 
   const currentCalculatedPrice = useMemo(() => {
     if (!selectedSlot) return 0;
-    if (selectedSlot.modalidad !== 'virtual') {
-      return Number(backendDoctor?.precio || 1000);
-    }
-    if (virtualSubtype === 'chat') {
-      return 0;
-    }
-    return Number(backendDoctor?.precio_videollamada || 1000);
-  }, [backendDoctor, selectedSlot, virtualSubtype]);
+    
+    // Usamos el precio que se muestra en el perfil para que coincida exactamente
+    const displayedPrice = Number(String(doctor.price || '0').replace(/[^\d.]/g, ''));
+    
+    return displayedPrice;
+  }, [doctor, selectedSlot]);
 
   const commissionAmount = useMemo(() => {
     return Number((currentCalculatedPrice * 0.15).toFixed(2));
@@ -671,120 +670,46 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.container, isInsidePortal ? null : (isDesktop ? styles.containerDesktop : (isTablet ? styles.containerTablet : styles.containerMobile))]}>
-      <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : (isTablet ? styles.sidebarTablet : styles.sidebarMobile)]}>
-        <View>
-          <View style={styles.logoBox}>
-            <Image source={ViremLogo} style={styles.logo} />
-            <View>
-              <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSubtitle}>Portal Paciente</Text>
-            </View>
+    <View style={[styles.container, !isInsidePortal && isDesktop && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
+      <View style={{ flex: 1 }}>
+        <View style={[styles.header, !isDesktop && styles.headerMobile]}>
+          {!isSidebarOpen && (
+            <TouchableOpacity 
+              style={styles.hamburgerBtn} 
+              onPress={toggleSidebar}
+            >
+              <MaterialIcons name="menu" size={26} color={colors.dark} />
+            </TouchableOpacity>
+          )}
+
+          <View style={styles.searchBox}>
+            <MaterialIcons name="search" size={20} color={colors.muted} />
+            <TextInput
+              placeholder="Busca servicios, medicos..."
+              placeholderTextColor="#8aa7bf"
+              style={styles.searchInput}
+            />
           </View>
-
-          <View style={styles.sidebarUserBox}>
-            <Image source={userAvatarSource} style={styles.sidebarUserAvatar} />
-            <Text style={styles.sidebarUserName}>{fullName}</Text>
-            <Text style={styles.sidebarUserPlan}>{planLabel}</Text>
-          </View>
-
-          <View style={[styles.menu, (isDesktop || isTablet) ? styles.menuDesktop : styles.menuMobile]}>
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('DashboardPaciente')}
-            >
-              <MaterialIcons name="grid-view" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.home')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.menuItemRow, styles.menuItemActive]}
-              onPress={() => navigation.navigate('NuevaConsultaPaciente')}
-            >
-              <MaterialIcons name="person-search" size={20} color={colors.primary} />
-              <Text style={[styles.menuText, styles.menuTextActive]}>{t('menu.searchDoctor')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteCitas')}
-            >
-              <MaterialIcons name="calendar-month" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.appointments')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente')}
-            >
-              <MaterialIcons name="videocam" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.videocall')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteChat')}
-            >
-              <MaterialIcons name="chat-bubble" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.chat')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteRecetasDocumentos')}
-            >
-              <MaterialIcons name="description" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.recipesDocs')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacientePerfil')}
-            >
-              <MaterialIcons name="account-circle" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.profile')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItemRow}
-              onPress={() => navigation.navigate('PacienteConfiguracion')}
-            >
-              <MaterialIcons name="settings" size={20} color={colors.muted} />
-              <Text style={styles.menuText}>{t('menu.settings')}</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.notifBtn}
+            onPress={() => navigation.navigate('PacienteNotificaciones')}
+          >
+            <MaterialIcons name="notifications" size={22} color={colors.dark} />
+            <View style={styles.notifDot} />
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>{t('menu.logout')}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={{ flex: 1 }}>
         <ScrollView
           style={[styles.main, !isDesktop && styles.mainMobile]}
           contentContainerStyle={{ paddingBottom: 28 }}
         >
-          <View style={styles.header}>
-            <View style={styles.searchBox}>
-              <MaterialIcons name="search" size={20} color={colors.muted} />
-              <TextInput
-                placeholder="Busca un médico para consulta online"
-                placeholderTextColor="#8aa7bf"
-                style={styles.searchInput}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.notifBtn}
-              onPress={() => navigation.navigate('PacienteNotificaciones')}
-            >
-              <MaterialIcons name="notifications" size={22} color={colors.dark} />
-              <View style={styles.notifDot} />
-            </TouchableOpacity>
-          </View>
-
           <View style={[styles.breadcrumbRow, (isTablet || isMobile) && styles.breadcrumbRowMobile]}>
             <TouchableOpacity onPress={() => navigation.navigate('DashboardPaciente')}>
               <Text style={styles.breadcrumbLink}>Inicio</Text>
@@ -867,7 +792,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
               </View>
             </View>
 
-            <View style={[styles.bookingCol, !isDesktopLayout && styles.bookingColMobile]}>
+            <View style={[styles.bookingCol, !isDesktop && styles.bookingColMobile]}>
               <View style={styles.bookingCard}>
                 <View style={styles.bookingTop}>
                   <Text style={styles.priceLabel}>Precio de consulta</Text>
@@ -900,7 +825,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                   </View>
 
                   <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Horarios disponibles</Text>
-                  <View style={[styles.modeRow, !isDesktopLayout && styles.modeRowMobile]}>
+                  <View style={[styles.modeRow, !isDesktop && styles.modeRowMobile]}>
                     {modalidadOptions.map((option) => (
                       <TouchableOpacity
                         key={option.id}
@@ -926,7 +851,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                           key={item.id}
                           style={[
                             styles.timeBtn,
-                            !isDesktopLayout && styles.timeBtnMobile,
+                            !isDesktop && styles.timeBtnMobile,
                             selectedTime === item.id && styles.timeBtnActive,
                           ]}
                           onPress={() => setSelectedTime(item.id)}
@@ -980,41 +905,18 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
               >
                 <View style={styles.paymentCard}>
                   <View style={styles.paymentHeader}>
-                    <Text style={styles.paymentTitle}>Confirmar Pago</Text>
+                    <View style={{ flex: 1 }} />
                     <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
                       <MaterialIcons name="close" size={24} color={colors.dark} />
                     </TouchableOpacity>
                   </View>
 
-                  {selectedSlot?.modalidad === 'virtual' && (
-                    <View style={styles.modalidadSelector}>
-                      <Text style={styles.selectorLabel}>Selecciona tipo de atención</Text>
-                      <View style={styles.selectorRow}>
-                        <TouchableOpacity
-                          style={[styles.selectorBtn, virtualSubtype === 'chat' && styles.selectorBtnActive]}
-                          onPress={() => setVirtualSubtype('chat')}
-                        >
-                          <MaterialIcons name="chat" size={20} color={virtualSubtype === 'chat' ? '#fff' : colors.muted} />
-                          <View>
-                            <Text style={[styles.selectorBtnText, virtualSubtype === 'chat' && styles.selectorBtnActiveText]}>Chat</Text>
-                            <Text style={[styles.selectorBtnSubtext, virtualSubtype === 'chat' && styles.selectorBtnActiveText]}>Coordinación</Text>
-                          </View>
-                          <Text style={[styles.selectorPrice, virtualSubtype === 'chat' && styles.selectorBtnActiveText]}>GRATIS</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.selectorBtn, virtualSubtype === 'videollamada' && styles.selectorBtnActive]}
-                          onPress={() => setVirtualSubtype('videollamada')}
-                        >
-                          <MaterialIcons name="videocam" size={20} color={virtualSubtype === 'videollamada' ? '#fff' : colors.muted} />
-                          <View>
-                            <Text style={[styles.selectorBtnText, virtualSubtype === 'videollamada' && styles.selectorBtnActiveText]}>Video</Text>
-                            <Text style={[styles.selectorBtnSubtext, virtualSubtype === 'videollamada' && styles.selectorBtnActiveText]}>Consulta Médica</Text>
-                          </View>
-                          <Text style={[styles.selectorPrice, virtualSubtype === 'videollamada' && styles.selectorBtnActiveText]}>${backendDoctor?.precio_videollamada || 1000}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
+                  <View style={{ marginBottom: 20, alignItems: 'center' }}>
+                    <MaterialIcons name="info-outline" size={20} color={colors.primary} />
+                    <Text style={[styles.selectorBtnSubtext, { marginTop: 4, fontSize: 12 }]}>
+                      El servicio de Chat de coordinación está incluido con tu consulta.
+                    </Text>
+                  </View>
 
                   <View style={styles.paymentBreakdown}>
                     <View style={styles.breakdownRow}>
@@ -1053,7 +955,11 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                       placeholder="0000 0000 0000 0000"
                       keyboardType="numeric"
                       value={cardNumber}
-                      onChangeText={setCardNumber}
+                      onChangeText={(t) => {
+                        const digits = t.replace(/\D/g, '');
+                        const formatted = digits.replace(/(.{4})/g, '$1 ').trim().slice(0, 19);
+                        setCardNumber(formatted);
+                      }}
                       maxLength={19}
                     />
                   </View>
@@ -1064,8 +970,16 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                       <TextInput
                         style={styles.paymentInput}
                         placeholder="MM/AA"
+                        keyboardType="numeric"
                         value={cardExpiry}
-                        onChangeText={setCardExpiry}
+                        onChangeText={(t) => {
+                          const digits = t.replace(/\D/g, '');
+                          if (digits.length <= 2) {
+                            setCardExpiry(digits);
+                          } else {
+                            setCardExpiry(`${digits.slice(0, 2)}/${digits.slice(2, 4)}`);
+                          }
+                        }}
                         maxLength={5}
                       />
                     </View>
@@ -1077,8 +991,10 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                         keyboardType="numeric"
                         secureTextEntry
                         value={cardCVV}
-                        onChangeText={setCardCVV}
-                        maxLength={4}
+                        onChangeText={(t) => {
+                          setCardCVV(t.replace(/\D/g, '').slice(0, 3));
+                        }}
+                        maxLength={3}
                       />
                     </View>
                   </View>
@@ -1160,6 +1076,16 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  closeSidebarBtn: {
+    padding: 5,
+    marginRight: -5,
+  },
   logo: { width: 44, height: 44, resizeMode: 'contain' },
   logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
   logoSubtitle: { fontSize: 11, color: colors.muted, fontWeight: '700' },
@@ -1634,6 +1560,28 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontWeight: '700',
   },
+  hamburgerBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  headerMobile: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
 });
 
-export default PerfilEspecialistaAgendarScreen;
+const PerfilEspecialistaAgendarScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider>
+    <PerfilEspecialistaAgendarScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default PerfilEspecialistaAgendarScreenWrapper;

@@ -14,6 +14,7 @@ import MedicoHorariosScreen from './MedicoHorariosScreen';
 import MedicoFinanzasScreen from './MedicoFinanzasScreen';
 import MedicoRecetasScreen from './MedicoRecetasScreen';
 import MedicoConfiguracionScreen from './MedicoConfiguracionScreen';
+import MedicoNotificationDrawer from './components/MedicoNotificationDrawer';
 
 const MODULE_COMPONENTS: Record<MedicoPortalModule, React.ComponentType<any>> = {
   DashboardMedico: DashboardMedico,
@@ -30,19 +31,18 @@ const MODULE_COMPONENTS: Record<MedicoPortalModule, React.ComponentType<any>> = 
 /**
  * Portal container that keeps all medico sidebar modules mounted simultaneously.
  * Only the active module is visible (display: flex); the rest are hidden (display: none).
- * This prevents full re-renders / data reloads when switching between sidebar modules.
  */
 const MedicoPortalInner: React.FC = () => {
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isSidebarOpen, toggleSidebar } = useMedicoModule();
 
   return (
     <View style={[styles.container, isDesktopLayout ? styles.containerDesktop : styles.containerMobile]}>
       <MedicoSidebar
-        isMobileMenuOpen={isMobileMenuOpen}
-        onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
-        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+        isMobileMenuOpen={isSidebarOpen}
+        onToggleMobileMenu={toggleSidebar}
+        onCloseMobileMenu={toggleSidebar}
       />
 
       <View style={styles.modulesContainer}>
@@ -50,13 +50,14 @@ const MedicoPortalInner: React.FC = () => {
           <ModuleSlot key={moduleName} moduleName={moduleName} />
         ))}
       </View>
+
+      <MedicoNotificationDrawer />
     </View>
   );
 };
 
 /**
  * Renders a single module inside a show/hide wrapper driven by context.
- * The component stays mounted even when hidden.
  */
 const ModuleSlot: React.FC<{ moduleName: MedicoPortalModule }> = React.memo(({ moduleName }) => {
   const Component = MODULE_COMPONENTS[moduleName];
@@ -71,17 +72,21 @@ ModuleSlot.displayName = 'MedicoModuleSlot';
 
 /**
  * Subscribes to context and toggles display for its child.
- * Separated so that visibility changes don't re-render the heavy screen component.
  */
 const ModuleVisibility: React.FC<{ moduleName: MedicoPortalModule; children: React.ReactNode }> = ({
   moduleName,
   children,
 }) => {
   const { activeModule } = useMedicoModule();
-  const isActive = activeModule === moduleName;
+  const isVisible = activeModule === moduleName;
 
   return (
-    <View style={isActive ? styles.moduleVisible : styles.moduleHidden}>
+    <View 
+      style={[
+        { flex: 1 },
+        !isVisible && { display: 'none', height: 0, width: 0, opacity: 0 }
+      ]}
+    >
       {children}
     </View>
   );
@@ -101,13 +106,4 @@ const styles = StyleSheet.create({
   containerMobile: { flexDirection: 'column' },
 
   modulesContainer: { flex: 1 },
-
-  moduleVisible: {
-    flex: 1,
-    display: 'flex',
-  },
-  moduleHidden: {
-    flex: 0,
-    display: 'none',
-  },
 });

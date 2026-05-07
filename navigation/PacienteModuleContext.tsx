@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useCallback, useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
+import { Platform } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 
@@ -16,6 +17,7 @@ export const PORTAL_MODULES = [
   'PacienteRecetasDocumentos',
   'PacientePerfil',
   'PacienteConfiguracion',
+  'PacienteNotificaciones',
 ] as const;
 
 export type PortalModule = (typeof PORTAL_MODULES)[number];
@@ -32,19 +34,38 @@ type PacienteModuleContextValue = {
    * Otherwise, push onto the stack as usual.
    */
   portalNavigate: (route: string, params?: Record<string, unknown>) => void;
+<<<<<<< HEAD
   /** True when the notification drawer is visible */
   isNotificationsOpen: boolean;
   /** Show or hide the notification drawer */
   setNotificationsOpen: (open: boolean) => void;
+=======
+  /** Global sidebar toggle state (Desktop & Mobile) */
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
+>>>>>>> feature-cris
 };
 
 const fallbackCtx: PacienteModuleContextValue = {
   isInsidePortal: false,
   activeModule: 'DashboardPaciente',
+<<<<<<< HEAD
   setActiveModule: () => undefined,
   portalNavigate: () => undefined,
   isNotificationsOpen: false,
   setNotificationsOpen: () => undefined,
+=======
+  setActiveModule: () => {
+    console.warn('usePacienteModule: setActiveModule called outside of PacienteModuleProvider');
+  },
+  portalNavigate: () => {
+    console.warn('usePacienteModule: portalNavigate called outside of PacienteModuleProvider');
+  },
+  isSidebarOpen: false,
+  toggleSidebar: () => {
+    console.warn('usePacienteModule: toggleSidebar called outside of PacienteModuleProvider');
+  },
+>>>>>>> feature-cris
 };
 
 export const PacienteModuleContext = createContext<PacienteModuleContextValue>(fallbackCtx);
@@ -70,7 +91,21 @@ export const PacienteModuleProvider: React.FC<ProviderProps> = ({
   children,
 }) => {
   const [activeModule, setActiveModuleRaw] = useState<PortalModule>(initialModule);
+<<<<<<< HEAD
   const [isNotificationsOpen, setNotificationsOpen] = useState(false);
+=======
+  
+  // Initial state: closed on mobile devices or small screens, open on desktop web
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (Platform.OS !== 'web') return false;
+    // On web, check width if possible
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return true;
+  });
+
+>>>>>>> feature-cris
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const setActiveModule = useCallback((mod: PortalModule) => {
@@ -87,6 +122,10 @@ export const PacienteModuleProvider: React.FC<ProviderProps> = ({
     },
     [navigation]
   );
+  
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen((prev) => !prev);
+  }, []);
 
   const value = useMemo<PacienteModuleContextValue>(
     () => ({
@@ -94,10 +133,17 @@ export const PacienteModuleProvider: React.FC<ProviderProps> = ({
       activeModule,
       setActiveModule,
       portalNavigate,
+<<<<<<< HEAD
       isNotificationsOpen,
       setNotificationsOpen,
     }),
     [activeModule, portalNavigate, setActiveModule, isNotificationsOpen]
+=======
+      isSidebarOpen,
+      toggleSidebar,
+    }),
+    [activeModule, portalNavigate, setActiveModule, isSidebarOpen, toggleSidebar]
+>>>>>>> feature-cris
   );
 
   return (

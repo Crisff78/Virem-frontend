@@ -20,6 +20,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
+import MedicoHeader from './components/MedicoHeader';
 import { apiClient } from './utils/api';
 import { getApiErrorMessage, isAuthError } from './utils/apiErrors';
 import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
@@ -194,7 +195,7 @@ const VerifiedField: React.FC<{
 
 const MedicoPerfilScreen: React.FC = () => {
   const navigation = usePortalAwareMedicoNavigation();
-  const { isInsidePortal } = useMedicoModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
   const {
     user,
     loadingUser: loadingSessionUser,
@@ -202,7 +203,8 @@ const MedicoPerfilScreen: React.FC = () => {
     persistUser,
     signOut,
     fotoUrl,
-  } = useMedicoPortalSession({ syncOnMount: false });
+    doctorName,
+  } = useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
   
   const [medicoId, setMedicoId] = useState('');
   const [precioChat, setPrecioChat] = useState('0');
@@ -417,75 +419,11 @@ const MedicoPerfilScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      {!isInsidePortal && (
-      <View style={styles.sidebar}>
-        <View>
-          <View style={styles.logoBox}>
-            <Image source={ViremLogo} style={styles.logo} />
-            <View>
-              <Text style={styles.logoTitle}>VIREM</Text>
-              <Text style={styles.logoSubtitle}>Portal Medico</Text>
-            </View>
+    <View style={{ flex: 1 }}>
+        <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 26 }}>
+          <View style={{ paddingHorizontal: 20 }}>
+            <MedicoHeader title="Mi Perfil" />
           </View>
-
-          <View style={styles.userBox}>
-            <Image source={avatarSource} style={styles.userAvatar} />
-            <Text style={styles.userName}>{prettyValue(profile.nombreCompleto)}</Text>
-            <Text style={styles.userPlan}>{prettyValue(profile.especialidad)}</Text>
-          </View>
-
-          <View style={styles.menu}>
-            {sideItems.map((item) => (
-              <TouchableOpacity
-                key={item.label}
-                style={[styles.menuItemRow, item.active ? styles.menuItemActive : null]}
-                onPress={() => handleSideItemPress(item)}
-                activeOpacity={0.85}
-              >
-                <MaterialIcons
-                  name={item.icon}
-                  size={20}
-                  color={item.active ? colors.primary : colors.muted}
-                />
-                <Text style={[styles.menuText, item.active ? styles.menuTextActive : null]}>{item.label}</Text>
-                {item.badge ? (
-                  <View style={[styles.badge, { backgroundColor: item.badge.color }]}>
-                    <Text style={styles.badgeText}>{item.badge.text}</Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Cerrar sesion</Text>
-        </TouchableOpacity>
-      </View>
-      )}
-
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 26 }}>
-        <View style={styles.headerWrap}>
-          <View style={styles.headerRow}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.pageTitle}>Perfil del Medico</Text>
-              <View style={styles.subtitleRow}>
-                <Text style={styles.pageSubtitle}>
-                  Aqui puedes ver tus datos verificados y actualizar tu foto de perfil.
-                </Text>
-                {loading || loadingSessionUser ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : null}
-              </View>
-            </View>
-            <View style={styles.headerRight}>
-              <Text style={styles.headerDate}>{dateText}</Text>
-              <Text style={styles.headerTime}>{timeText}</Text>
-            </View>
-          </View>
-        </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Foto de perfil</Text>
@@ -580,6 +518,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     backgroundColor: colors.bg,
+    paddingHorizontal: 20,
   },
   loaderWrap: {
     flex: 1,
@@ -663,7 +602,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerWrap: {
-    paddingHorizontal: Platform.OS === 'web' ? 32 : 14,
     paddingTop: Platform.OS === 'web' ? 32 : 14,
     paddingBottom: 12,
   },
@@ -687,7 +625,6 @@ const styles = StyleSheet.create({
   },
   pageSubtitle: { color: colors.muted, fontSize: 16, fontWeight: '500' },
   card: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#dbe8f4',
@@ -742,7 +679,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   successBanner: {
-    marginHorizontal: Platform.OS === 'web' ? 32 : 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

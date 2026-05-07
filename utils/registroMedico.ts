@@ -18,8 +18,6 @@ export type RegistroMedicoDraftPayload = {
   cedula: string;
   telefono: string;
   fotoUrl?: string;
-  cedulaProfesionalUrl?: string;
-  certificadoEspecialidadUrl?: string;
   exequaturValidationToken?: string;
 };
 

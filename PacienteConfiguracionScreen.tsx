@@ -16,17 +16,23 @@ import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from "./providers/ThemeContext";
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
+<<<<<<< HEAD
 import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
 import { useResponsive, BREAKPOINTS } from './hooks/useResponsive';
 import { colors } from './theme/colors';
 import { spacing, radii } from './theme/spacing';
+=======
+import { resolveRemoteImageSource } from './utils/imageSources';
+import PacienteSidebar from './components/PacienteSidebar';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { useResponsive } from './hooks/useResponsive';
+>>>>>>> feature-cris
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -59,10 +65,16 @@ const parseUser = (raw: string | null): User | null => {
 
 const PacienteConfiguracionScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
+<<<<<<< HEAD
   const { isInsidePortal, setNotificationsOpen } = usePacienteModule();
   const { language: appLanguage, setLanguage, t, tx } = useLanguage();
+=======
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isDesktop: isDesktopLayout } = useResponsive();
+>>>>>>> feature-cris
   const { user, refreshUser, signOut, fullName, planLabel, fotoUrl, hasProfilePhoto } =
     usePatientPortalSession({ syncOnMount: false });
+  const { t, tx, language: appLanguage, setLanguage } = useLanguage();
 
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -235,9 +247,13 @@ const PacienteConfiguracionScreen: React.FC = () => {
     );
   };
 
+
+
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
       {!isInsidePortal && (
+<<<<<<< HEAD
       <View style={styles.sidebar}>
         <View>
           <View style={styles.logoBox}>
@@ -336,6 +352,24 @@ const PacienteConfiguracionScreen: React.FC = () => {
 
 
       <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
+=======
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
+      <View style={{ flex: 1 }}>
+        <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
+        {!isSidebarOpen && (
+          <TouchableOpacity 
+            style={styles.hamburgerBtn} 
+            onPress={toggleSidebar}
+          >
+            <MaterialIcons name="menu" size={26} color={colors.dark} />
+          </TouchableOpacity>
+        )}
+>>>>>>> feature-cris
         <Text style={styles.title}>{t('config.title')}</Text>
         <Text style={styles.subtitle}>{t('config.subtitle')}</Text>
 
@@ -612,7 +646,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
-
+      </View>
     </View>
   );
 };
@@ -620,6 +654,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
 
 
 const styles = StyleSheet.create({
+<<<<<<< HEAD
   container: {
     flex: 1,
     flexDirection: Platform.OS === 'web' && BREAKPOINTS.desktop <= 1024 ? 'row' : 'column',
@@ -634,31 +669,106 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     padding: Platform.OS === 'web' ? 20 : 14,
     justifyContent: 'space-between',
+=======
+  drawerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 2000,
   },
-  logoBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 44, height: 44, resizeMode: 'contain' },
-  logoTitle: { fontSize: 20, fontWeight: '800', color: colors.dark, letterSpacing: 0.5 },
-  logoSubtitle: { fontSize: 11, fontWeight: '700', color: colors.muted },
-
-  userBox: { marginTop: 18, alignItems: 'center', paddingVertical: 12 },
+  logoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 30,
+    paddingHorizontal: 5,
+  },
+  logo: {
+    width: 44,
+    height: 44,
+    resizeMode: 'contain',
+  },
+  logoTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: 1,
+  },
+  logoSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.muted,
+    marginTop: -2,
+    textTransform: 'uppercase',
+  },
+  userBox: {
+    padding: 16,
+    backgroundColor: '#f8fbff',
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#eef4fb',
+>>>>>>> feature-cris
+  },
   userAvatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 76,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     marginBottom: 10,
+<<<<<<< HEAD
     borderWidth: 4,
     borderColor: colors.bg,
+=======
+    borderWidth: 2,
+    borderColor: '#fff',
+>>>>>>> feature-cris
   },
-  userName: { fontWeight: '800', color: colors.dark, fontSize: 14 },
-  userPlan: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 2 },
-  hintText: { marginTop: 6, color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'center' },
-
-  menu: {
-    marginTop: 10,
-    gap: 6,
-    flex: Platform.OS === 'web' ? 1 : 0,
-    flexDirection: Platform.OS === 'web' ? 'column' : 'row',
-    flexWrap: 'wrap',
+  userName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.dark,
+    textAlign: 'center',
+  },
+  userPlan: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    marginTop: 2,
+  },
+  drawerContent: {
+    width: 280,
+    height: '100%',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 20,
+  },
+  sidebarContent: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#fff',
+  },
+  hamburgerBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  menuScroll: {
+    flex: 1,
+    marginTop: 20,
   },
   menuItemRow: {
     flexDirection: 'row',
@@ -667,16 +777,28 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 12,
+<<<<<<< HEAD
     minWidth: Platform.OS === 'web' ? 0 : 140,
   },
   menuItemActive: {
     backgroundColor: colors.primarySoft,
     borderRightWidth: 3,
     borderRightColor: colors.primary,
+=======
+    marginBottom: 4,
   },
-  menuText: { fontSize: 14, fontWeight: '700', color: colors.muted },
-  menuTextActive: { color: colors.primary },
-
+  menuItemActive: {
+    backgroundColor: 'rgba(19,127,236,0.1)',
+  },
+  menuText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.muted,
+  },
+  menuTextActive: {
+    color: colors.primary,
+>>>>>>> feature-cris
+  },
   logoutButton: {
     flexDirection: 'row',
     gap: 10,
@@ -685,9 +807,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.blue,
     paddingVertical: 12,
     borderRadius: 12,
+    marginTop: 20,
   },
-  logoutText: { color: '#fff', fontWeight: '800' },
+  logoutText: {
+    color: '#fff',
+    fontWeight: '800',
+  },
 
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
   main: {
     flex: 1,
     paddingHorizontal: 20,
@@ -820,6 +950,12 @@ const styles = StyleSheet.create({
   modalSecondaryText: { color: colors.muted, fontWeight: '800', fontSize: 14 },
 });
 
-export default PacienteConfiguracionScreen;
+const PacienteConfiguracionScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider initialModule="PacienteConfiguracion">
+    <PacienteConfiguracionScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default PacienteConfiguracionScreenWrapper;
 
 

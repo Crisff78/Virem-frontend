@@ -10,7 +10,6 @@ import {
 } from "react-native";
 
 import {
-  RegistroMedicoDocumentField,
   RegistroMedicoFormController,
 } from "../../hooks/useRegistroMedicoForm";
 import { colors, styles } from "./styles";
@@ -21,6 +20,7 @@ type RegistroMedicoFormCardProps = {
   isTabletLayout: boolean;
 };
 
+<<<<<<< HEAD
 type DocumentoFieldProps = {
   label: string;
   field: RegistroMedicoDocumentField;
@@ -32,6 +32,8 @@ type DocumentoFieldProps = {
 
 
 
+=======
+>>>>>>> feature-cris
 export const RegistroMedicoFormCard: React.FC<RegistroMedicoFormCardProps> = ({
   controller,
   isWideLayout,
@@ -199,8 +201,12 @@ export const RegistroMedicoFormCard: React.FC<RegistroMedicoFormCardProps> = ({
               <Text style={styles.errorText}>Debe seleccionar una especialidad</Text>
             )}
           </View>
+<<<<<<< HEAD
 
 
+=======
+          <View style={styles.inputWrapper} />
+>>>>>>> feature-cris
         </View>
       </View>
 
