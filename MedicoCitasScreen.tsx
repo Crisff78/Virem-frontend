@@ -307,46 +307,17 @@ const MedicoCitasScreen: React.FC = () => {
     [handleAuthExpired, loadCitas, upsertCita]
   );
 
-  const openVideoSala = useCallback(async (cita: CitaItem) => {
+  const openVideoSala = useCallback((cita: CitaItem) => {
     if (normalizeText(cita?.modalidad).toLowerCase() !== 'virtual') {
       Alert.alert('Consulta presencial', 'Esta cita no tiene videollamada habilitada.');
       return;
     }
 
-    setWorkingCitaId(cita.citaid);
-    try {
-      const payload = await apiClient.post<any>(`/api/agenda/me/citas/${cita.citaid}/video-sala/abrir`, {
-        authenticated: true,
-      });
-      if (!payload?.success || !payload?.videoSala?.joinUrl) {
-        Alert.alert('No disponible', payload?.message || 'No se pudo abrir la videollamada.');
-        return;
-      }
-
-      const joinUrl = String(payload.videoSala.joinUrl || '').trim();
-      if (!joinUrl) {
-        Alert.alert('No disponible', 'La sala aun no tiene URL de acceso.');
-        return;
-      }
-
-      if (Platform.OS === 'web') {
-        const webOpen = (globalThis as any)?.open;
-        if (typeof webOpen === 'function') {
-          const opened = webOpen(joinUrl, '_blank');
-          if (opened) return;
-        }
-      }
-      await Linking.openURL(joinUrl);
-    } catch (error) {
-      if (isAuthError(error)) {
-        await handleAuthExpired();
-        return;
-      }
-      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo abrir la videollamada.'));
-    } finally {
-      setWorkingCitaId('');
-    }
-  }, [handleAuthExpired]);
+    navigation.navigate('VideoCall', {
+      citaId: cita.citaid,
+      initiate: true
+    });
+  }, [navigation]);
 
   const showDetails = (cita: CitaItem) => {
     Alert.alert(

@@ -13,7 +13,7 @@ import {
 import type { ImageSourcePropType } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { useLanguage } from '../localization/LanguageContext';
 import type { RootStackParamList } from '../navigation/types';
@@ -26,7 +26,7 @@ const DefaultAvatar = require('../assets/imagenes/avatar-default.jpg');
 
 type MenuItem = {
   module: PortalModule;
-  icon: string;
+  icon: React.ComponentProps<typeof MaterialIcons>['name'];
   labelKey: string;
 };
 

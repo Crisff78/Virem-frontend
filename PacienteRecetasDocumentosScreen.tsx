@@ -14,9 +14,11 @@ import {
 import type { ImageSourcePropType } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
 import { apiClient } from "./utils/api";
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import PacienteSidebar from './components/PacienteSidebar';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { useResponsive } from './hooks/useResponsive';
 
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
@@ -197,7 +199,7 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
   const { user, loadingUser, signOut, fullName, planLabel, fotoUrl, hasProfilePhoto } = usePatientPortalSession();
 
   const [loading, setLoading] = useState(true);
@@ -238,44 +240,52 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
-  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
+
+  const { isDesktop: isDesktopLayout } = useResponsive();
 
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
+      <View style={{ flex: 1 }}>
+        <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+          <View style={styles.header}>
+            {!isSidebarOpen && (
+              <TouchableOpacity 
+                style={styles.hamburgerBtn} 
+                onPress={toggleSidebar}
+              >
+                <MaterialIcons name="menu" size={26} color={colors.dark} />
+              </TouchableOpacity>
+            )}
 
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
-        <View style={styles.header}>
-          {!isSidebarOpen && (
-            <TouchableOpacity 
-              style={styles.hamburgerBtn} 
-              onPress={toggleSidebar}
+            <View style={styles.searchBox}>
+              <MaterialIcons name="search" size={20} color={colors.muted} />
+              <TextInput
+                placeholder="Buscar por nombre o fecha..."
+                placeholderTextColor="#8aa7bf"
+                style={styles.searchInput}
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.filterBtn}
+              onPress={() =>
+                Alert.alert(
+                  'Filtros',
+                  'Puedes buscar por nombre o fecha usando la barra de busqueda.'
+                )
+              }
             >
-              <MaterialIcons name="menu" size={26} color={colors.dark} />
+              <MaterialIcons name="filter-list" size={16} color="#fff" />
+              <Text style={styles.filterBtnText}>Filtrar</Text>
             </TouchableOpacity>
-          )}
-
-          <View style={styles.searchBox}>
-            <MaterialIcons name="search" size={20} color={colors.muted} />
-            <TextInput
-              placeholder="Buscar por nombre o fecha..."
-              placeholderTextColor="#8aa7bf"
-              style={styles.searchInput}
-            />
           </View>
-          <TouchableOpacity
-            style={styles.filterBtn}
-            onPress={() =>
-              Alert.alert(
-                'Filtros',
-                'Puedes buscar por nombre o fecha usando la barra de busqueda.'
-              )
-            }
-          >
-            <MaterialIcons name="filter-list" size={16} color="#fff" />
-            <Text style={styles.filterBtnText}>Filtrar</Text>
-          </TouchableOpacity>
-        </View>
 
           <Text style={styles.pageTitle}>
             {tx({
@@ -284,29 +294,30 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
               pt: 'Minhas Receitas e Documentos',
             })}
           </Text>
-        <Text style={styles.pageSubtitle}>
-          Accede y descarga tu historial médico organizado por categorías.
-        </Text>
+          <Text style={styles.pageSubtitle}>
+            Accede y descarga tu historial médico organizado por categorías.
+          </Text>
 
-        <SectionBlock icon="description" title="Recetas Médicas" count="3 ARCHIVOS" items={dbRecetas.length > 0 ? dbRecetas : recetas} />
-        <SectionBlock
-          icon="verified"
-          title="Certificados y Otros"
-          count="1 ARCHIVO"
-          items={certificados}
-        />
+          <SectionBlock icon="description" title="Recetas Médicas" count="3 ARCHIVOS" items={dbRecetas.length > 0 ? dbRecetas : recetas} />
+          <SectionBlock
+            icon="verified"
+            title="Certificados y Otros"
+            count="1 ARCHIVO"
+            items={certificados}
+          />
 
-        <View style={styles.noticeCard}>
-          <MaterialIcons name="info-outline" size={18} color={colors.blue} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.noticeTitle}>Nota sobre la privacidad</Text>
-            <Text style={styles.noticeText}>
-              Tus documentos médicos están encriptados y protegidos. Solo tú y tus médicos
-              autorizados tienen acceso a esta información.
-            </Text>
+          <View style={styles.noticeCard}>
+            <MaterialIcons name="info-outline" size={18} color={colors.blue} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.noticeTitle}>Nota sobre la privacidad</Text>
+              <Text style={styles.noticeText}>
+                Tus documentos médicos están encriptados y protegidos. Solo tú y tus médicos
+                autorizados tienen acceso a esta información.
+              </Text>
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
     </View>
   );
 };
@@ -505,7 +516,13 @@ const styles = StyleSheet.create({
   noticeText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
 });
 
-export default PacienteRecetasDocumentosScreen;
+const PacienteRecetasDocumentosScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider initialModule="PacienteRecetasDocumentos">
+    <PacienteRecetasDocumentosScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default PacienteRecetasDocumentosScreenWrapper;
 
 
 

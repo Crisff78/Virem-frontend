@@ -125,41 +125,32 @@ const MedicoChatScreen: React.FC = () => {
         return;
       }
 
-      const rawConversations = (payload.conversaciones as any[]);
-      
-      // Group by patientId to show one entry per person (WhatsApp style)
-      const groupedMap = new Map<string, ChatContact>();
-      
-      for (const conv of rawConversations) {
-        const pId = normalizeText(conv?.paciente?.pacienteid);
-        if (!pId) continue;
-        
-        const nextDateMs = parseDateMs(conv?.cita?.fechaHoraInicio || null);
-        const current = groupedMap.get(pId);
-        
-        // We keep the one with unread messages, or the most recent/relevant one
-        if (!current || conv.unreadCount > 0 || (current.unreadCount === 0 && nextDateMs < current.nextDateMs)) {
-          groupedMap.set(pId, {
-            id: normalizeText(conv?.conversacionId),
+      // El servidor ya devuelve una conversacion por par paciente/medico
+      const mapped: ChatContact[] = (payload.conversaciones as any[])
+        .map((conv) => {
+          const pId = normalizeText(conv?.paciente?.pacienteid);
+          const convId = normalizeText(conv?.conversacionId);
+          if (!pId || !convId) return null;
+          return {
+            id: convId,
             patientId: pId,
             name: normalizeText(conv?.paciente?.nombreCompleto || 'Paciente'),
-            status: normalizeText(conv?.cita?.estadoCodigo || 'pendiente'),
+            status: normalizeText(conv?.cita?.estadoCodigo || 'sin cita'),
             citaId: normalizeText(conv?.citaId),
             unreadCount: Number(conv?.unreadCount || 0),
-            nextDateMs,
-            timeLabel: formatDateTime(conv?.cita?.fechaHoraInicio),
-          });
-        } else if (current && conv.unreadCount > 0) {
-           current.unreadCount += Number(conv.unreadCount);
-        }
-      }
+            nextDateMs: parseDateMs(conv?.cita?.fechaHoraInicio || null),
+            timeLabel: conv?.cita?.fechaHoraInicio
+              ? formatDateTime(conv?.cita?.fechaHoraInicio)
+              : 'Sin cita programada',
+          } as ChatContact;
+        })
+        .filter((c): c is ChatContact => Boolean(c))
+        .sort((a, b) => {
+          if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
+          return a.nextDateMs - b.nextDateMs;
+        });
 
-      const sorted = Array.from(groupedMap.values()).sort((a, b) => {
-        if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
-        return a.nextDateMs - b.nextDateMs;
-      });
-
-      setContacts(sorted);
+      setContacts(mapped);
     } catch {
       setContacts([]);
     } finally {
@@ -233,17 +224,40 @@ const MedicoChatScreen: React.FC = () => {
   useEffect(() => {
     const routePatientId = normalizeText(route.params?.patientId);
     const routePatientName = normalizeText(route.params?.patientName);
-    if (!contacts.length) {
-      setSelectedChatId('');
-      return;
-    }
 
     if (routePatientId) {
       const byPatientId = contacts.find((c) => normalizeText(c.patientId) === routePatientId);
       if (byPatientId) {
         setSelectedChatId(byPatientId.id);
+        setViewMode('chat');
         return;
       }
+      // No existe conversacion aun: la creamos con el endpoint del backend
+      let cancelled = false;
+      (async () => {
+        try {
+          const payload = await apiClient.post<any>('/api/agenda/me/conversaciones', {
+            authenticated: true,
+            body: { pacienteId: routePatientId },
+          });
+          if (cancelled) return;
+          if (payload?.success && payload?.conversacion?.conversacionId) {
+            await loadContacts();
+            setSelectedChatId(normalizeText(payload.conversacion.conversacionId));
+            setViewMode('chat');
+          }
+        } catch {
+          // noop
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!contacts.length) {
+      setSelectedChatId('');
+      return;
     }
 
     if (routePatientName) {
@@ -260,7 +274,14 @@ const MedicoChatScreen: React.FC = () => {
     if (!exists && contacts.length > 0) {
       if (viewMode === 'chat') setViewMode('list');
     }
-  }, [contacts, route.params?.patientId, route.params?.patientName, selectedChatId, viewMode]);
+  }, [
+    contacts,
+    loadContacts,
+    route.params?.patientId,
+    route.params?.patientName,
+    selectedChatId,
+    viewMode,
+  ]);
 
   useEffect(() => {
     if (!selectedChatId) return;
@@ -350,7 +371,10 @@ const MedicoChatScreen: React.FC = () => {
           body: { contenido: text, tipo: 'texto' },
         }
       );
-      if (!payload?.success || !payload?.mensaje) return;
+      if (!payload?.success || !payload?.mensaje) {
+        Alert.alert('No se pudo enviar', payload?.message || 'No se pudo enviar el mensaje.');
+        return;
+      }
 
       const nextMessage: Message = {
         id: normalizeText(payload?.mensaje?.mensajeId || `${Date.now()}`),
@@ -362,8 +386,9 @@ const MedicoChatScreen: React.FC = () => {
       appendMessage(selectedChatId, nextMessage);
       setReply('');
       loadContacts();
-    } catch {
-      // noop
+    } catch (err: any) {
+      const message = err?.data?.message || err?.message || 'No se pudo enviar el mensaje.';
+      Alert.alert('No se pudo enviar', message);
     }
   };
 

@@ -42,6 +42,9 @@ import PacienteCambiarContrasenaScreen from "./PacienteCambiarContrasenaScreen";
 import PacienteHistorialSesionesScreen from "./PacienteHistorialSesionesScreen";
 import PacienteChatScreen from "./PacienteChatScreen";
 import PacienteCitasScreen from "./PacienteCitasScreen";
+import VideoCallScreen from "./screens/video/VideoCallScreen";
+import IncomingCallScreen from "./screens/video/IncomingCallScreen";
+import IncomingCallListener from "./components/video/IncomingCallListener";
 import { LanguageProvider } from "./localization/LanguageContext";
 
 import { RootStackParamList } from "./navigation/types";
@@ -95,6 +98,8 @@ const linking = {
       BlogDetail: "blog-detail",
       Especialidades: "especialidades-virem",
       EspecialidadDetalle: "especialidad-detalle/:title",
+      VideoCall: "videollamada/:citaId",
+      IncomingCall: "llamada-entrante/:citaId",
     },
   },
 };
@@ -211,7 +216,18 @@ const App: React.FC = () => {
                   <Stack.Screen name="BlogDetail" component={BlogDetailScreen} />
                   <Stack.Screen name="Especialidades" component={EspecialidadesScreen} />
                   <Stack.Screen name="EspecialidadDetalle" component={EspecialidadDetalleScreen} />
+                  <Stack.Screen
+                    name="VideoCall"
+                    component={VideoCallScreen}
+                    options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+                  />
+                  <Stack.Screen
+                    name="IncomingCall"
+                    component={IncomingCallScreen}
+                    options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+                  />
                 </Stack.Navigator>
+                <IncomingCallListener />
               </NavigationContainer>
             </SafeAreaView>
           </SocketProvider>

@@ -17,8 +17,10 @@ import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { useResponsive } from './hooks/useResponsive';
+import PacienteSidebar from './components/PacienteSidebar';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { RootStackParamList } from './navigation/types';
@@ -131,13 +133,12 @@ const MIN_REFRESH_INTERVAL_MS = 15000;
 
 const PacienteCitasScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isDesktop: isDesktopLayout } = useResponsive();
   const { signOut } = useAuth();
   const { width: viewportWidth } = useWindowDimensions();
-  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
   const { t } = useLanguage();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingCitas, setLoadingCitas] = useState(false);
@@ -452,8 +453,14 @@ const PacienteCitasScreen: React.FC = () => {
 
 
   return (
-    <View style={styles.container}>
-
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
       <View style={[styles.main, !isDesktopLayout ? styles.mainMobile : null]}>
         <View style={styles.header}>
           {!isSidebarOpen && (
@@ -830,19 +837,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginTop: 2,
   },
-  hamburgerBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.dark,
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
   menuScroll: {
     flex: 1,
     marginTop: 20,
@@ -896,7 +890,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 14,
+    paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
+    paddingVertical: 12,
+    backgroundColor: colors.bg,
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef4fb',
+  },
+  hamburgerBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchBox: {
     flex: 1,
@@ -906,28 +917,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 18,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     shadowColor: colors.dark,
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  searchInput: { flex: 1, color: colors.dark, fontWeight: '600' },
+  searchInput: { flex: 1, color: colors.dark, fontWeight: '600', fontSize: 13 },
   notifBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.dark,
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     elevation: 2,
   },
-  notifDot: { position: 'absolute', top: 12, right: 12, width: 10, height: 10, borderRadius: 10, backgroundColor: '#ef4444', borderWidth: 2, borderColor: '#fff' },
+  notifDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 8, backgroundColor: '#ef4444', borderWidth: 2, borderColor: '#fff' },
 
   content: { flex: 1 },
   heading: { marginBottom: 6 },
@@ -1198,5 +1208,11 @@ const styles = StyleSheet.create({
   confirmYesText: { color: '#fff', fontWeight: '800', fontSize: 12 },
 });
 
-export default PacienteCitasScreen;
+const PacienteCitasScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider>
+    <PacienteCitasScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default PacienteCitasScreenWrapper;
 

@@ -15,13 +15,16 @@ import type { ImageSourcePropType } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { useLanguage } from './localization/LanguageContext';
 import type { DoctorRouteSnapshot, RootStackParamList } from './navigation/types';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
+import { useResponsive } from './hooks/useResponsive';
 import { apiClient } from './utils/api';
 import { resolveRemoteImageSource, sanitizeRemoteImageUrl } from './utils/imageSources';
+import PacienteSidebar from './components/PacienteSidebar';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
@@ -84,7 +87,6 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
   const [backendDoctors, setBackendDoctors] = useState<Doctor[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
   const rs = (size: number) => size; // Simple responsive size mock for now
 
@@ -172,29 +174,39 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
     loadDoctors();
   }, []);
 
-  const handleLogout = async () => {
-    await signOut();
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  };
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isDesktop: isDesktopLayout } = useResponsive();
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={[styles.main, !isDesktopLayout && styles.mainMobile]}
-        contentContainerStyle={{ paddingBottom: 30 }}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity style={{ marginRight: 14 }} onPress={() => navigation.navigate('DashboardPaciente')}>
-            <MaterialIcons name="menu" size={24} color={colors.dark} />
-          </TouchableOpacity>
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
+      <View style={{ flex: 1 }}>
+        {/* Header Fijo fuera del ScrollView */}
+        <View style={[styles.header, !isDesktopLayout && styles.headerMobile]}>
+          {!isSidebarOpen && (
+            <TouchableOpacity 
+              style={styles.hamburgerBtn} 
+              onPress={toggleSidebar}
+            >
+              <MaterialIcons name="menu" size={26} color={colors.dark} />
+            </TouchableOpacity>
+          )}
+
           <View style={styles.searchBox}>
             <MaterialIcons name="search" size={20} color={colors.muted} />
             <TextInput
-              placeholder="Busca un medico para consulta online"
+              placeholder="Busca un médico..."
               placeholderTextColor="#8aa7bf"
               style={styles.searchInput}
             />
           </View>
+
           <TouchableOpacity
             style={styles.notifBtn}
             onPress={() => navigation.navigate('PacienteNotificaciones')}
@@ -203,6 +215,11 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
             <View style={styles.notifDot} />
           </TouchableOpacity>
         </View>
+
+        <ScrollView
+          style={[styles.main, !isDesktopLayout && styles.mainMobile]}
+          contentContainerStyle={{ paddingBottom: 30 }}
+        >
 
         <View style={styles.breadcrumbRow}>
           <TouchableOpacity onPress={() => navigation.navigate('DashboardPaciente')}>
@@ -374,7 +391,8 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
             </View>
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
     </View>
   );
 };
@@ -408,8 +426,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 14,
-    flexWrap: 'wrap',
+    paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
+    paddingVertical: 12,
+    backgroundColor: colors.bg,
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef4fb',
+  },
+  headerMobile: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  hamburgerBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchBox: {
     flex: 1,
@@ -419,34 +457,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 18,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     shadowColor: colors.dark,
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  searchInput: { flex: 1, color: colors.dark, fontWeight: '600' },
+  searchInput: { flex: 1, color: colors.dark, fontWeight: '600', fontSize: 13 },
   notifBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.dark,
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     elevation: 2,
   },
   notifDot: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 10,
-    height: 10,
-    borderRadius: 10,
+    top: 10,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 8,
     backgroundColor: '#ef4444',
     borderWidth: 2,
     borderColor: '#fff',
@@ -622,4 +659,10 @@ const styles = StyleSheet.create({
   },
 });
 
-export default EspecialistasPorEspecialidadScreen;
+const EspecialistasPorEspecialidadScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider>
+    <EspecialistasPorEspecialidadScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default EspecialistasPorEspecialidadScreenWrapper;

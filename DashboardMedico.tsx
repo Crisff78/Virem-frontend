@@ -22,13 +22,15 @@ import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 import { getApiErrorMessage } from './utils/apiErrors';
 import { useMedicoSessionProfile, type MedicoSessionUser } from './hooks/useMedicoSessionProfile';
-import VideoCallFrame from './components/VideoCallFrame';
-import { useVideoCall } from './hooks/useVideoCall';
 import { useResponsive } from './hooks/useResponsive';
 
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import MedicoHeader from './components/MedicoHeader';
+import Skeleton from './components/Skeleton';
+import ViremImage from './components/ViremImage';
+import FadeInView from './components/FadeInView';
+import colors from './theme/colors';
 
 const ViremLogo = require('./assets/imagenes/descarga.png');
 type MaterialIconName = any;
@@ -39,19 +41,7 @@ const PatientAvatar: ImageSourcePropType = DefaultAvatar;
 // -------------------------------------------------------------
 // COLORES Y CONSTANTES (Renovados)
 // -------------------------------------------------------------
-const colors = {
-  primary: '#137fec',
-  bg: '#F6FAFD',
-  dark: '#0A1931',
-  blue: '#1A3D63',
-  green: '#22c55e',
-  red: '#ef4444',
-  muted: '#4A7FA7',
-  white: '#FFFFFF',
-  brand: '#137fec',
-  viremLight: '#E8EFF5',
-  viremMuted: '#7D95A9',
-};
+
 
 const MIN_REFRESH_INTERVAL_MS = 15000;
 
@@ -218,7 +208,6 @@ const DashboardMedico: React.FC = () => {
   const [loadingDashboard, setLoadingDashboard] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
   const [openingCitaId, setOpeningCitaId] = useState('');
-  const { isInCall, roomInfo, startCall, endCall, error: callError, setError: setCallError } = useVideoCall();
   
   const lastRefreshRef = useRef(0);
 
@@ -834,37 +823,23 @@ const DashboardMedico: React.FC = () => {
     navigation.navigate(route as any);
   };
 
-  const handleVideoCall = async (citaId?: string) => {
+  const handleVideoCall = (citaId?: string) => {
     const targetCita = citaId 
       ? upcomingCitas.find(c => c.citaid === citaId) 
       : upcomingCitas[0];
       
     if (!targetCita) return;
 
-    setOpeningCitaId(targetCita.citaid);
-    await startCall(targetCita.citaid, true);
-    setOpeningCitaId('');
+    navigation.navigate('VideoCall', { 
+      citaId: targetCita.citaid,
+      initiate: true 
+    });
   };
 
   const nextCita = upcomingCitas[0] || null;
   const bannerPatientName = nextCita ? nextCita.paciente.nombreCompleto : '';
   const bannerPatientAvatar = resolveAvatarSource(nextCita?.paciente?.fotoUrl);
   
-  if (isInCall && roomInfo) {
-    return (
-      <View style={{ flex: 1 }}>
-        <View style={styles.mainCallContainer}>
-          <VideoCallFrame
-            roomName={roomInfo.roomName}
-            displayName={doctorName}
-            onHangup={endCall}
-            jwtToken={roomInfo.jwtToken}
-            jitsiDomain={roomInfo.jitsiDomain}
-          />
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -873,7 +848,115 @@ const DashboardMedico: React.FC = () => {
           title={`Hola, ${doctorName.split(' ').slice(0, 2).join(' ')}`}
           hasNotifications={dashboardData.stats.mensajesPendientes > 0}
         />
+
+        {/* ── Skeleton loading overlay ── */}
+        {(!profileReady || loadingDashboard) && (
+          <View style={{ gap: rs(12), marginBottom: rs(16) }}>
+            <View style={{
+              backgroundColor: '#e8eff5',
+              borderRadius: rs(20),
+              height: rs(14),
+              width: '60%',
+              marginBottom: rs(8),
+            }} />
+            <View style={{
+              backgroundColor: '#e8eff5',
+              borderRadius: rs(24),
+              height: rs(160),
+              width: '100%',
+            }} />
+            <View style={{ flexDirection: 'row', gap: rs(10) }}>
+              {[1, 2, 3, 4].map((i) => (
+                <View key={i} style={{
+                  flex: 1,
+                  backgroundColor: '#e8eff5',
+                  borderRadius: rs(18),
+                  height: rs(90),
+                }} />
+              ))}
+            </View>
+            <View style={{
+              backgroundColor: '#e8eff5',
+              borderRadius: rs(18),
+              height: rs(80),
+              width: '100%',
+            }} />
+            <View style={{
+              backgroundColor: '#e8eff5',
+              borderRadius: rs(18),
+              height: rs(80),
+              width: '100%',
+            }} />
+          </View>
+        )}
+
+        {profileReady && !loadingDashboard && (
+          <>
         <Text style={styles.subtitle}>Aquí tienes un resumen de tu jornada y próximos pacientes.</Text>
+
+        {/* ── Llamada en Curso card ── */}
+        {(() => {
+          const now = Date.now();
+          const activeCita = upcomingCitas.find((c) => {
+            if (!c.fechaHoraInicio) return false;
+            const startMs = new Date(c.fechaHoraInicio).getTime();
+            if (!Number.isFinite(startMs)) return false;
+            const diffMin = (startMs - now) / 60000;
+            return diffMin <= 10 && diffMin >= -60;
+          });
+          if (!activeCita) return null;
+          return (
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: rs(14),
+                backgroundColor: '#fff',
+                padding: rs(16),
+                borderRadius: rs(20),
+                marginBottom: rs(16),
+                borderLeftWidth: 4,
+                borderLeftColor: colors.green,
+                shadowColor: colors.dark,
+                shadowOpacity: 0.08,
+                shadowRadius: 12,
+                shadowOffset: { width: 0, height: 6 },
+                elevation: 3,
+              }}
+              onPress={() => handleVideoCall(activeCita.citaid)}
+              activeOpacity={0.85}
+            >
+              <View style={{
+                width: rs(48), height: rs(48), borderRadius: rs(14),
+                backgroundColor: 'rgba(34,197,94,0.12)',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <MaterialIcons name="videocam" size={24} color={colors.green} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(6) }}>
+                  <View style={{ width: rs(8), height: rs(8), borderRadius: rs(8), backgroundColor: colors.green }} />
+                  <Text style={{ fontSize: fs(11), fontWeight: '900', color: colors.green, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                    Llamada disponible
+                  </Text>
+                </View>
+                <Text style={{ fontSize: fs(14), fontWeight: '800', color: colors.dark, marginTop: rs(4) }} numberOfLines={1}>
+                  {activeCita.paciente.nombreCompleto}
+                </Text>
+                <Text style={{ fontSize: fs(12), color: colors.muted, fontWeight: '600', marginTop: rs(2) }}>
+                  {formatDateTime(activeCita.fechaHoraInicio)} • Toca para unirte
+                </Text>
+              </View>
+              <View style={{
+                backgroundColor: colors.green,
+                paddingVertical: rs(10), paddingHorizontal: rs(16),
+                borderRadius: rs(12),
+              }}>
+                <Text style={{ color: '#fff', fontWeight: '900', fontSize: fs(13) }}>Unirse</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })()}
 
         <View style={styles.bigCard}>
           <View style={styles.bigCardLeft}>
@@ -992,6 +1075,8 @@ const DashboardMedico: React.FC = () => {
             </View>
           </View>
         </View>
+        </>
+        )}
       </ScrollView>
     </View>
   );

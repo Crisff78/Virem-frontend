@@ -14,11 +14,13 @@ import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import type { RootStackParamList } from './navigation/types';
 import { useLanguage } from './localization/LanguageContext';
+import PacienteSidebar from './components/PacienteSidebar';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { useResponsive } from './hooks/useResponsive';
 import { apiUrl } from './config/backend';
 import { useSocketEvent } from './hooks/useSocketEvent';
 import { useAuth } from './providers/AuthProvider';
@@ -174,7 +176,9 @@ const mapNotification = (item: AgendaNotification): NotificationItem => {
 const PacienteNotificacionesScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { t } = useLanguage();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
   const { signOut } = useAuth();
+  const { isDesktop: isDesktopLayout } = useResponsive();
   const [user, setUser] = useState<User | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>('todas');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -415,12 +419,17 @@ const PacienteNotificacionesScreen: React.FC = () => {
     await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
-  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
 
 
   return (
-    <View style={styles.container}>
-
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
       <View style={styles.main}>
         <View style={styles.header}>
           {!isSidebarOpen && (
@@ -853,4 +862,10 @@ const styles = StyleSheet.create({
   footerText: { color: '#9bb1c7', fontSize: 11, fontWeight: '700' },
 });
 
-export default PacienteNotificacionesScreen;
+const PacienteNotificacionesScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider initialModule="PacienteNotificaciones">
+    <PacienteNotificacionesScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default PacienteNotificacionesScreenWrapper;

@@ -112,14 +112,12 @@ type NotificationItem = {
 /* ===================== PANTALLA ===================== */
 const DashboardPacienteScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
   const { signOut } = useAuth();
   const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { t } = useLanguage();
   const { isDesktop, isTablet, isMobile, select, fs, rs, wp, hp } = useResponsive();
-
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
   const [isExpressModalOpen, setIsExpressModalOpen] = useState(true);
   const [user, setUser] = useState<User | null>(() => (ensurePatientSessionUser(sessionUser) as User | null) || null);
   const [loadingCitas, setLoadingCitas] = useState(false);
@@ -436,24 +434,104 @@ const DashboardPacienteScreen: React.FC = () => {
 
       {/* Main Content */}
       <View style={{ flex: 1 }}>
-        <ScrollView style={[styles.main, !isDesktop && styles.mainMobile]} contentContainerStyle={{ paddingBottom: 40 }}>
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              {!isSidebarOpen && (
-                <TouchableOpacity style={styles.menuToggle} onPress={toggleSidebar}>
-                  <MaterialIcons name="menu" size={24} color={colors.dark} />
-                </TouchableOpacity>
-              )}
-              <Text style={styles.title}>Hola, {fullName.split(' ')[0]}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: rs(10) }}>
-              <TouchableOpacity style={styles.notifBtn} onPress={() => setIsNotificationsOpen(true)}>
-                <MaterialIcons name="notifications" size={22} color={colors.dark} />
-                {unreadCount > 0 && <View style={styles.notifDot} />}
+        <View style={[styles.header, { paddingHorizontal: rs(24), paddingTop: rs(12), backgroundColor: '#F6FAFD', zIndex: 10, borderBottomWidth: 1, borderBottomColor: '#eef4fb' }]}>
+          <View style={styles.headerLeft}>
+            {!isSidebarOpen && (
+              <TouchableOpacity style={styles.menuToggle} onPress={toggleSidebar}>
+                <MaterialIcons name="menu" size={24} color={colors.dark} />
               </TouchableOpacity>
-            </View>
+            )}
+            <Text style={styles.title}>Hola, {fullName.split(' ')[0]}</Text>
           </View>
+          <View style={{ flexDirection: 'row', gap: rs(10) }}>
+            <TouchableOpacity style={styles.notifBtn} onPress={() => setIsNotificationsOpen(true)}>
+              <MaterialIcons name="notifications" size={22} color={colors.dark} />
+              {unreadCount > 0 && <View style={styles.notifDot} />}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <ScrollView style={[styles.main, !isDesktop && styles.mainMobile]} contentContainerStyle={{ paddingBottom: 40 }}>
+
+          {/* ── Skeleton loading overlay ── */}
+          {loadingCitas && upcomingCitas.length === 0 && (
+            <View style={{ gap: rs(12), marginBottom: rs(16) }}>
+              <View style={{ backgroundColor: '#e8eff5', borderRadius: rs(20), height: rs(14), width: '60%', marginBottom: rs(8) }} />
+              <View style={{ backgroundColor: '#e8eff5', borderRadius: rs(24), height: rs(160), width: '100%' }} />
+              <View style={{ flexDirection: 'row', gap: rs(10) }}>
+                {[1, 2, 3].map((i) => (
+                  <View key={i} style={{ flex: 1, backgroundColor: '#e8eff5', borderRadius: rs(18), height: rs(90) }} />
+                ))}
+              </View>
+              <View style={{ backgroundColor: '#e8eff5', borderRadius: rs(18), height: rs(80), width: '100%' }} />
+            </View>
+          )}
+
           <Text style={styles.subtitle}>Gestiona tus consultas y salud desde aquí.</Text>
+
+          {/* ── Llamada Disponible (active call card) ── */}
+          {(() => {
+            const now = Date.now();
+            const activeCita = upcomingCitas.find((c) => {
+              if (!c.fechaHoraInicio) return false;
+              const startMs = new Date(c.fechaHoraInicio).getTime();
+              if (!Number.isFinite(startMs)) return false;
+              const diffMin = (startMs - now) / 60000;
+              return diffMin <= 10 && diffMin >= -60;
+            });
+            if (!activeCita) return null;
+            return (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: rs(14),
+                  backgroundColor: '#fff',
+                  padding: rs(16),
+                  borderRadius: rs(20),
+                  marginBottom: rs(16),
+                  borderLeftWidth: 4,
+                  borderLeftColor: colors.green,
+                  shadowColor: colors.dark,
+                  shadowOpacity: 0.08,
+                  shadowRadius: 12,
+                  shadowOffset: { width: 0, height: 6 },
+                  elevation: 3,
+                }}
+                onPress={() => navigation.navigate('SalaEsperaVirtualPaciente', { citaId: activeCita.citaid })}
+                activeOpacity={0.85}
+              >
+                <View style={{
+                  width: rs(48), height: rs(48), borderRadius: rs(14),
+                  backgroundColor: 'rgba(34,197,94,0.12)',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <MaterialIcons name="videocam" size={24} color={colors.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(6) }}>
+                    <View style={{ width: rs(8), height: rs(8), borderRadius: rs(8), backgroundColor: colors.green }} />
+                    <Text style={{ fontSize: fs(11), fontWeight: '900', color: colors.green, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                      Llamada disponible
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: fs(14), fontWeight: '800', color: colors.dark, marginTop: rs(4) }} numberOfLines={1}>
+                    {activeCita.medico?.nombreCompleto || 'Tu médico'}
+                  </Text>
+                  <Text style={{ fontSize: fs(12), color: colors.muted, fontWeight: '600', marginTop: rs(2) }}>
+                    {formatDateTime(activeCita.fechaHoraInicio)} • Toca para entrar
+                  </Text>
+                </View>
+                <View style={{
+                  backgroundColor: colors.green,
+                  paddingVertical: rs(10), paddingHorizontal: rs(16),
+                  borderRadius: rs(12),
+                }}>
+                  <Text style={{ color: '#fff', fontWeight: '900', fontSize: fs(13) }}>Entrar</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })()}
 
           {/* Big Card */}
           <View style={styles.bigCard}>
@@ -473,7 +551,7 @@ const DashboardPacienteScreen: React.FC = () => {
               <View style={styles.bigCardActions}>
                 {primaryCita ? (
                   <>
-                    <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('PacienteChat')}>
+                    <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('SalaEsperaVirtualPaciente', { citaId: primaryCita.citaid })}>
                       <MaterialIcons name="videocam" size={20} color="#fff" />
                       <Text style={styles.primaryBtnText}>Entrar a consulta</Text>
                     </TouchableOpacity>

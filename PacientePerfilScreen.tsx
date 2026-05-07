@@ -17,8 +17,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { useResponsive } from './hooks/useResponsive';
+import PacienteSidebar from './components/PacienteSidebar';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { useLanguage } from './localization/LanguageContext';
 import { usePatientPortalSession } from './hooks/usePatientPortalSession';
@@ -216,7 +218,8 @@ const PacientePerfilScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isDesktop: isDesktopLayout } = useResponsive();
   const {
     user,
     loadingUser,
@@ -479,13 +482,16 @@ const PacientePerfilScreen: React.FC = () => {
   };
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
-
-
   return (
-    <View style={styles.container}>
-
-      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
+      <View style={{ flex: 1 }}>
         <View style={styles.header}>
           {!isSidebarOpen && (
             <TouchableOpacity 
@@ -511,6 +517,8 @@ const PacientePerfilScreen: React.FC = () => {
             <View style={styles.notifDot} />
           </TouchableOpacity>
         </View>
+
+      <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
 
         <View style={styles.titleWrap}>
           <Text style={styles.pageTitle}>
@@ -797,7 +805,8 @@ const PacientePerfilScreen: React.FC = () => {
         </View>
       </ScrollView>
     </View>
-  );
+  </View>
+);
 };
 
 const styles = StyleSheet.create({
@@ -823,20 +832,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: '#fff',
-  },
-  hamburgerBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.dark,
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-    marginRight: 10,
   },
   menuScroll: {
     flex: 1,
@@ -947,9 +942,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: 14,
-    flexWrap: 'wrap',
+    gap: 12,
+    paddingHorizontal: Platform.OS === 'web' ? 26 : 14,
+    paddingVertical: 12,
+    backgroundColor: colors.bg,
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef4fb',
+  },
+  hamburgerBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchBox: {
     flex: 1,
@@ -957,32 +968,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     backgroundColor: '#fff',
-    borderRadius: 14,
+    borderRadius: 18,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#ddeaf5',
+    paddingVertical: 8,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  searchInput: { flex: 1, color: colors.dark, fontWeight: '600', fontSize: 12 },
+  searchInput: { flex: 1, color: colors.dark, fontWeight: '600', fontSize: 13 },
   notifBtn: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: 12,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e6eef7',
+    shadowColor: colors.dark,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  notifDot: {
-    position: 'absolute',
-    top: 11,
-    right: 11,
-    width: 8,
-    height: 8,
-    borderRadius: 8,
-    backgroundColor: '#ef4444',
-  },
+  notifDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 8, backgroundColor: '#ef4444', borderWidth: 2, borderColor: '#fff' },
   titleWrap: { marginBottom: 14 },
   pageTitle: { color: colors.dark, fontSize: 28, fontWeight: '900' },
   pageSubtitle: { color: colors.muted, fontSize: 14, fontWeight: '600', marginTop: 4 },
@@ -1128,7 +1136,13 @@ const styles = StyleSheet.create({
   successText: { color: '#166534', fontSize: 12, fontWeight: '700' },
 });
 
-export default PacientePerfilScreen;
+const PacientePerfilScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider>
+    <PacientePerfilScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default PacientePerfilScreenWrapper;
 
 
 

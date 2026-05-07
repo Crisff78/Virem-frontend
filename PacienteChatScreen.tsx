@@ -15,6 +15,9 @@ import { useFocusEffect, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import PacienteHeader from './components/PacienteHeader';
+import PacienteSidebar from './components/PacienteSidebar';
+import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { useResponsive } from './hooks/useResponsive';
 import { useAuth } from './providers/AuthProvider';
 import { apiClient } from './utils/api';
 import { useSocketEvent } from './hooks/useSocketEvent';
@@ -80,7 +83,8 @@ const PacienteChatScreen: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'chat'>('list');
   const [isTyping, setIsTyping] = useState(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isDesktop: isDesktopLayout } = useResponsive();
 
   const loadContacts = useCallback(async () => {
     setLoadingContacts(true);
@@ -94,41 +98,33 @@ const PacienteChatScreen: React.FC = () => {
         return;
       }
 
-      const rawConversations = (payload.conversaciones as any[]);
-      
-      // Group by medicoId to show one entry per doctor (WhatsApp style)
-      const groupedMap = new Map<string, ChatContact>();
-      
-      for (const conv of rawConversations) {
-        const mId = normalizeText(conv?.medico?.medicoid);
-        if (!mId) continue;
-        
-        const nextDateMs = parseDateMs(conv?.cita?.fechaHoraInicio || null);
-        const current = groupedMap.get(mId);
-        
-        if (!current || conv.unreadCount > 0 || (current.unreadCount === 0 && nextDateMs < current.nextDateMs)) {
-          groupedMap.set(mId, {
-            id: normalizeText(conv?.conversacionId),
+      // El servidor ya devuelve una conversacion por par paciente/medico
+      const mapped: ChatContact[] = (payload.conversaciones as any[])
+        .map((conv) => {
+          const mId = normalizeText(conv?.medico?.medicoid);
+          const convId = normalizeText(conv?.conversacionId);
+          if (!mId || !convId) return null;
+          return {
+            id: convId,
             medicoId: mId,
             name: normalizeText(conv?.medico?.nombreCompleto || 'Medico'),
             especialidad: normalizeText(conv?.medico?.especialidad || 'Medicina General'),
-            status: normalizeText(conv?.cita?.estadoCodigo || 'pendiente'),
+            status: normalizeText(conv?.cita?.estadoCodigo || 'sin cita'),
             citaId: normalizeText(conv?.citaId),
             unreadCount: Number(conv?.unreadCount || 0),
-            nextDateMs,
-            timeLabel: formatDateTime(conv?.cita?.fechaHoraInicio),
-          });
-        } else if (current && conv.unreadCount > 0) {
-          current.unreadCount += Number(conv.unreadCount);
-        }
-      }
+            nextDateMs: parseDateMs(conv?.cita?.fechaHoraInicio || null),
+            timeLabel: conv?.cita?.fechaHoraInicio
+              ? formatDateTime(conv?.cita?.fechaHoraInicio)
+              : 'Sin cita programada',
+          } as ChatContact;
+        })
+        .filter((c): c is ChatContact => Boolean(c))
+        .sort((a, b) => {
+          if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
+          return a.nextDateMs - b.nextDateMs;
+        });
 
-      const sorted = Array.from(groupedMap.values()).sort((a, b) => {
-        if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
-        return a.nextDateMs - b.nextDateMs;
-      });
-
-      setContacts(sorted);
+      setContacts(mapped);
     } catch {
       setContacts([]);
     } finally {
@@ -189,6 +185,46 @@ const PacienteChatScreen: React.FC = () => {
     if (!selectedChatId) return;
     loadMessages(selectedChatId);
   }, [loadMessages, selectedChatId]);
+
+  useEffect(() => {
+    const routeDoctorId = normalizeText(route.params?.doctorId);
+    if (!routeDoctorId) return;
+
+    const existing = contacts.find((c) => c.medicoId === routeDoctorId);
+    if (existing) {
+      setSelectedChatId(existing.id);
+      setViewMode('chat');
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const payload = await apiClient.post<any>('/api/agenda/me/conversaciones', {
+          authenticated: true,
+          body: { medicoId: routeDoctorId },
+        });
+        if (cancelled) return;
+        if (payload?.success && payload?.conversacion?.conversacionId) {
+          await loadContacts();
+          setSelectedChatId(normalizeText(payload.conversacion.conversacionId));
+          setViewMode('chat');
+        }
+      } catch (err: any) {
+        if (cancelled) return;
+        const message =
+          err?.status === 403
+            ? err?.data?.message ||
+              'No puedes iniciar un chat con este medico hasta tener una consulta registrada.'
+            : err?.data?.message || err?.message || 'No se pudo iniciar el chat.';
+        Alert.alert('No se puede iniciar el chat', message);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [contacts, loadContacts, route.params?.doctorId]);
 
   useSocketRoom('conversation', selectedChatId, Boolean(selectedChatId));
 
@@ -262,9 +298,7 @@ const PacienteChatScreen: React.FC = () => {
         }
       );
       if (!payload?.success || !payload?.mensaje) {
-        if (payload?.message) {
-          Alert.alert('No se pudo enviar', payload.message);
-        }
+        Alert.alert('No se pudo enviar', payload?.message || 'No se pudo enviar el mensaje.');
         return;
       }
 
@@ -277,17 +311,30 @@ const PacienteChatScreen: React.FC = () => {
 
       setMessagesByChat((prev) => {
         const current = prev[selectedChatId] || [];
+        if (current.some((m) => m.id === nextMessage.id)) return prev;
         return { ...prev, [selectedChatId]: [...current, nextMessage] };
       });
       setReply('');
       loadContacts();
     } catch (err: any) {
-      Alert.alert('Error', 'No tienes una cita activa con este medico para enviarle mensajes.');
+      const message =
+        err?.status === 403
+          ? err?.data?.message ||
+            'No puedes enviar mensajes a este medico hasta tener una consulta registrada.'
+          : err?.data?.message || err?.message || 'No se pudo enviar el mensaje.';
+      Alert.alert('No se pudo enviar', message);
     }
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
+      {!isInsidePortal && (
+        <PacienteSidebar
+          isMobileMenuOpen={isSidebarOpen}
+          onToggleMobileMenu={toggleSidebar}
+          onCloseMobileMenu={toggleSidebar}
+        />
+      )}
       <View style={styles.main}>
         <View style={styles.headerWrap}>
           <PacienteHeader title="Mensajes" />
@@ -595,4 +642,10 @@ const styles = StyleSheet.create({
   emptyChatState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
 });
 
-export default PacienteChatScreen;
+const PacienteChatScreenWrapper: React.FC = (props) => (
+  <PacienteModuleProvider initialModule="PacienteChat">
+    <PacienteChatScreen {...props} />
+  </PacienteModuleProvider>
+);
+
+export default PacienteChatScreenWrapper;
