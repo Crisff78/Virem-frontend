@@ -28,6 +28,10 @@ export type WebRTCCallApi = ZegoCallApi & {
   localStream: MediaStream | null;
   /** MediaStream del participante remoto — solo web, null en native */
   remoteStream: MediaStream | null;
+  /** Función para emitir señales de WebRTC via socket */
+  emitSignal: (event: string, payload: object) => void;
+  /** Acceso al objeto PeerConnection para configuraciones avanzadas */
+  pc: RTCPeerConnection | null;
 };
 
 const IS_WEB = Platform.OS === 'web';
@@ -315,9 +319,11 @@ export function useWebRTCCall(
       buildPC(stream);
 
       // 4. Señalización:
-      //    - Receptor: emite rtc:ready para que el iniciador sepa que puede enviar el offer
-      //    - Iniciador: espera rtc:ready (manejado por useSocketEvent arriba)
-      if (!initiate) {
+      //    - Iniciador (Medico): emite call:invite para notificar al paciente que ya entró
+      //    - Receptor (Paciente): emite rtc:ready para que el iniciador sepa que puede enviar el offer
+      if (initiate) {
+        emitSignal('call:invite', { citaId: cleanCitaId });
+      } else {
         // Emit ready, then retry once after 3s if no offer received (mutual visibility fix)
         emitSignal('rtc:ready', { citaId: cleanCitaId });
         setTimeout(() => {
@@ -423,5 +429,7 @@ export function useWebRTCCall(
     // Extras web
     localStream,
     remoteStream,
+    emitSignal,
+    pc: pcRef.current,
   };
 }

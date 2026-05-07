@@ -32,6 +32,7 @@ import { useAuth } from './providers/AuthProvider';
 import { getAuthToken } from './utils/session';
 import { usePatientSessionProfile } from './hooks/usePatientSessionProfile';
 import { useCallSignaler } from './hooks/useCallSignaling';
+import { useWebRTCCall } from './hooks/useWebRTCCall';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
@@ -168,6 +169,9 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   // Use standardized profile hook instead of manual AsyncStorage
   const { sessionUser, syncProfile } = usePatientSessionProfile();
   const signaler = useCallSignaler();
+  const IS_WEB = Platform.OS === 'web';
+  const initiate = false;
+  const { state, emitSignal, pc } = useWebRTCCall(selectedCitaId, initiate);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -957,15 +961,17 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
                           style={[styles.selectOption, selectedCameraId === camera.id && styles.selectOptionActive]}
                           onPress={() => {
                             // ICE → relay via socket
-                            pc.onicecandidate = (e) => {
-                              if (e.candidate) {
-                                emitSignal('rtc:ice', { 
-                                  citaId: cleanCitaId, 
-                                  candidate: e.candidate.toJSON(),
-                                  fromRole: IS_WEB ? 'web' : 'native'
-                                });
-                              }
-                            };
+                            if (pc) {
+                              pc.onicecandidate = (e) => {
+                                if (e.candidate) {
+                                  emitSignal('rtc:ice', { 
+                                    citaId: selectedCitaId, 
+                                    candidate: e.candidate.toJSON(),
+                                    fromRole: IS_WEB ? 'web' : 'native'
+                                  });
+                                }
+                              };
+                            }
                             setSelectedCameraId(camera.id);
                             setOpenSelect(null);
                           }}

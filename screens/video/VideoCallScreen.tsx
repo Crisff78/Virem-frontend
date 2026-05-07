@@ -374,8 +374,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     top: Platform.OS === 'ios' ? 100 : 80,
-    width: 160, // Much larger
-    height: 100, // Horizontal 16:10 approx
+    width: 120,
+    height: 180,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 2,
