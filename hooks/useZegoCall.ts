@@ -10,6 +10,7 @@ import {
   isZegoAvailable,
   joinZegoRoom,
   leaveZegoRoom,
+  destroyZego,
   setCameraEnabled as zegoSetCamera,
   setMicrophoneEnabled as zegoSetMic,
   switchCamera as zegoSwitchCamera,
@@ -256,12 +257,15 @@ export function useZegoCall(citaId: string | undefined): ZegoCallApi {
     await zegoSwitchCamera(next);
   }, [useFrontCamera]);
 
-  /** Limpieza al desmontar */
+  /** Limpieza al desmontar — detener todo para evitar fugas de memoria */
   useEffect(() => {
     return () => {
       if (autoEndRef.current) clearTimeout(autoEndRef.current);
       if (tickerRef.current) clearInterval(tickerRef.current);
+      // Detener streams y salir de la sala
       leaveZegoRoom().catch(() => undefined);
+      // Destruir el motor completamente para liberar cámara/micrófono
+      destroyZego().catch(() => undefined);
     };
   }, []);
 

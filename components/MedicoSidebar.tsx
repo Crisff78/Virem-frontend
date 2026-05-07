@@ -36,6 +36,7 @@ const MENU_ITEMS: MenuItem[] = [
   { module: 'MedicoPacientes', icon: 'group', label: 'Pacientes' },
   { module: 'MedicoRecetas', icon: 'description', label: 'Recetas y Órdenes' },
   { module: 'MedicoChat', icon: 'chat-bubble', label: 'Mensajes' },
+  { module: 'MedicoConsultaVirtual', icon: 'video-call', label: 'Consulta Virtual' },
   { module: 'MedicoFinanzas', icon: 'account-balance-wallet', label: 'Finanzas' },
   { module: 'MedicoPerfil', icon: 'person', label: 'Perfil' },
   { module: 'MedicoConfiguracion', icon: 'settings', label: 'Configuración' },

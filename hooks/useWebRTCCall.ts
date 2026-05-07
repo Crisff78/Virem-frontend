@@ -363,7 +363,7 @@ export function useWebRTCCall(
     localStreamRef.current?.getVideoTracks().forEach((t) => (t.enabled = next));
   }, [cameraEnabled]);
 
-  // ── Limpieza al desmontar ─────────────────────────────────────────────────
+  // ── Limpieza al desmontar — liberar cámara y peer connection ────────────
   useEffect(() => {
     return () => {
       if (autoEndRef.current) clearTimeout(autoEndRef.current);
@@ -371,7 +371,12 @@ export function useWebRTCCall(
       try {
         pcRef.current?.close();
       } catch (_) {}
+      pcRef.current = null;
+      remoteDescSetRef.current = false;
+      // Stop all tracks to turn off camera LED
       localStreamRef.current?.getTracks().forEach((t) => t.stop());
+      localStreamRef.current = null;
+      iceCandidateQueueRef.current = [];
     };
   }, []);
 
