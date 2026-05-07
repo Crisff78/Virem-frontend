@@ -3,6 +3,10 @@ import { StyleSheet, View, ViewStyle } from 'react-native';
 import { Image, ImageProps } from 'expo-image';
 
 interface ViremImageProps extends ImageProps {
+  source?: any;
+  style?: any;
+  contentFit?: any;
+  transition?: any;
   containerStyle?: ViewStyle;
 }
 

@@ -19,7 +19,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from './navigation/types';
 import MedicoHeader from './components/MedicoHeader';
 import { useMedicoPortalSession } from './hooks/useMedicoPortalSession';
@@ -65,7 +65,7 @@ type CitaItem = {
 };
 
 type SideItem = {
-  icon: string;
+  icon: any;
   label: string;
   route?: 'DashboardMedico' | 'MedicoCitas' | 'MedicoPacientes' | 'MedicoChat' | 'MedicoPerfil' | 'MedicoConfiguracion';
   active?: boolean;
@@ -366,7 +366,6 @@ const MedicoCitasScreen: React.FC = () => {
   }
 
   return (
-<<<<<<< HEAD
     <View style={[styles.container, isInsidePortal ? null : (!isDesktop && (isTablet ? styles.containerTablet : styles.containerMobile))]}>
       {!isInsidePortal && (
         <View style={[styles.sidebar, isDesktop ? styles.sidebarDesktop : (isTablet ? styles.sidebarTablet : styles.sidebarMobile)]}>
@@ -430,11 +429,6 @@ const MedicoCitasScreen: React.FC = () => {
             </View>
           </View>
         </View>
-=======
-    <View style={{ flex: 1 }}>
-        <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 28 }}>
-          <MedicoHeader title="Mi Agenda" />
->>>>>>> feature-cris
 
         <View style={styles.searchWrap}>
           <MaterialIcons name="search" size={19} color={colors.muted} />
@@ -598,8 +592,8 @@ const MedicoCitasScreen: React.FC = () => {
             <Text style={styles.emptyText}>No hay historial para mostrar.</Text>
           )}
         </View>
-        </ScrollView>
-      </View>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -799,70 +793,38 @@ const styles = StyleSheet.create({
   historySub: { color: colors.muted, fontSize: 12, fontWeight: '600' },
   smallAction: {
     borderWidth: 1,
-    borderColor: '#d8e5f3',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#f7fafe',
+    borderColor: '#d6e2f0',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  smallActionText: { color: colors.blue, fontSize: 12, fontWeight: '800' },
-  emptyText: { color: colors.muted, fontSize: 13, fontWeight: '700', paddingVertical: 12 },
-
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-    flexWrap: 'wrap',
-  },
+  smallActionText: { color: colors.blue, fontSize: 11, fontWeight: '800' },
+  emptyText: { color: colors.muted, fontSize: 13, textAlign: 'center', paddingVertical: 10 },
+  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   statCard: {
     flex: 1,
-    minWidth: 150,
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     borderLeftWidth: 4,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 10,
     elevation: 2,
   },
-  statLabel: {
-    fontSize: 12,
-    color: colors.muted,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: colors.dark,
-    marginTop: 4,
-  },
+  statLabel: { color: colors.muted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+  statValue: { color: colors.dark, fontSize: 18, fontWeight: '900', marginTop: 4 },
   financeRow: {
     flexDirection: 'row',
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 10,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
-    gap: 24,
-    flexWrap: 'wrap',
+    gap: 16,
   },
-  financeItem: {
-    minWidth: 80,
-  },
-  financeLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.muted,
-    textTransform: 'uppercase',
-  },
-  financeValue: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: colors.dark,
-    marginTop: 2,
-  },
+  financeItem: { flex: 1 },
+  financeLabel: { color: colors.muted, fontSize: 10, fontWeight: '700' },
+  financeValue: { color: colors.dark, fontSize: 12, fontWeight: '800', marginTop: 2 },
 });
 
 export default MedicoCitasScreen;

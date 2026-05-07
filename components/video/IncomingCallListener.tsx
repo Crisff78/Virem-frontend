@@ -10,7 +10,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useIncomingCallListener } from '../../hooks/useCallSignaling';
 import type { RootStackParamList } from '../../navigation/types';
 
-const IncomingCallListener: React.FC = () => {
+function IncomingCallListener(): null {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { incoming, dismiss } = useIncomingCallListener();
   const lastCitaRef = useRef<string | null>(null);

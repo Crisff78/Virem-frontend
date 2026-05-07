@@ -9,7 +9,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 
 type Props = {
   /** MediaStream a reproducir. null → muestra avatar. */
@@ -24,13 +24,13 @@ type Props = {
   enabled?: boolean;
 };
 
-const WebVideoContainer: React.FC<Props> = ({
+const WebVideoContainer = ({
   stream,
   muted = false,
   fullscreen = false,
-  avatarLabel,
+  avatarLabel = '',
   enabled = true,
-}) => {
+}: Props) => {
   const containerRef = useRef<any>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
