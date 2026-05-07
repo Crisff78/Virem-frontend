@@ -31,6 +31,19 @@ export const formatDateTime = (date: string | Date | null | undefined) => {
   }
 };
 
+export const formatOnlyDate = (date: any) => {
+  if (!date) return '';
+  const str = String(date).trim();
+  // Si viene en formato ISO (YYYY-MM-DD...), extraemos solo la fecha y la ponemos bonita
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`; // DD/MM/YYYY
+  }
+  // Si ya viene como DD/MM/YYYY, lo dejamos igual
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(str)) return str;
+  return str;
+};
+
 export const normalizeText = (v: any) => String(v || '').trim();
 export const normalizeSearch = (v: any) => normalizeText(v).toLowerCase();
 
