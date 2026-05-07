@@ -122,7 +122,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
   const route = useRoute<RouteProp<RootStackParamList, 'SalaEsperaVirtualPaciente'>>();
   const { signOut } = useAuth();
   const { width: viewportWidth } = useWindowDimensions();
@@ -596,7 +596,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
-  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
+
   const rs = (size: number) => size;
 
 

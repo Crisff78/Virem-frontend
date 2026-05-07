@@ -16,7 +16,6 @@ import type { ImageSourcePropType } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
-import { usePacienteModule } from './navigation/PacienteModuleContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from "./providers/ThemeContext";
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';

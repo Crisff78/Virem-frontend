@@ -112,14 +112,12 @@ type NotificationItem = {
 /* ===================== PANTALLA ===================== */
 const DashboardPacienteScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
   const { signOut } = useAuth();
   const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { t } = useLanguage();
   const { isDesktop, isTablet, isMobile, select, fs, rs, wp, hp } = useResponsive();
-
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
   const [isExpressModalOpen, setIsExpressModalOpen] = useState(true);
   const [user, setUser] = useState<User | null>(() => (ensurePatientSessionUser(sessionUser) as User | null) || null);
   const [loadingCitas, setLoadingCitas] = useState(false);

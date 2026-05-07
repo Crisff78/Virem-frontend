@@ -13,6 +13,7 @@ import PacienteChatScreen from './PacienteChatScreen';
 import PacienteRecetasDocumentosScreen from './PacienteRecetasDocumentosScreen';
 import PacientePerfilScreen from './PacientePerfilScreen';
 import PacienteConfiguracionScreen from './PacienteConfiguracionScreen';
+import PacienteNotificacionesScreen from './PacienteNotificacionesScreen';
 
 const MODULE_COMPONENTS: Record<PortalModule, React.ComponentType<any>> = {
   DashboardPaciente: DashboardPacienteScreen,
@@ -23,6 +24,7 @@ const MODULE_COMPONENTS: Record<PortalModule, React.ComponentType<any>> = {
   PacienteRecetasDocumentos: PacienteRecetasDocumentosScreen,
   PacientePerfil: PacientePerfilScreen,
   PacienteConfiguracion: PacienteConfiguracionScreen,
+  PacienteNotificaciones: PacienteNotificacionesScreen,
 };
 
 /**
