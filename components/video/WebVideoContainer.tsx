@@ -79,7 +79,8 @@ const WebVideoContainer: React.FC<Props> = ({
     if (stream && enabled) {
       if (video.srcObject !== stream) {
         video.srcObject = stream;
-        video.play().catch(() => {});
+        // Ensure play is called and state is updated
+        video.play().catch(e => console.warn('[WebVideo] play error:', e));
       }
       video.style.display = 'block';
     } else {

@@ -125,10 +125,16 @@ export function useWebRTCCall(
 
       // Track remoto → actualizar estado
       pc.ontrack = (e) => {
+        console.log('[WebRTC] ontrack event:', e.track.kind);
         const rs = e.streams?.[0];
         if (rs) {
           setRemoteStream(rs);
           if (!startedAtRef.current) startedAtRef.current = Date.now();
+          setState('live');
+        } else {
+          // Fallback if streams array is empty (some browsers)
+          const newStream = new MediaStream([e.track]);
+          setRemoteStream(newStream);
           setState('live');
         }
       };

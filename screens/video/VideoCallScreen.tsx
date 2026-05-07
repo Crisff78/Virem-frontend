@@ -374,12 +374,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     top: Platform.OS === 'ios' ? 100 : 80,
-    width: 110,
-    height: 160,
-    borderRadius: 14,
+    width: 160, // Much larger
+    height: 100, // Horizontal 16:10 approx
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.4)',
+    borderColor: 'rgba(255,255,255,0.6)',
+    backgroundColor: '#000',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
   },
   controlsWrap: {
     position: 'absolute',
