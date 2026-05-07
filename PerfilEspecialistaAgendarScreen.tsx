@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -288,6 +288,9 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'PerfilEspecialistaAgendar'>>();
   const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const closeSidebar = useCallback(() => {
+    if (isSidebarOpen) toggleSidebar();
+  }, [isSidebarOpen, toggleSidebar]);
   const { signOut } = useAuth();
   const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { isDesktop, isTablet, isMobile, select } = useResponsive();
@@ -307,6 +310,8 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCVV, setCardCVV] = useState('');
   const [cardHolder, setCardHolder] = useState('');
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [slotsLimit, setSlotsLimit] = useState(6);
   const isDesktopLayout = isDesktop;
   
   const handleLogout = async () => {
@@ -430,6 +435,8 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
       })),
     [availableSlots]
   );
+  
+  const visibleTimes = useMemo(() => availableTimes.slice(0, slotsLimit), [availableTimes, slotsLimit]);
 
   const selectedSlot = useMemo(
     () => availableTimes.find((slot) => slot.id === selectedTime)?.slot || null,
@@ -679,7 +686,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
         <PacienteSidebar
           isMobileMenuOpen={isSidebarOpen}
           onToggleMobileMenu={toggleSidebar}
-          onCloseMobileMenu={toggleSidebar}
+          onCloseMobileMenu={closeSidebar}
         />
       )}
       <View style={{ flex: 1 }}>
@@ -703,7 +710,7 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
           </View>
           <TouchableOpacity
             style={styles.notifBtn}
-            onPress={() => navigation.navigate('PacienteNotificaciones')}
+            onPress={() => setIsNotificationsOpen(true)}
           >
             <MaterialIcons name="notifications" size={22} color={colors.dark} />
             <View style={styles.notifDot} />
@@ -849,25 +856,37 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
                       <Text style={styles.noTimeText}>Cargando disponibilidad real...</Text>
                     </View>
                   ) : availableTimes.length ? (
-                    <View style={styles.timeGrid}>
-                      {availableTimes.map((item) => (
+                    <View>
+                      <View style={styles.timeGrid}>
+                        {visibleTimes.map((item) => (
+                          <TouchableOpacity
+                            key={item.id}
+                            style={[
+                              styles.timeBtn,
+                              !isDesktop && styles.timeBtnMobile,
+                              selectedTime === item.id && styles.timeBtnActive,
+                            ]}
+                            onPress={() => setSelectedTime(item.id)}
+                          >
+                            <Text style={[styles.timeText, selectedTime === item.id && styles.timeTextActive]}>
+                              {item.label}
+                            </Text>
+                            <Text style={[styles.slotMeta, selectedTime === item.id && styles.slotMetaActive]}>
+                              {item.slot.modalidad}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      {availableTimes.length > slotsLimit && (
                         <TouchableOpacity
-                          key={item.id}
-                          style={[
-                            styles.timeBtn,
-                            !isDesktop && styles.timeBtnMobile,
-                            selectedTime === item.id && styles.timeBtnActive,
-                          ]}
-                          onPress={() => setSelectedTime(item.id)}
+                          style={{ marginTop: 12, alignItems: 'center', paddingVertical: 8 }}
+                          onPress={() => setSlotsLimit(prev => prev + 10)}
                         >
-                          <Text style={[styles.timeText, selectedTime === item.id && styles.timeTextActive]}>
-                            {item.label}
-                          </Text>
-                          <Text style={[styles.slotMeta, selectedTime === item.id && styles.slotMetaActive]}>
-                            {item.slot.modalidad}
+                          <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
+                            Ver más horarios
                           </Text>
                         </TouchableOpacity>
-                      ))}
+                      )}
                     </View>
                   ) : (
                     <View style={styles.noTimeWrap}>
@@ -1030,6 +1049,37 @@ const PerfilEspecialistaAgendarScreen: React.FC = () => {
             </View>
           </Modal>
         </ScrollView>
+        {/* Notificaciones Modal Overlay */}
+        <Modal
+          visible={isNotificationsOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsNotificationsOpen(false)}
+        >
+          <View style={styles.modalRoot}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setIsNotificationsOpen(false)}
+            />
+            <View style={[styles.drawerRight]}>
+              <View style={styles.drawerHeader}>
+                <Text style={styles.drawerTitle}>Notificaciones</Text>
+                <TouchableOpacity onPress={() => setIsNotificationsOpen(false)}>
+                  <MaterialIcons name="close" size={24} color={colors.dark} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView>
+                <View style={[styles.emptyCard, { borderStyle: 'solid', marginTop: 40, borderWidth: 0 }]}>
+                  <MaterialIcons name="notifications-none" size={40} color={colors.muted} />
+                  <Text style={{ color: colors.muted, fontWeight: '600', marginTop: 10, fontSize: 14 }}>
+                    No tienes notificaciones
+                  </Text>
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       </View>
     </View>
   );
@@ -1580,10 +1630,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
+  modalRoot: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+  },
+  drawerRight: {
+    backgroundColor: '#fff',
+    width: Platform.OS === 'web' ? 320 : '100%',
+    height: Platform.OS === 'web' ? '100%' : 400,
+    borderTopLeftRadius: Platform.OS === 'web' ? 0 : 20,
+    borderTopRightRadius: Platform.OS === 'web' ? 0 : 20,
+    padding: 20,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  drawerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.dark,
+  },
+  emptyCard: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+  },
 });
 
 const PerfilEspecialistaAgendarScreenWrapper: React.FC = (props) => (
-  <PacienteModuleProvider>
+  <PacienteModuleProvider initialModule="NuevaConsultaPaciente">
     <PerfilEspecialistaAgendarScreen {...props} />
   </PacienteModuleProvider>
 );

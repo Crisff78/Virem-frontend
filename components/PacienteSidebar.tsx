@@ -66,7 +66,7 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { activeModule, setActiveModule } = usePacienteModule();
+  const { activeModule, portalNavigate } = usePacienteModule();
   const { fullName, planLabel, fotoUrl, hasProfilePhoto, signOut } = usePatientPortalSession({
     syncOnMount: true,
   });
@@ -96,7 +96,7 @@ const PacienteSidebar: React.FC<PacienteSidebarProps> = ({
   };
 
   const handleModulePress = (module: PortalModule) => {
-    setActiveModule(module);
+    portalNavigate(module);
   };
 
   const handleLogout = async () => {

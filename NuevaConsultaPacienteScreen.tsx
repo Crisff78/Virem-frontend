@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Platform,
@@ -152,9 +152,12 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
-  const { isDesktop: isDesktopLayout, isTablet: isTabletLayout } = useResponsive();
   const { signOut } = useAuth();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const closeSidebar = useCallback(() => {
+    if (isSidebarOpen) toggleSidebar();
+  }, [isSidebarOpen, toggleSidebar]);
+  const { isDesktop: isDesktopLayout, isTablet: isTabletLayout } = useResponsive();
   const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { width: viewportWidth } = useWindowDimensions();
   const [user, setUser] = useState<User | null>(() => (ensurePatientSessionUser(sessionUser) as User | null) || null);
@@ -305,7 +308,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
         <PacienteSidebar
           isMobileMenuOpen={isSidebarOpen}
           onToggleMobileMenu={toggleSidebar}
-          onCloseMobileMenu={toggleSidebar}
+          onCloseMobileMenu={closeSidebar}
         />
       )}
       <View style={{ flex: 1 }}>
@@ -320,14 +323,7 @@ const NuevaConsultaPacienteScreen: React.FC = () => {
             </TouchableOpacity>
           )}
 
-          <View style={styles.searchBox}>
-            <MaterialIcons name="search" size={20} color={colors.muted} />
-            <TextInput
-              placeholder="Busca un médico..."
-              placeholderTextColor="#8aa7bf"
-              style={styles.searchInput}
-            />
-          </View>
+          <View style={{ flex: 1 }} />
 
           <TouchableOpacity
             style={styles.notifBtn}
