@@ -68,6 +68,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
   const { isDesktop: isDesktopLayout } = useResponsive();
   const { user, refreshUser, signOut, fullName, planLabel, fotoUrl, hasProfilePhoto } =
     usePatientPortalSession({ syncOnMount: false });
+  const { t, tx, language: appLanguage, setLanguage } = useLanguage();
 
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -240,7 +241,7 @@ const PacienteConfiguracionScreen: React.FC = () => {
     );
   };
 
-  const { isSidebarOpen, toggleSidebar } = usePacienteModule();
+
 
 
   return (
@@ -538,7 +539,6 @@ const PacienteConfiguracionScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
-        </ScrollView>
       </View>
     </View>
   );
