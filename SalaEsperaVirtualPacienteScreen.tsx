@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Linking,
   Platform,
@@ -29,6 +30,8 @@ import { useSocketEvent } from './hooks/useSocketEvent';
 import { useSocketRoom } from './hooks/useSocketRoom';
 import { useAuth } from './providers/AuthProvider';
 import { getAuthToken } from './utils/session';
+import { usePatientSessionProfile } from './hooks/usePatientSessionProfile';
+import { useCallSignaler } from './hooks/useCallSignaling';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
@@ -162,99 +165,21 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const requestedCitaId = String(route.params?.citaId || '').trim();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
+  // Use standardized profile hook instead of manual AsyncStorage
+  const { sessionUser, syncProfile } = usePatientSessionProfile();
+  const signaler = useCallSignaler();
+
   useEffect(() => {
     const loadUser = async () => {
       try {
-        let sessionUser: User | null = null;
-
-        if (Platform.OS === 'web') {
-          const webUser = parseUser(localStorage.getItem(LEGACY_USER_STORAGE_KEY));
-          if (webUser) sessionUser = webUser;
-        }
-
-        if (!sessionUser) {
-          const secureUser = parseUser(await SecureStore.getItemAsync(LEGACY_USER_STORAGE_KEY));
-          if (secureUser) sessionUser = secureUser;
-        }
-
-        if (!sessionUser) {
-          const asyncUser = parseUser(await AsyncStorage.getItem(STORAGE_KEY));
-          if (asyncUser) sessionUser = asyncUser;
-        }
-
-        sessionUser = ensurePatientSessionUser(sessionUser);
-
-        const token = await getAuthToken();
-        if (token) {
-          const profileResponse = await fetch(apiUrl('/api/users/me/paciente-profile'), {
-            method: 'GET',
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const profilePayload = await profileResponse.json().catch(() => null);
-          if (profileResponse.ok && profilePayload?.success && profilePayload?.profile) {
-            const profileUser = profilePayload.profile as User;
-            const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
-            const profileUserId = String((profileUser as any)?.usuarioid || (profileUser as any)?.id || '').trim();
-            if (cachedUserId && profileUserId && cachedUserId !== profileUserId) {
-              sessionUser = null;
-            }
-            sessionUser = {
-              ...(sessionUser || {}),
-              ...profileUser,
-              nombres: String((profileUser as any)?.nombres || '').trim(),
-              apellidos: String((profileUser as any)?.apellidos || '').trim(),
-              nombre: String((profileUser as any)?.nombres || (profileUser as any)?.nombre || '').trim(),
-              apellido: String((profileUser as any)?.apellidos || (profileUser as any)?.apellido || '').trim(),
-              fotoUrl: sanitizeFotoUrl((profileUser as any)?.fotoUrl),
-            };
-          } else {
-            const response = await fetch(apiUrl('/api/auth/me'), {
-              method: 'GET',
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            const payload = await response.json().catch(() => null);
-            if (response.ok && payload?.success && payload?.user) {
-              const apiUser = payload.user as User;
-              const cachedUserId = String((sessionUser as any)?.usuarioid || (sessionUser as any)?.id || '').trim();
-              const apiUserId = String((apiUser as any)?.usuarioid || (apiUser as any)?.id || '').trim();
-              if (cachedUserId && apiUserId && cachedUserId !== apiUserId) {
-                sessionUser = null;
-              }
-              const apiRoleId = Number((apiUser as any)?.rolid ?? (apiUser as any)?.rolId ?? (apiUser as any)?.roleId);
-              if (apiRoleId === 2) {
-                sessionUser = null;
-              } else {
-                sessionUser = {
-                  ...(sessionUser || {}),
-                  ...apiUser,
-                  fotoUrl: sanitizeFotoUrl((apiUser as any)?.fotoUrl),
-                };
-              }
-            }
-          }
-
-          if (sessionUser) {
-            const rawNextUser = JSON.stringify(sessionUser);
-            await AsyncStorage.setItem(STORAGE_KEY, rawNextUser);
-            await AsyncStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-
-            if (Platform.OS === 'web') {
-              localStorage.setItem(STORAGE_KEY, rawNextUser);
-              localStorage.setItem(LEGACY_USER_STORAGE_KEY, rawNextUser);
-            } else {
-              await SecureStore.setItemAsync(LEGACY_USER_STORAGE_KEY, rawNextUser);
-            }
-          }
-        }
-
-        setUser(sessionUser);
+        const profile = await syncProfile();
+        setUser((ensurePatientSessionUser(profile) as User | null) || null);
       } catch {
         setUser(null);
       }
     };
-
     loadUser();
-  }, []);
+  }, [syncProfile]);
 
   useEffect(() => {
     const makePulse = (value: Animated.Value, delay: number) =>
@@ -439,6 +364,41 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
   useSocketRoom('cita', selectedCitaId, Boolean(selectedCitaId));
 
+  // ── Listen for doctor starting the call → enable join button instantly ──
+  useSocketEvent('call:incoming', (payload: any) => {
+    if (!selectedCitaId) return;
+    if (String(payload?.citaId || '') !== selectedCitaId) return;
+    // Doctor has started the call — enable join immediately
+    setRoomCanJoin(true);
+    setRoomStatus('activa');
+    // Trigger the "room ready" pulse animation
+    roomReadyPulse.setValue(0);
+    Animated.timing(roomReadyPulse, { toValue: 1, duration: 500, useNativeDriver: false }).start();
+  });
+
+  // ── Listen for doctor ending the call → redirect patient ──
+  useSocketEvent('call:ended', (payload: any) => {
+    if (!selectedCitaId) return;
+    if (String(payload?.citaId || '') !== selectedCitaId) return;
+    setRoomCanJoin(false);
+    setRoomStatus('finalizada');
+    // Navigate to dashboard with feedback
+    Alert.alert(
+      'Consulta Finalizada',
+      'El médico ha finalizado la consulta. Puedes revisar tu receta o historial desde tu panel.',
+      [
+        { text: 'Ver Recetas', onPress: () => navigation.navigate('PacienteRecetasDocumentos') },
+        { text: 'Ir al Inicio', onPress: () => navigation.navigate('DashboardPaciente') },
+      ]
+    );
+  });
+
+  // ── Emit patient presence when entering the sala ──
+  useEffect(() => {
+    if (!selectedCitaId) return;
+    signaler.reportMediaState(selectedCitaId, { mic: micOn, camera: cameraOn }).catch(() => undefined);
+  }, [selectedCitaId, signaler, micOn, cameraOn]);
+
   const enterVideoRoom = () => {
     if (!nextCita?.citaid) return;
     navigation.navigate('VideoCall', {
@@ -446,7 +406,6 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
       initiate: false // Patients wait for doctors to initiate or just join
     });
   };
-
 
   const openSettings = () => {
     setSettingsOpen(true);

@@ -109,6 +109,27 @@ const VideoCallScreen: React.FC = () => {
     navigation.goBack();
   };
 
+  // ── Auto-redirect when the OTHER side ends the call ──
+  useEffect(() => {
+    if (call.state !== 'ended') return;
+    // If we're the patient (initiate=false) and the call ended externally,
+    // show a "Consulta Finalizada" dialog
+    if (!initiate) {
+      const timer = setTimeout(() => {
+        Alert.alert(
+          'Consulta Finalizada',
+          'El médico ha finalizado la consulta.',
+          [
+            { text: 'Ver Recetas', onPress: () => navigation.navigate('PacienteRecetasDocumentos' as any) },
+            { text: 'Volver', onPress: () => navigation.goBack() },
+          ]
+        );
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [call.state]);
+
   const durationLabel = useMemo(() => {
     if (call.state !== 'live') return undefined;
     return `${formatCountdown(call.durationSec)}  ·  cierra en ${formatCountdown(
