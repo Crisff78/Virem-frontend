@@ -133,6 +133,21 @@ const VideoCallScreen: React.FC = () => {
     )}`;
   }, [call.state, call.durationSec, call.remainingMs]);
 
+  // ── "5 minutes remaining" warning ──
+  const showFiveMinWarning = useMemo(() => {
+    if (call.state !== 'live') return false;
+    const remainSec = Math.floor(call.remainingMs / 1000);
+    return remainSec > 0 && remainSec <= 300;
+  }, [call.state, call.remainingMs]);
+
+  // Role-specific waiting label
+  const waitingLabel = useMemo(() => {
+    if (call.remoteUserName) return call.remoteUserName;
+    return initiate
+      ? 'Esperando a que el paciente se una...'
+      : 'Esperando a que el médico se una...';
+  }, [call.remoteUserName, initiate]);
+
   const openAppSettings = () => {
     if (Platform.OS === 'ios') {
       Linking.openURL('app-settings:');
@@ -169,15 +184,25 @@ const VideoCallScreen: React.FC = () => {
         streamId={call.remoteStreamId}
         stream={call.remoteStream}
         enabled={Boolean(call.remoteStreamId || call.remoteStream)}
-        avatarLabel={call.remoteUserName || 'Esperando al otro participante...'}
+        avatarLabel={waitingLabel}
         fullscreen
       />
+
+      {/* ── "La consulta finalizará en 5 min" warning ── */}
+      {showFiveMinWarning && (
+        <View style={styles.warningBanner}>
+          <MaterialIcons name="timer" size={16} color="#f59e0b" />
+          <Text style={styles.warningTxt}>
+            La consulta finalizará en {formatCountdown(Math.floor(call.remainingMs / 1000))}
+          </Text>
+        </View>
+      )}
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() =>
-            Alert.alert('Salir', '¿Finalizar la llamada?', [
+            Alert.alert('Salir', '¿Finalizar la consulta?', [
               { text: 'Cancelar', style: 'cancel' },
               { text: 'Finalizar', style: 'destructive', onPress: handleEnd },
             ])
@@ -330,6 +355,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   errorTxt: { color: '#fff', flex: 1, fontSize: 12, fontWeight: '700' },
+  warningBanner: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 100 : 70,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(245,158,11,0.92)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    zIndex: 10,
+  },
+  warningTxt: { color: '#fff', flex: 1, fontSize: 13, fontWeight: '800' },
   localPip: {
     position: 'absolute',
     right: 16,
