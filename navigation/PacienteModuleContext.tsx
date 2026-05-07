@@ -69,19 +69,43 @@ export function isPortalModule(route: string): route is PortalModule {
 
 type ProviderProps = {
   initialModule?: PortalModule;
+  isPortal?: boolean;
   children: React.ReactNode;
 };
 
 export const PacienteModuleProvider: React.FC<ProviderProps> = ({
   initialModule = 'DashboardPaciente',
+  isPortal = false,
+  children,
+}) => {
+  const outerContext = useContext(PacienteModuleContext);
+  const isAlreadyNested = outerContext !== fallbackCtx && outerContext.isInsidePortal;
+
+  // If we are already inside a portal, we don't need to provide a new context.
+  if (isAlreadyNested) {
+    return <>{children}</>;
+  }
+
+  return (
+    <PacienteModuleRootProvider initialModule={initialModule} isPortal={isPortal}>
+      {children}
+    </PacienteModuleRootProvider>
+  );
+};
+
+const PacienteModuleRootProvider: React.FC<{ 
+  initialModule?: PortalModule; 
+  isPortal: boolean;
+  children: React.ReactNode 
+}> = ({
+  initialModule = 'DashboardPaciente',
+  isPortal,
   children,
 }) => {
   const [activeModule, setActiveModuleRaw] = useState<PortalModule>(initialModule);
   
-  // Initial state: closed on mobile devices or small screens, open on desktop web
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     if (Platform.OS !== 'web') return false;
-    // On web, check width if possible
     if (typeof window !== 'undefined') {
       return window.innerWidth >= 1024;
     }
@@ -96,13 +120,15 @@ export const PacienteModuleProvider: React.FC<ProviderProps> = ({
 
   const portalNavigate = useCallback(
     (route: string, params?: Record<string, unknown>) => {
-      if (isPortalModule(route)) {
-        setActiveModuleRaw(route);
-      } else {
-        (navigation.navigate as any)(route, params);
+      if (isPortal) {
+        if (isPortalModule(route)) {
+          setActiveModuleRaw(route);
+          return;
+        }
       }
+      (navigation.navigate as any)(route, params);
     },
-    [navigation]
+    [navigation, isPortal]
   );
   
   const toggleSidebar = useCallback(() => {
@@ -111,14 +137,14 @@ export const PacienteModuleProvider: React.FC<ProviderProps> = ({
 
   const value = useMemo<PacienteModuleContextValue>(
     () => ({
-      isInsidePortal: true,
+      isInsidePortal: isPortal,
       activeModule,
       setActiveModule,
       portalNavigate,
       isSidebarOpen,
       toggleSidebar,
     }),
-    [activeModule, portalNavigate, setActiveModule, isSidebarOpen, toggleSidebar]
+    [isPortal, activeModule, portalNavigate, setActiveModule, isSidebarOpen, toggleSidebar]
   );
 
   return (

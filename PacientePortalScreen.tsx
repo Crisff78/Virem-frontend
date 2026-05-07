@@ -97,7 +97,7 @@ const ModuleVisibility: React.FC<{ moduleName: PortalModule; children: React.Rea
 };
 
 const PacientePortalScreen: React.FC = () => (
-  <PacienteModuleProvider>
+  <PacienteModuleProvider isPortal>
     <PacientePortalInner />
   </PacienteModuleProvider>
 );

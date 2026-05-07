@@ -12,6 +12,7 @@ import {
   UIManager,
   useWindowDimensions,
   View,
+  Modal,
 } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -90,6 +91,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   // Enable LayoutAnimation on Android
   if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -227,7 +229,7 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
 
           <TouchableOpacity
             style={styles.notifBtn}
-            onPress={() => navigation.navigate('PacienteNotificaciones')}
+            onPress={() => setIsNotificationsOpen(true)}
           >
             <MaterialIcons name="notifications" size={22} color={colors.dark} />
             <View style={styles.notifDot} />
@@ -424,6 +426,38 @@ const EspecialistasPorEspecialidadScreen: React.FC = () => {
           </View>
         </View>
         </ScrollView>
+
+        {/* Notificaciones Modal Overlay */}
+        <Modal
+          visible={isNotificationsOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsNotificationsOpen(false)}
+        >
+          <View style={styles.modalRoot}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setIsNotificationsOpen(false)}
+            />
+            <View style={[styles.drawerRight]}>
+              <View style={styles.drawerHeader}>
+                <Text style={styles.drawerTitle}>Notificaciones</Text>
+                <TouchableOpacity onPress={() => setIsNotificationsOpen(false)}>
+                  <MaterialIcons name="close" size={24} color={colors.dark} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView>
+                <View style={[styles.emptyCard, { borderStyle: 'solid', marginTop: 40, borderWidth: 0 }]}>
+                  <MaterialIcons name="notifications-none" size={40} color={colors.muted} />
+                  <Text style={{ color: colors.muted, fontWeight: '600', marginTop: 10, fontSize: 14 }}>
+                    No tienes notificaciones
+                  </Text>
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       </View>
     </View>
   );
@@ -711,10 +745,35 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+  modalRoot: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+  },
+  drawerRight: {
+    backgroundColor: '#fff',
+    width: Platform.OS === 'web' ? 320 : '100%',
+    height: Platform.OS === 'web' ? '100%' : 400,
+    borderTopLeftRadius: Platform.OS === 'web' ? 0 : 20,
+    borderTopRightRadius: Platform.OS === 'web' ? 0 : 20,
+    padding: 20,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  drawerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.dark,
+  },
 });
 
 const EspecialistasPorEspecialidadScreenWrapper: React.FC = (props) => (
-  <PacienteModuleProvider>
+  <PacienteModuleProvider initialModule="NuevaConsultaPaciente">
     <EspecialistasPorEspecialidadScreen {...props} />
   </PacienteModuleProvider>
 );
