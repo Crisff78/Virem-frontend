@@ -105,7 +105,7 @@ const formatPrice = (value: number | null | undefined) => {
 
 const MedicoCitasScreen: React.FC = () => {
   const navigation = usePortalAwareMedicoNavigation();
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = useMedicoModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar, activeModuleParams } = useMedicoModule();
   const { loadingUser, refreshUser, signOut, doctorName, doctorSpec, fotoUrl } =
     useMedicoPortalSession({ syncOnMount: false, addDoctorPrefix: true });
   const { isDesktop, isTablet, isMobile, rs, select } = useResponsive();
@@ -159,6 +159,8 @@ const MedicoCitasScreen: React.FC = () => {
       loadCitas();
     }, [loadCitas, refreshUser])
   );
+
+  const highlightCitaId = activeModuleParams?.highlightCitaId;
 
   const upsertCita = useCallback((nextCita: CitaItem) => {
     if (!nextCita?.citaid) return;
@@ -403,7 +405,13 @@ const MedicoCitasScreen: React.FC = () => {
             <ActivityIndicator size="small" color={colors.primary} />
           ) : upcomingCitas.length ? (
             upcomingCitas.map((cita) => (
-              <View key={cita.citaid} style={styles.citaCard}>
+              <View 
+                key={cita.citaid} 
+                style={[
+                  styles.citaCard, 
+                  highlightCitaId === cita.citaid && { borderColor: colors.primary, borderWidth: 2, backgroundColor: 'rgba(19,127,236,0.02)' }
+                ]}
+              >
                 <View style={[styles.citaTop, (isTablet || isMobile) && styles.citaTopMobile]}>
                   <View style={styles.citaMeta}>
                     <Text style={styles.citaPatient}>{normalizeText(cita?.paciente?.nombreCompleto || 'Paciente')}</Text>

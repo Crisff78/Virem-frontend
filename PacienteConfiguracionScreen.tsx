@@ -63,7 +63,7 @@ const sanitizeFotoUrl = (value: unknown) => {
 
 const PacienteConfiguracionScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar, setIsNotificationsOpen } = usePacienteModule();
   const { isDesktop: isDesktopLayout } = useResponsive();
   const { user, refreshUser, signOut, fullName, planLabel, fotoUrl, hasProfilePhoto } =
     usePatientPortalSession({ syncOnMount: false });
@@ -254,16 +254,30 @@ const PacienteConfiguracionScreen: React.FC = () => {
       )}
       <View style={{ flex: 1 }}>
         <ScrollView style={styles.main} contentContainerStyle={{ paddingBottom: 30 }}>
-        {!isSidebarOpen && (
-          <TouchableOpacity 
-            style={styles.hamburgerBtn} 
-            onPress={toggleSidebar}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {!isSidebarOpen && (
+              <TouchableOpacity 
+                style={styles.hamburgerBtn} 
+                onPress={toggleSidebar}
+              >
+                <MaterialIcons name="menu" size={26} color={colors.dark} />
+              </TouchableOpacity>
+            )}
+            <View>
+              <Text style={[styles.title, { marginTop: 0 }]}>{t('config.title')}</Text>
+              <Text style={styles.subtitle}>{t('config.subtitle')}</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 }}
+            onPress={() => setIsNotificationsOpen(true)}
           >
-            <MaterialIcons name="menu" size={26} color={colors.dark} />
+            <MaterialIcons name="notifications" size={22} color={colors.dark} />
+            <View style={{ position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444', borderWidth: 1.5, borderColor: '#fff' }} />
           </TouchableOpacity>
-        )}
-        <Text style={styles.title}>{t('config.title')}</Text>
-        <Text style={styles.subtitle}>{t('config.subtitle')}</Text>
+        </View>
 
         <View style={styles.grid}>
           <View style={styles.cardHalf}>

@@ -218,7 +218,7 @@ const PacientePerfilScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar, setIsNotificationsOpen } = usePacienteModule();
   const { isDesktop: isDesktopLayout } = useResponsive();
   const {
     user,
@@ -481,7 +481,7 @@ const PacientePerfilScreen: React.FC = () => {
     }
   };
 
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
   return (
     <View style={[styles.container, !isInsidePortal && isDesktopLayout && { flexDirection: 'row' }]}>
       {!isInsidePortal && (
@@ -511,7 +511,7 @@ const PacientePerfilScreen: React.FC = () => {
           </View>
           <TouchableOpacity
             style={styles.notifBtn}
-            onPress={() => navigation.navigate('PacienteNotificaciones')}
+            onPress={() => setIsNotificationsOpen(true)}
           >
             <MaterialIcons name="notifications" size={22} color={colors.dark} />
             <View style={styles.notifDot} />

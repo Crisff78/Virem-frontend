@@ -123,7 +123,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
   const { t, tx } = useLanguage();
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar, setIsNotificationsOpen } = usePacienteModule();
   const route = useRoute<RouteProp<RootStackParamList, 'SalaEsperaVirtualPaciente'>>();
   const { signOut } = useAuth();
   const { width: viewportWidth } = useWindowDimensions();
@@ -635,7 +635,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
 
           <TouchableOpacity
             style={styles.notifBtn}
-            onPress={() => navigation.navigate('PacienteNotificaciones')}
+            onPress={() => setIsNotificationsOpen(true)}
           >
             <MaterialIcons name="notifications" size={22} color={colors.dark} />
             <View style={styles.notifDot} />

@@ -116,12 +116,11 @@ type NotificationItem = {
 /* ===================== PANTALLA ===================== */
 const DashboardPacienteScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar, setIsNotificationsOpen } = usePacienteModule();
   const { signOut } = useAuth();
   const { sessionUser, syncProfile } = usePatientSessionProfile();
   const { t } = useLanguage();
   const { isDesktop, isTablet, isMobile, select, fs, rs, wp, hp } = useResponsive();
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isExpressModalOpen, setIsExpressModalOpen] = useState(true);
   const [user, setUser] = useState<User | null>(() => (ensurePatientSessionUser(sessionUser) as User | null) || null);
   const [loadingCitas, setLoadingCitas] = useState(true);
@@ -421,45 +420,6 @@ const DashboardPacienteScreen: React.FC = () => {
   return (
     <View style={styles.container}>
 
-      {/* Notificaciones Drawer — renders as a true overlay above sidebar/content on Web */}
-      <Modal
-        visible={isNotificationsOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsNotificationsOpen(false)}
-      >
-        <View style={styles.modalRoot}>
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setIsNotificationsOpen(false)}
-          />
-          <View style={[styles.drawer, styles.drawerRight]}>
-            <View style={styles.drawerHeader}>
-              <Text style={styles.drawerTitle}>Notificaciones</Text>
-              <TouchableOpacity onPress={() => setIsNotificationsOpen(false)}>
-                <MaterialIcons name="close" size={24} color={colors.dark} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView>
-              {notifications.length > 0 ? (
-                notifications.map((n) => (
-                  <TouchableOpacity key={n.id} style={[styles.notifItem, !n.leida && styles.notifUnread]}>
-                    <Text style={styles.notifTitle}>{n.titulo}</Text>
-                    <Text style={styles.notifMsg} numberOfLines={2}>{n.contenido}</Text>
-                    <Text style={styles.notifTime}>Hace un momento</Text>
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <View style={[styles.emptyCard, { borderStyle: 'solid', marginTop: rs(40) }]}>
-                  <MaterialIcons name="notifications-none" size={40} color={colors.muted} />
-                  <Text style={styles.emptyText}>No tienes notificaciones</Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
 
       {/* Modal Consulta Express */}
       <Modal

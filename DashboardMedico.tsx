@@ -842,19 +842,41 @@ const DashboardMedico: React.FC = () => {
   };
 
   const handleVideoCall = (citaId?: string) => {
-    const targetCita = citaId
-      ? upcomingCitas.find(c => c.citaid === citaId)
-      : upcomingCitas[0];
-
-    if (!targetCita) return;
+    const targetCitaId = citaId || upcomingCitas[0]?.citaid;
+    if (!targetCitaId) return;
 
     navigation.navigate('VideoCall', {
-      citaId: targetCita.citaid,
+      citaId: targetCitaId,
       initiate: true
     });
   };
 
-  const nextCita = upcomingCitas[0] || null;
+  // Calculate the most relevant "next" or "current" appointment
+  const currentConsultation = useMemo(() => {
+    const now = Date.now();
+    return upcomingCitas.find((c) => {
+      if (!c.fechaHoraInicio) return false;
+      const startMs = new Date(c.fechaHoraInicio).getTime();
+      if (!Number.isFinite(startMs)) return false;
+      
+      // Active 5 minutes before start, up to 30 minutes after start
+      const diffMinStart = (startMs - now) / 60000;
+      const startedHowLongAgo = (now - startMs) / 60000;
+
+      return diffMinStart <= 5 && startedHowLongAgo <= 30;
+    });
+  }, [upcomingCitas]);
+
+  const nextCita = currentConsultation || upcomingCitas[0] || null;
+  const isConsultationActive = useMemo(() => {
+    if (!nextCita?.fechaHoraInicio) return false;
+    const now = Date.now();
+    const startMs = new Date(nextCita.fechaHoraInicio).getTime();
+    const diffMinStart = (startMs - now) / 60000;
+    const startedHowLongAgo = (now - startMs) / 60000;
+    return diffMinStart <= 5 && startedHowLongAgo <= 30;
+  }, [nextCita]);
+
   const bannerPatientName = nextCita ? nextCita.paciente.nombreCompleto : '';
   const bannerPatientAvatar = resolveAvatarSource(nextCita?.paciente?.fotoUrl);
 
@@ -925,8 +947,9 @@ const DashboardMedico: React.FC = () => {
                 if (!c.fechaHoraInicio) return false;
                 const startMs = new Date(c.fechaHoraInicio).getTime();
                 if (!Number.isFinite(startMs)) return false;
-                const diffMin = (startMs - now) / 60000;
-                return diffMin <= 10 && diffMin >= -60;
+                const diffMinStart = (startMs - now) / 60000;
+                const startedHowLongAgo = (now - startMs) / 60000;
+                return diffMinStart <= 5 && startedHowLongAgo <= 30;
               });
               if (!activeCita) return null;
               return (
@@ -985,9 +1008,9 @@ const DashboardMedico: React.FC = () => {
             <View style={styles.bigCard}>
               <View style={styles.bigCardLeft}>
                 <View style={styles.liveRow}>
-                  <View style={[styles.liveDot, { backgroundColor: nextCita ? '#22c55e' : colors.primary }]} />
-                  <Text style={[styles.liveText, { color: nextCita ? '#22c55e' : colors.primary }]}>
-                    {nextCita ? 'PRÓXIMA CITA' : 'JORNADA ACTIVA'}
+                  <View style={[styles.liveDot, { backgroundColor: isConsultationActive ? '#22c55e' : colors.primary }]} />
+                  <Text style={[styles.liveText, { color: isConsultationActive ? '#22c55e' : colors.primary }]}>
+                    {isConsultationActive ? 'CONSULTA ACTIVA' : nextCita ? 'PRÓXIMA CITA' : 'JORNADA ACTIVA'}
                   </Text>
                 </View>
                 <Text style={styles.bigCardTitle}>Bienvenido de nuevo, {doctorName}</Text>
@@ -999,16 +1022,16 @@ const DashboardMedico: React.FC = () => {
 
                 <View style={styles.bigCardActions}>
                   <TouchableOpacity
-                    style={[styles.primaryBtn, (!nextCita || openingCitaId) && { opacity: 0.6 }]}
-                    onPress={() => handleVideoCall()}
-                    disabled={!nextCita || !!openingCitaId}
+                    style={[styles.primaryBtn, (!isConsultationActive || openingCitaId) && { opacity: 0.6 }]}
+                    onPress={() => handleVideoCall(nextCita?.citaid)}
+                    disabled={!isConsultationActive || !!openingCitaId}
                   >
                     <MaterialIcons name="videocam" size={20} color="#fff" />
                     <Text style={styles.primaryBtnText}>
                       {openingCitaId ? 'Iniciando...' : 'Entrar a consulta'}
                     </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.secondaryBtn} onPress={() => handleSidebarNavigation('MedicoCitas')}>
+                  <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('MedicoCitas', { highlightCitaId: nextCita?.citaid })}>
                     <Text style={styles.secondaryBtnText}>Ver agenda completa</Text>
                   </TouchableOpacity>
                 </View>

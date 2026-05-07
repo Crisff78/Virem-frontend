@@ -133,12 +133,12 @@ const MIN_REFRESH_INTERVAL_MS = 15000;
 
 const PacienteCitasScreen: React.FC = () => {
   const navigation = usePortalAwareNavigation();
-  const { isInsidePortal, isSidebarOpen, toggleSidebar } = usePacienteModule();
+  const { isInsidePortal, isSidebarOpen, toggleSidebar, setIsNotificationsOpen } = usePacienteModule();
   const { isDesktop: isDesktopLayout } = useResponsive();
   const { signOut } = useAuth();
   const { width: viewportWidth } = useWindowDimensions();
   const { t } = useLanguage();
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingCitas, setLoadingCitas] = useState(false);
@@ -482,7 +482,7 @@ const PacienteCitasScreen: React.FC = () => {
               onChangeText={setSearchText}
             />
           </View>
-          <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('PacienteNotificaciones')}>
+          <TouchableOpacity style={styles.notifBtn} onPress={() => setIsNotificationsOpen(true)}>
             <MaterialIcons name="notifications" size={22} color={colors.dark} />
             <View style={styles.notifDot} />
           </TouchableOpacity>
