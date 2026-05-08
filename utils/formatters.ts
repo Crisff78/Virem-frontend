@@ -63,3 +63,15 @@ export const titleCase = (value: string) => {
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
+
+export const formatCedula = (cedula: any) => {
+  const val = String(cedula || '').replace(/\D/g, '');
+  if (val.length !== 11) return val;
+  return `${val.slice(0, 3)}-${val.slice(3, 10)}-${val.slice(10)}`;
+};
+
+export const formatPhone = (phone: any) => {
+  const val = String(phone || '').replace(/\D/g, '');
+  if (val.length !== 10) return val;
+  return `(${val.slice(0, 3)}) ${val.slice(3, 6)}-${val.slice(6)}`;
+};

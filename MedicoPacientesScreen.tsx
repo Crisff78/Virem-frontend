@@ -325,12 +325,10 @@ const MedicoPacientesScreen: React.FC = () => {
                   <TouchableOpacity
                     style={styles.secondaryAction}
                     onPress={() =>
-                      Alert.alert(
-                        patient.name,
-                        `Citas totales: ${patient.totalCitas}\nCitas proximas: ${patient.upcomingCitas}\nEstado reciente: ${
-                          patient.lastEstado || 'Pendiente'
-                        }\nProxima cita: ${patient.nextDateLabel}\nUltima cita: ${patient.lastDateLabel}`
-                      )
+                      navigation.navigate('MedicoPacienteDetalle', {
+                        patientId: patient.id,
+                        patientName: patient.name,
+                      })
                     }
                   >
                     <Text style={styles.secondaryActionText}>Detalles</Text>
