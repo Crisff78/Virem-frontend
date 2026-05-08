@@ -26,6 +26,7 @@ import DashboardMedico from "./DashboardMedico";
 import MedicoPortalScreen from "./MedicoPortalScreen";
 import MedicoCitasScreen from "./MedicoCitasScreen";
 import MedicoPacientesScreen from "./MedicoPacientesScreen";
+import MedicoPacienteDetalleScreen from "./MedicoPacienteDetalleScreen";
 import MedicoChatScreen from "./MedicoChatScreen";
 import AdminPanelScreen from "./AdminPanelScreen";
 import NuevaConsultaPacienteScreen from "./NuevaConsultaPacienteScreen";
@@ -91,6 +92,7 @@ const linking = {
       DashboardMedico: "dashboard-medico",
       MedicoCitas: "medico-citas",
       MedicoPacientes: "medico-pacientes",
+      MedicoPacienteDetalle: "medico-paciente-detalle/:patientId",
       MedicoChat: "medico-chat",
       MedicoPerfil: "medico-perfil",
       MedicoConfiguracion: "medico-configuracion",
@@ -121,6 +123,7 @@ const PatientPerfilEspecialistaScreen = withRoleGuard(PerfilEspecialistaAgendarS
 const DoctorPortalScreen = withRoleGuard(MedicoPortalScreen, [MEDICO_ROLE_ID]);
 const DoctorCitasScreen = withRoleGuard(MedicoCitasScreen, [MEDICO_ROLE_ID]);
 const DoctorPacientesScreen = withRoleGuard(MedicoPacientesScreen, [MEDICO_ROLE_ID]);
+const DoctorPacienteDetalleScreen = withRoleGuard(MedicoPacienteDetalleScreen, [MEDICO_ROLE_ID]);
 const DoctorChatScreen = withRoleGuard(MedicoChatScreen, [MEDICO_ROLE_ID]);
 const DoctorPerfilScreen = withRoleGuard(MedicoPerfilScreen, [MEDICO_ROLE_ID]);
 const DoctorConfiguracionScreen = withRoleGuard(MedicoConfiguracionScreen, [MEDICO_ROLE_ID]);
@@ -209,6 +212,7 @@ const App: React.FC = () => {
                   <Stack.Screen name="DashboardMedico" component={DoctorPortalScreen} />
                   <Stack.Screen name="MedicoCitas" component={DoctorCitasScreen} />
                   <Stack.Screen name="MedicoPacientes" component={DoctorPacientesScreen} />
+                  <Stack.Screen name="MedicoPacienteDetalle" component={DoctorPacienteDetalleScreen} />
                   <Stack.Screen name="MedicoChat" component={DoctorChatScreen} />
                   <Stack.Screen name="MedicoPerfil" component={DoctorPerfilScreen} />
                   <Stack.Screen name="MedicoConfiguracion" component={DoctorConfiguracionScreen} />

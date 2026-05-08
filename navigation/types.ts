@@ -101,6 +101,10 @@ export type RootStackParamList = {
         patientName?: string;
       }
     | undefined;
+  MedicoPacienteDetalle: {
+    patientId: string;
+    patientName: string;
+  };
   MedicoPerfil: undefined;
   MedicoConfiguracion: undefined;
   MedicoHorarios: undefined;

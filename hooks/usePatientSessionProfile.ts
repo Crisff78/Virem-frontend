@@ -78,42 +78,109 @@ const mergePatientProfile = (
         ...(safeBase || {}),
         ...profileUser,
         nombres: normalizeText(
-            profileUser?.nombres || safeBase?.nombres || safeBase?.nombre || profileUser?.nombre
+            Object.prototype.hasOwnProperty.call(profileUser, 'nombres')
+                ? profileUser.nombres
+                : profileUser.nombre || safeBase?.nombres || safeBase?.nombre
         ),
         apellidos: normalizeText(
-            profileUser?.apellidos ||
-                safeBase?.apellidos ||
-                safeBase?.apellido ||
-                profileUser?.apellido
+            Object.prototype.hasOwnProperty.call(profileUser, 'apellidos')
+                ? profileUser.apellidos
+                : profileUser.apellido || safeBase?.apellidos || safeBase?.apellido
         ),
-        nombre: normalizeText(profileUser?.nombre || profileUser?.nombres || safeBase?.nombre),
+        nombre: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'nombre')
+                ? profileUser.nombre
+                : profileUser.nombres || safeBase?.nombre
+        ),
         apellido: normalizeText(
-            profileUser?.apellido || profileUser?.apellidos || safeBase?.apellido
+            Object.prototype.hasOwnProperty.call(profileUser, 'apellido')
+                ? profileUser.apellido
+                : profileUser.apellidos || safeBase?.apellido
         ),
-        name: normalizeText(profileUser?.name || safeBase?.name),
-        username: normalizeText(profileUser?.username || safeBase?.username),
-        plan: normalizeText(profileUser?.plan || safeBase?.plan),
-        fotoUrl: sanitizeFotoUrl(profileUser?.fotoUrl || safeBase?.fotoUrl),
-        email: normalizeText(profileUser?.email || safeBase?.email),
-        telefono: normalizeText(profileUser?.telefono || safeBase?.telefono),
-        cedula: normalizeText(profileUser?.cedula || safeBase?.cedula),
-        genero: normalizeText(profileUser?.genero || safeBase?.genero),
+        name: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'name')
+                ? profileUser.name
+                : safeBase?.name
+        ),
+        username: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'username')
+                ? profileUser.username
+                : safeBase?.username
+        ),
+        plan: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'plan')
+                ? profileUser.plan
+                : safeBase?.plan
+        ),
+        fotoUrl: sanitizeFotoUrl(
+            Object.prototype.hasOwnProperty.call(profileUser, 'fotoUrl')
+                ? profileUser.fotoUrl
+                : safeBase?.fotoUrl
+        ),
+        email: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'email')
+                ? profileUser.email
+                : safeBase?.email
+        ),
+        telefono: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'telefono')
+                ? profileUser.telefono
+                : safeBase?.telefono
+        ),
+        cedula: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'cedula')
+                ? profileUser.cedula
+                : safeBase?.cedula
+        ),
+        genero: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'genero')
+                ? profileUser.genero
+                : safeBase?.genero
+        ),
         fechanacimiento: normalizeText(
-            profileUser?.fechanacimiento || safeBase?.fechanacimiento
+            Object.prototype.hasOwnProperty.call(profileUser, 'fechanacimiento')
+                ? profileUser.fechanacimiento
+                : safeBase?.fechanacimiento
         ),
-        direccion: normalizeText(profileUser?.direccion || safeBase?.direccion),
-        tipoSangre: normalizeText(profileUser?.tipoSangre || safeBase?.tipoSangre),
-        alergias: normalizeText(profileUser?.alergias || safeBase?.alergias),
-        medicamentos: normalizeText(profileUser?.medicamentos || safeBase?.medicamentos),
-        antecedentes: normalizeText(profileUser?.antecedentes || safeBase?.antecedentes),
+        direccion: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'direccion')
+                ? profileUser.direccion
+                : safeBase?.direccion
+        ),
+        tipoSangre: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'tipoSangre')
+                ? profileUser.tipoSangre
+                : safeBase?.tipoSangre
+        ),
+        alergias: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'alergias')
+                ? profileUser.alergias
+                : safeBase?.alergias
+        ),
+        medicamentos: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'medicamentos')
+                ? profileUser.medicamentos
+                : safeBase?.medicamentos
+        ),
+        antecedentes: normalizeText(
+            Object.prototype.hasOwnProperty.call(profileUser, 'antecedentes')
+                ? profileUser.antecedentes
+                : safeBase?.antecedentes
+        ),
         contactoEmergenciaNombre: normalizeText(
-            profileUser?.contactoEmergenciaNombre || safeBase?.contactoEmergenciaNombre
+            Object.prototype.hasOwnProperty.call(profileUser, 'contactoEmergenciaNombre')
+                ? profileUser.contactoEmergenciaNombre
+                : safeBase?.contactoEmergenciaNombre
         ),
         contactoEmergenciaTelefono: normalizeText(
-            profileUser?.contactoEmergenciaTelefono || safeBase?.contactoEmergenciaTelefono
+            Object.prototype.hasOwnProperty.call(profileUser, 'contactoEmergenciaTelefono')
+                ? profileUser.contactoEmergenciaTelefono
+                : safeBase?.contactoEmergenciaTelefono
         ),
         contactoEmergenciaParentesco: normalizeText(
-            profileUser?.contactoEmergenciaParentesco || safeBase?.contactoEmergenciaParentesco
+            Object.prototype.hasOwnProperty.call(profileUser, 'contactoEmergenciaParentesco')
+                ? profileUser.contactoEmergenciaParentesco
+                : safeBase?.contactoEmergenciaParentesco
         ),
         recibirEmail: resolveBooleanField(
             profileUser,
@@ -148,35 +215,99 @@ const mergeAuthMeUser = (baseUser: PatientSessionUser | null, authUser: PatientS
         ...(safeBase || {}),
         ...authUser,
         nombres: normalizeText(
-            authUser?.nombres || safeBase?.nombres || safeBase?.nombre || authUser?.nombre
+            Object.prototype.hasOwnProperty.call(authUser, 'nombres')
+                ? authUser.nombres
+                : authUser.nombre || safeBase?.nombres || safeBase?.nombre
         ),
         apellidos: normalizeText(
-            authUser?.apellidos || safeBase?.apellidos || safeBase?.apellido || authUser?.apellido
+            Object.prototype.hasOwnProperty.call(authUser, 'apellidos')
+                ? authUser.apellidos
+                : authUser.apellido || safeBase?.apellidos || safeBase?.apellido
         ),
-        nombre: normalizeText(authUser?.nombre || authUser?.nombres || safeBase?.nombre),
-        apellido: normalizeText(authUser?.apellido || authUser?.apellidos || safeBase?.apellido),
-        name: normalizeText(authUser?.name || safeBase?.name),
-        username: normalizeText(authUser?.username || safeBase?.username),
-        plan: normalizeText(authUser?.plan || safeBase?.plan),
-        fotoUrl: sanitizeFotoUrl(authUser?.fotoUrl || safeBase?.fotoUrl),
-        email: normalizeText(authUser?.email || safeBase?.email),
-        telefono: normalizeText(authUser?.telefono || safeBase?.telefono),
-        cedula: normalizeText(authUser?.cedula || safeBase?.cedula),
-        genero: normalizeText(authUser?.genero || safeBase?.genero),
-        fechanacimiento: normalizeText(authUser?.fechanacimiento || safeBase?.fechanacimiento),
-        direccion: normalizeText(authUser?.direccion || safeBase?.direccion),
-        tipoSangre: normalizeText(authUser?.tipoSangre || safeBase?.tipoSangre),
-        alergias: normalizeText(authUser?.alergias || safeBase?.alergias),
-        medicamentos: normalizeText(authUser?.medicamentos || safeBase?.medicamentos),
-        antecedentes: normalizeText(authUser?.antecedentes || safeBase?.antecedentes),
+        nombre: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'nombre')
+                ? authUser.nombre
+                : authUser.nombres || safeBase?.nombre
+        ),
+        apellido: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'apellido')
+                ? authUser.apellido
+                : authUser.apellidos || safeBase?.apellido
+        ),
+        name: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'name') ? authUser.name : safeBase?.name
+        ),
+        username: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'username')
+                ? authUser.username
+                : safeBase?.username
+        ),
+        plan: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'plan') ? authUser.plan : safeBase?.plan
+        ),
+        fotoUrl: sanitizeFotoUrl(
+            Object.prototype.hasOwnProperty.call(authUser, 'fotoUrl')
+                ? authUser.fotoUrl
+                : safeBase?.fotoUrl
+        ),
+        email: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'email') ? authUser.email : safeBase?.email
+        ),
+        telefono: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'telefono')
+                ? authUser.telefono
+                : safeBase?.telefono
+        ),
+        cedula: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'cedula') ? authUser.cedula : safeBase?.cedula
+        ),
+        genero: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'genero') ? authUser.genero : safeBase?.genero
+        ),
+        fechanacimiento: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'fechanacimiento')
+                ? authUser.fechanacimiento
+                : safeBase?.fechanacimiento
+        ),
+        direccion: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'direccion')
+                ? authUser.direccion
+                : safeBase?.direccion
+        ),
+        tipoSangre: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'tipoSangre')
+                ? authUser.tipoSangre
+                : safeBase?.tipoSangre
+        ),
+        alergias: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'alergias')
+                ? authUser.alergias
+                : safeBase?.alergias
+        ),
+        medicamentos: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'medicamentos')
+                ? authUser.medicamentos
+                : safeBase?.medicamentos
+        ),
+        antecedentes: normalizeText(
+            Object.prototype.hasOwnProperty.call(authUser, 'antecedentes')
+                ? authUser.antecedentes
+                : safeBase?.antecedentes
+        ),
         contactoEmergenciaNombre: normalizeText(
-            authUser?.contactoEmergenciaNombre || safeBase?.contactoEmergenciaNombre
+            Object.prototype.hasOwnProperty.call(authUser, 'contactoEmergenciaNombre')
+                ? authUser.contactoEmergenciaNombre
+                : safeBase?.contactoEmergenciaNombre
         ),
         contactoEmergenciaTelefono: normalizeText(
-            authUser?.contactoEmergenciaTelefono || safeBase?.contactoEmergenciaTelefono
+            Object.prototype.hasOwnProperty.call(authUser, 'contactoEmergenciaTelefono')
+                ? authUser.contactoEmergenciaTelefono
+                : safeBase?.contactoEmergenciaTelefono
         ),
         contactoEmergenciaParentesco: normalizeText(
-            authUser?.contactoEmergenciaParentesco || safeBase?.contactoEmergenciaParentesco
+            Object.prototype.hasOwnProperty.call(authUser, 'contactoEmergenciaParentesco')
+                ? authUser.contactoEmergenciaParentesco
+                : safeBase?.contactoEmergenciaParentesco
         ),
         recibirEmail: resolveBooleanField(
             authUser,
