@@ -93,7 +93,7 @@ const MedicoRecetasScreen: React.FC = () => {
   useEffect(() => {
     fetchRecetas();
   }, [fetchRecetas]);
-
+  const addMedicamento = () => {
     const { nombre, dosis, frecuencia, duracion } = currentMed;
     const newErrors: Record<string, string> = {};
 
