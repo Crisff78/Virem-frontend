@@ -58,6 +58,9 @@ type DocumentItem = {
   icon: string;
   tint: string;
   bg: string;
+  diagnostico?: string;
+  medicamentos?: any[];
+  instrucciones?: string;
 };
 
 const parseUser = (raw: string | null): User | null => {
@@ -120,8 +123,31 @@ const sanitizeFileName = (raw: string) =>
     .replace(/\s+/g, '_')
     .replace(/[^\w\-]/g, '');
 
-const buildDocumentContent = (item: DocumentItem) =>
-  `VIREM - Documento de ejemplo\n\nTítulo: ${item.title}\nEmitido por: ${item.doctor}\nFecha: ${item.date}\n\nNota: Este archivo es una demostración de descarga para pruebas de interfaz.`;
+const buildDocumentContent = (item: DocumentItem) => {
+  let content = `VIREM - RECETA MÉDICA\n\n`;
+  content += `Título: ${item.title}\n`;
+  content += `Emitido por: ${item.doctor}\n`;
+  content += `Fecha: ${item.date}\n\n`;
+  
+  if (item.diagnostico) {
+    content += `DIAGNÓSTICO: ${item.diagnostico}\n\n`;
+  }
+  
+  if (item.medicamentos && Array.isArray(item.medicamentos)) {
+    content += `TRATAMIENTO:\n`;
+    item.medicamentos.forEach((m, i) => {
+      content += `${i + 1}. ${m.nombre} - ${m.dosis} (${m.frecuencia} por ${m.duracion})\n`;
+    });
+    content += `\n`;
+  }
+  
+  if (item.instrucciones) {
+    content += `INSTRUCCIONES: ${item.instrucciones}\n\n`;
+  }
+  
+  content += `Nota: Este documento es una representación digital de su receta médica emitida a través de la plataforma VIREM.`;
+  return content;
+};
 
 const downloadExampleDocument = (item: DocumentItem) => {
   if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
@@ -211,13 +237,15 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
         const payload = await apiClient.get<any>("/api/paciente/me/recetas", { authenticated: true });
         if (payload?.success && Array.isArray(payload.recetas)) {
           const mapped = payload.recetas.map((r: any) => ({
-            title: r.diagnostico || "Receta M�dica",
-            doctor: r.medico_nombre || "M�dico",
+            title: r.diagnostico || "Receta Médica",
+            doctor: r.medico_nombre || "Médico",
             date: new Date(r.created_at).toLocaleDateString(),
             icon: "picture-as-pdf",
             tint: "#ef4444",
             bg: "#fef2f2",
-            raw: JSON.stringify(r.medicamentos_json)
+            diagnostico: r.diagnostico,
+            medicamentos: r.medicamentos_json,
+            instrucciones: r.instrucciones
           }));
           setDbRecetas(mapped);
         }
@@ -298,7 +326,7 @@ const PacienteRecetasDocumentosScreen: React.FC = () => {
             Accede y descarga tu historial médico organizado por categorías.
           </Text>
 
-          <SectionBlock icon="description" title="Recetas Médicas" count="3 ARCHIVOS" items={dbRecetas.length > 0 ? dbRecetas : recetas} />
+          <SectionBlock icon="description" title="Recetas Médicas" count={(dbRecetas.length || 3) + " ARCHIVOS"} items={dbRecetas.length > 0 ? dbRecetas : recetas} />
           <SectionBlock
             icon="verified"
             title="Certificados y Otros"
@@ -523,7 +551,3 @@ const PacienteRecetasDocumentosScreenWrapper: React.FC = (props) => (
 );
 
 export default PacienteRecetasDocumentosScreenWrapper;
-
-
-
-

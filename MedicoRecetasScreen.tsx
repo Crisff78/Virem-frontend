@@ -39,6 +39,7 @@ const MedicoRecetasScreen: React.FC = () => {
 
   // Simple form state
   const [showForm, setShowForm] = useState(false);
+  const [pacienteSearch, setPacienteSearch] = useState('');
   const [pacienteId, setPacienteId] = useState('');
   const [pacienteNombre, setPacienteNombre] = useState('');
   const [citaId, setCitaId] = useState('00000000-0000-0000-0000-000000000000');
@@ -60,6 +61,7 @@ const MedicoRecetasScreen: React.FC = () => {
       const { pacienteId: pId, pacienteNombre: pName, citaId: cId } = activeModuleParams.prefill;
       setPacienteId(pId);
       setPacienteNombre(pName);
+      setPacienteSearch(pName);
       setCitaId(cId);
       setShowForm(true);
     }
@@ -102,16 +104,18 @@ const MedicoRecetasScreen: React.FC = () => {
   };
 
   const handleEmitir = async () => {
-    if (!pacienteId || !diagnostico || medicamentosList.length === 0) {
+    if ((!pacienteId && !pacienteSearch) || !diagnostico || medicamentosList.length === 0) {
       Alert.alert('Error', 'Faltan datos obligatorios (Paciente, Diagnóstico o Medicamentos)');
       return;
     }
 
+    setLoading(true); 
     try {
       const payload = await apiClient.post<any>('/api/medico/me/recetas', {
         authenticated: true,
         body: {
-          pacienteid: parseInt(pacienteId, 10),
+          pacienteid: pacienteId ? parseInt(pacienteId, 10) : undefined,
+          paciente_search: !pacienteId ? pacienteSearch : undefined,
           citaid: citaId,
           diagnostico,
           signos_vitales: { peso, presion, temperatura },
@@ -131,6 +135,7 @@ const MedicoRecetasScreen: React.FC = () => {
         Alert.alert('Éxito', 'Receta emitida y enviada al paciente correctamente');
         setShowForm(false);
         setPacienteId('');
+        setPacienteSearch('');
         setPacienteNombre('');
         setDiagnostico('');
         setMedicamentosList([]);
@@ -142,11 +147,18 @@ const MedicoRecetasScreen: React.FC = () => {
         setFirma('');
         fetchRecetas();
       } else {
-        Alert.alert('Error', 'No se pudo emitir la receta.');
+        Alert.alert('Error', payload?.message || 'No se pudo emitir la receta.');
       }
     } catch (error) {
       Alert.alert('Error', 'Error de conexión al emitir receta.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleDownload = (receta: Receta) => {
+    // Simulamos descarga o visualización
+    Alert.alert('Receta', `Visualizando receta para ${receta.paciente_nombre}\n\nDiagnóstico: ${receta.diagnostico}\n\nEn un entorno real, esto abriría un PDF.`);
   };
 
   return (
@@ -176,13 +188,13 @@ const MedicoRecetasScreen: React.FC = () => {
             <View style={styles.formSection}>
               <Text style={styles.formSectionTitle}>Información del Paciente</Text>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Paciente</Text>
+                <Text style={styles.label}>Paciente (Nombre o Cédula)</Text>
                 <TextInput 
                   style={[styles.input, pacienteNombre ? { backgroundColor: '#f1f5f9', color: '#64748b' } : null]} 
-                  value={pacienteNombre || pacienteId} 
+                  value={pacienteNombre || pacienteSearch} 
                   editable={!pacienteNombre}
-                  onChangeText={setPacienteId} 
-                  placeholder="ID del Paciente" 
+                  onChangeText={setPacienteSearch} 
+                  placeholder="Escriba el nombre o cédula del paciente..." 
                 />
               </View>
               
@@ -308,7 +320,11 @@ const MedicoRecetasScreen: React.FC = () => {
               </View>
             ) : (
               recetas.map((r) => (
-                <View key={r.recetaid} style={styles.transactionRow}>
+                <TouchableOpacity 
+                  key={r.recetaid} 
+                  style={styles.transactionRow}
+                  onPress={() => handleDownload(r)}
+                >
                   <View style={styles.tLeft}>
                     <View style={styles.tIcon}>
                       <MaterialIcons name="picture-as-pdf" size={20} color={colors.red} />
@@ -318,8 +334,11 @@ const MedicoRecetasScreen: React.FC = () => {
                       <Text style={styles.tDate}>{new Date(r.created_at).toLocaleDateString()}</Text>
                     </View>
                   </View>
-                  <Text style={styles.tAmount}>{r.diagnostico}</Text>
-                </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.tAmount} numberOfLines={1}>{r.diagnostico}</Text>
+                    <MaterialIcons name="download" size={16} color={colors.primary} style={{ marginTop: 4 }} />
+                  </View>
+                </TouchableOpacity>
               ))
             )}
           </View>
