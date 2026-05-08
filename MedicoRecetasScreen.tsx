@@ -104,12 +104,34 @@ const MedicoRecetasScreen: React.FC = () => {
   };
 
   const handleEmitir = async () => {
+    console.log('[handleEmitir] Botón presionado. Estado actual:', {
+      pacienteId,
+      pacienteSearch,
+      diagnostico: !!diagnostico,
+      medicamentosCount: medicamentosList.length
+    });
+
     if ((!pacienteId && !pacienteSearch) || !diagnostico || medicamentosList.length === 0) {
-      Alert.alert('Error', 'Faltan datos obligatorios (Paciente, Diagnóstico o Medicamentos)');
+      const missingFields = [];
+      if (!pacienteId && !pacienteSearch) missingFields.push('Paciente (Nombre o Cédula)');
+      if (!diagnostico) missingFields.push('Diagnóstico');
+      if (medicamentosList.length === 0) missingFields.push('Medicamentos (Debe añadir al menos uno con el botón "+")');
+      
+      const errorMessage = `Faltan datos obligatorios:\n- ${missingFields.join('\n- ')}`;
+      console.warn('[handleEmitir] Validación fallida:', errorMessage);
+      Alert.alert('Datos Incompletos', errorMessage);
       return;
     }
 
     setLoading(true); 
+    console.log('[handleEmitir] Inician emisión de receta:', {
+      pacienteId,
+      pacienteSearch,
+      citaid: citaId,
+      diagnostico,
+      medicamentosCount: medicamentosList.length
+    });
+
     try {
       const payload = await apiClient.post<any>('/api/medico/me/recetas', {
         authenticated: true,
@@ -131,6 +153,8 @@ const MedicoRecetasScreen: React.FC = () => {
         },
       });
 
+      console.log('[handleEmitir] Respuesta del servidor:', payload);
+
       if (payload?.success) {
         Alert.alert('Éxito', 'Receta emitida y enviada al paciente correctamente');
         setShowForm(false);
@@ -147,10 +171,12 @@ const MedicoRecetasScreen: React.FC = () => {
         setFirma('');
         fetchRecetas();
       } else {
+        console.warn('[handleEmitir] Error en payload:', payload);
         Alert.alert('Error', payload?.message || 'No se pudo emitir la receta.');
       }
-    } catch (error) {
-      Alert.alert('Error', 'Error de conexión al emitir receta.');
+    } catch (error: any) {
+      console.error('[handleEmitir] Error de red/servidor:', error);
+      Alert.alert('Error', error?.message || 'Error de conexión al emitir receta.');
     } finally {
       setLoading(false);
     }
@@ -300,9 +326,19 @@ const MedicoRecetasScreen: React.FC = () => {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.submitBtn} onPress={handleEmitir}>
-              <MaterialIcons name="send" size={20} color="#fff" />
-              <Text style={styles.submitBtnText}>Emitir y Enviar al Paciente</Text>
+            <TouchableOpacity 
+              style={[styles.submitBtn, loading && { opacity: 0.7 }]} 
+              onPress={handleEmitir}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <MaterialIcons name="send" size={20} color="#fff" />
+                  <Text style={styles.submitBtnText}>Emitir y Enviar al Paciente</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         )}
