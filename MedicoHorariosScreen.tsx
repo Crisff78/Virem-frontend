@@ -74,6 +74,21 @@ const MedicoHorariosScreen: React.FC = () => {
   const [generating, setGenerating] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
 
+  // Auto-calculate horaFin based on horaInicio and slot duration
+  useEffect(() => {
+    if (horaInicio && slot && /^\d{2}:\d{2}$/.test(horaInicio)) {
+      const duration = parseInt(slot, 10);
+      if (!isNaN(duration) && duration > 0) {
+        const [h, m] = horaInicio.split(':').map(Number);
+        const date = new Date();
+        date.setHours(h, m + duration, 0, 0);
+        const eh = String(date.getHours()).padStart(2, '0');
+        const em = String(date.getMinutes()).padStart(2, '0');
+        setHoraFin(`${eh}:${em}`);
+      }
+    }
+  }, [horaInicio, slot]);
+
   const handleAgregar = async () => {
     setFeedback(null);
     if (!fecha || !horaInicio || !horaFin) {
@@ -85,8 +100,15 @@ const MedicoHorariosScreen: React.FC = () => {
       setFeedback({ kind: 'error', message: 'Formato de fecha inválido. Usa YYYY-MM-DD (ej: 2026-05-07).' });
       return;
     }
-    if (!/^\d{2}:\d{2}$/.test(horaInicio) || !/^\d{2}:\d{2}$/.test(horaFin)) {
-      setFeedback({ kind: 'error', message: 'Formato de hora inválido. Usa HH:MM (ej: 08:00).' });
+    const padTime = (t: string) => {
+      if (/^\d:\d{2}$/.test(t)) return "0" + t;
+      return t;
+    };
+    const start = padTime(horaInicio);
+    const end = padTime(horaFin);
+
+    if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) {
+      setFeedback({ kind: 'error', message: 'Formato de hora inválido. Usa HH:MM (ej: 08:00 o 8:00).' });
       return;
     }
 
@@ -94,8 +116,8 @@ const MedicoHorariosScreen: React.FC = () => {
     try {
       const bodyData = {
         fecha,
-        horaInicio,
-        horaFin,
+        horaInicio: start,
+        horaFin: end,
         modalidad,
         slotMinutos: parseInt(slot, 10) || 30,
       };
@@ -367,7 +389,13 @@ const MedicoHorariosScreen: React.FC = () => {
             <View style={styles.rowInputs}>
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.label}>Inicio (HH:MM)</Text>
-                <TextInput style={styles.input} value={horaInicio} onChangeText={setHoraInicio} placeholder="08:00" />
+                <TextInput 
+                  style={styles.input} 
+                  value={horaInicio} 
+                  onChangeText={setHoraInicio} 
+                  placeholder="Ej: 08:30" 
+                  keyboardType="numbers-and-punctuation"
+                />
                 <View style={styles.timePresets}>
                   {['07:00', '08:00', '09:00', '14:00'].map(t => (
                     <TouchableOpacity key={t} style={styles.miniBtn} onPress={() => setHoraInicio(t)}>
@@ -377,8 +405,14 @@ const MedicoHorariosScreen: React.FC = () => {
                 </View>
               </View>
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Fin (HH:MM)</Text>
-                <TextInput style={styles.input} value={horaFin} onChangeText={setHoraFin} placeholder="13:00" />
+                <Text style={styles.label}>Fin (Auto-calc)</Text>
+                <TextInput 
+                  style={styles.input} 
+                  value={horaFin} 
+                  onChangeText={setHoraFin} 
+                  placeholder="Ej: 09:00" 
+                  keyboardType="numbers-and-punctuation"
+                />
                 <View style={styles.timePresets}>
                   {['12:00', '13:00', '17:00', '23:59'].map(t => (
                     <TouchableOpacity key={t} style={styles.miniBtn} onPress={() => setHoraFin(t)}>

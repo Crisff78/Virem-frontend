@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Room, RoomEvent, VideoPresets } from 'livekit-client';
+import {
+  Room,
+  RoomEvent,
+  VideoPresets,
+  RemoteParticipant,
+} from 'livekit-client';
 import { apiClient } from '../utils/api';
 import { LiveKitCallApi, CallState } from './useLiveKitCall.types';
 
@@ -11,8 +16,10 @@ export function useLiveKitCall(citaId: string): LiveKitCallApi {
   const [isFrontCamera, setIsFrontCamera] = useState(true);
   const [durationSec, setDurationSec] = useState(0);
   const [remainingMs, setRemainingMs] = useState(0);
+  const [remoteParticipants, setRemoteParticipants] = useState<any[]>([]);
 
-  const roomRef = useRef<InstanceType<typeof Room> | null>(null);
+  const roomRef = useRef<any>(null);
+  const mountedRef = useRef(false);
 
   const start = useCallback(async () => {
     if (state !== 'idle') return;
@@ -21,48 +28,56 @@ export function useLiveKitCall(citaId: string): LiveKitCallApi {
 
     try {
       console.log('[LiveKit Web] Requesting token for cita:', citaId);
-      const response = await apiClient.post<any>(`/api/video/me/citas/${citaId}/token`, { body: {}, authenticated: true });
-      
+      const response = await apiClient.post<any>(
+        `/api/video/me/citas/${citaId}/token`,
+        { body: {}, authenticated: true }
+      );
+
       console.log('[LiveKit Web] Token response:', {
         success: response.success,
         provider: response.provider,
         hasLiveKit: !!response.livekit,
-        hasZego: !!response.zego
       });
 
       if (!response.success || !response.livekit) {
-        throw new Error(response.message || 'Error al obtener token de videollamada (Proveedor no disponible)');
+        throw new Error(response.message || 'Proveedor no disponible');
       }
 
       const { url, token } = response.livekit;
       console.log('[LiveKit Web] Connecting to:', url);
 
       const room = new Room({
-        videoCaptureDefaults: {
-          resolution: VideoPresets.h720.resolution,
-        },
-        publishDefaults: {
-          videoSimulcast: true,
-        },
+        videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
+        publishDefaults: { videoSimulcast: true },
       });
       roomRef.current = room;
+
+      const syncRemotes = () => {
+        const map = room.remoteParticipants;
+        setRemoteParticipants(map ? Array.from(map.values()) : []);
+      };
 
       room.on(RoomEvent.Connected, () => {
         console.log('[LiveKit Web] Connected!');
         setState('connected');
+        syncRemotes();
       });
       room.on(RoomEvent.Disconnected, () => {
         console.log('[LiveKit Web] Disconnected');
         setState('disconnected');
+        setRemoteParticipants([]);
       });
       room.on(RoomEvent.Reconnecting, () => setState('reconnecting'));
-      room.on(RoomEvent.Reconnected, () => setState('connected'));
-
-      await room.connect(url, token, {
-        autoSubscribe: true,
+      room.on(RoomEvent.Reconnected, () => {
+        setState('connected');
+        syncRemotes();
       });
+      room.on(RoomEvent.ParticipantConnected, syncRemotes);
+      room.on(RoomEvent.ParticipantDisconnected, syncRemotes);
+
+      await room.connect(url, token, { autoSubscribe: true });
       await room.localParticipant.enableCameraAndMicrophone();
-      
+
       setMicEnabled(room.localParticipant.isMicrophoneEnabled);
       setCameraEnabled(room.localParticipant.isCameraEnabled);
 
@@ -71,7 +86,7 @@ export function useLiveKitCall(citaId: string): LiveKitCallApi {
       setError(err.message || 'No se pudo conectar a la videollamada');
       setState('idle');
     }
-  }, [citaId]);
+  }, [citaId, state]);
 
   const end = useCallback(async (reason?: string) => {
     if (roomRef.current) {
@@ -79,9 +94,13 @@ export function useLiveKitCall(citaId: string): LiveKitCallApi {
       roomRef.current = null;
     }
     setState('ended');
+    setRemoteParticipants([]);
     try {
-      await apiClient.post(`/api/video/me/citas/${citaId}/end`, { body: { reason }, authenticated: true });
-    } catch (e) {}
+      await apiClient.post(`/api/video/me/citas/${citaId}/end`, {
+        body: { reason },
+        authenticated: true,
+      });
+    } catch (_) {}
   }, [citaId]);
 
   const toggleMic = useCallback(async () => {
@@ -99,22 +118,25 @@ export function useLiveKitCall(citaId: string): LiveKitCallApi {
   }, [cameraEnabled]);
 
   const flipCamera = useCallback(async () => {
-    setIsFrontCamera(!isFrontCamera);
-  }, [isFrontCamera]);
+    setIsFrontCamera(f => !f);
+  }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
-      if (roomRef.current) {
-        roomRef.current.disconnect();
-      }
+      mountedRef.current = false;
+      setTimeout(() => {
+        if (!mountedRef.current && roomRef.current) {
+          roomRef.current.disconnect();
+          roomRef.current = null;
+        }
+      }, 100);
     };
   }, []);
 
   useEffect(() => {
     if (state !== 'connected') return;
-    const timer = setInterval(() => {
-      setDurationSec(d => d + 1);
-    }, 1000);
+    const timer = setInterval(() => setDurationSec(d => d + 1), 1000);
     return () => clearInterval(timer);
   }, [state]);
 
@@ -122,7 +144,7 @@ export function useLiveKitCall(citaId: string): LiveKitCallApi {
     state,
     error,
     localParticipant: roomRef.current?.localParticipant,
-    remoteParticipants: Array.from(roomRef.current?.participants.values() || []),
+    remoteParticipants,
     micEnabled,
     cameraEnabled,
     isFrontCamera,

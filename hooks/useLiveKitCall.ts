@@ -13,7 +13,7 @@ export function useLiveKitCall(citaId: string): LiveKitCallApi {
   const [durationSec, setDurationSec] = useState(0);
   const [remainingMs, setRemainingMs] = useState(0);
 
-  const roomRef = useRef<Room | null>(null);
+  const roomRef = useRef<any>(null);
 
   const start = useCallback(async () => {
     if (state !== 'idle') return;
