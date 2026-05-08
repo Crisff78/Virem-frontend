@@ -282,7 +282,6 @@ const RegistroPacienteScreen: React.FC = () => {
     lastNames.trim() !== '' &&
     birthDate.trim() !== '' &&
     gender !== '' &&
-    cedula.trim() !== '' &&
     phone.trim() !== '';
 
   const handleContinue = async () => {
@@ -293,7 +292,7 @@ const RegistroPacienteScreen: React.FC = () => {
     setTelefonoError('');
 
     if (!isFormComplete) {
-      Alert.alert('Acción Requerida', 'Debe completar todos los datos personales.');
+      Alert.alert('Acción Requerida', 'Debe completar los campos obligatorios (Nombres, Apellidos, Género, Teléfono y Fecha de Nacimiento).');
       return;
     }
 
@@ -309,7 +308,7 @@ const RegistroPacienteScreen: React.FC = () => {
       return;
     }
 
-    if (selectedCountryCode.name === 'República Dominicana') {
+    if (cedula.trim() !== '' && selectedCountryCode.name === 'República Dominicana') {
       setIsLoading(true);
       await new Promise((r) => setTimeout(r, 300));
       const ok = validarCedulaDominicana(cedula);
@@ -347,8 +346,8 @@ const RegistroPacienteScreen: React.FC = () => {
 
   const handleCancel = () => navigation.navigate('SeleccionPerfil');
 
-  const completedFields = [names, lastNames, birthDate, gender, cedula, phone].filter((x) => x.trim() !== '').length;
-  const progressPercent = Math.round((completedFields / 6) * 100);
+  const completedFields = [names, lastNames, birthDate, gender, phone].filter((x) => x.trim() !== '').length;
+  const progressPercent = Math.round((completedFields / 5) * 100);
 
   return (
     <View style={styles.mainWrapper}>
@@ -421,9 +420,9 @@ const RegistroPacienteScreen: React.FC = () => {
 
               <View style={[styles.formRow, isWideLayout && styles.formRowWide]}>
                 <View style={styles.inputWrapper}>
-                  <Text style={styles.inputLabel}>Cédula (Identificación)</Text>
+                  <Text style={styles.inputLabel}>Cédula (Opcional)</Text>
                   <TextInput
-                    style={[styles.inputField, ((showErrors && !cedula) || cedulaError) && styles.inputError]}
+                    style={[styles.inputField, cedulaError && styles.inputError]}
                     placeholder="XXX-XXXXXXX-X"
                     keyboardType="numeric"
                     value={cedula}
