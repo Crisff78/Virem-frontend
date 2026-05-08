@@ -535,7 +535,7 @@ const DashboardPacienteScreen: React.FC = () => {
                   shadowOffset: { width: 0, height: 6 },
                   elevation: 3,
                 }}
-                onPress={() => navigation.navigate('SalaEsperaVirtualPaciente', { citaId: activeCita.citaid })}
+                onPress={() => navigation.navigate('WaitingRoom', { citaId: activeCita.citaid })}
                 activeOpacity={0.85}
               >
                 <View style={{
@@ -588,7 +588,7 @@ const DashboardPacienteScreen: React.FC = () => {
               <View style={styles.bigCardActions}>
                 {primaryCita ? (
                   <>
-                    <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('SalaEsperaVirtualPaciente', { citaId: primaryCita.citaid })}>
+                    <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('WaitingRoom', { citaId: primaryCita.citaid })}>
                       <MaterialIcons name="videocam" size={20} color="#fff" />
                       <Text style={styles.primaryBtnText}>Entrar a consulta</Text>
                     </TouchableOpacity>

@@ -20,25 +20,25 @@ import * as SecureStore from 'expo-secure-store';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { usePortalAwareNavigation } from './navigation/usePortalAwareNavigation';
-import { usePacienteModule, PacienteModuleProvider } from './navigation/PacienteModuleContext';
+import { usePortalAwareNavigation } from '../../navigation/usePortalAwareNavigation';
+import { usePacienteModule, PacienteModuleProvider } from '../../navigation/PacienteModuleContext';
 
-import { useLanguage } from './localization/LanguageContext';
-import type { RootStackParamList } from './navigation/types';
-import { apiUrl } from './config/backend';
-import { useSocketEvent } from './hooks/useSocketEvent';
-import { useSocketRoom } from './hooks/useSocketRoom';
-import { useAuth } from './providers/AuthProvider';
-import { getAuthToken } from './utils/session';
-import { usePatientSessionProfile } from './hooks/usePatientSessionProfile';
-import { useCallSignaler } from './hooks/useCallSignaling';
-import { useWebRTCCall } from './hooks/useWebRTCCall';
+import { useLanguage } from '../../localization/LanguageContext';
+import type { RootStackParamList } from '../../navigation/types';
+import { apiUrl } from '../../config/backend';
+import { useSocketEvent } from '../../hooks/useSocketEvent';
+import { useSocketRoom } from '../../hooks/useSocketRoom';
+import { useAuth } from '../../providers/AuthProvider';
+import { getAuthToken } from '../../utils/session';
+import { usePatientSessionProfile } from '../../hooks/usePatientSessionProfile';
+import { useCallSignaler } from '../../hooks/useCallSignaling';
+import { useVideoCall } from '../../hooks/useVideoCall';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { ensurePatientSessionUser, getPatientDisplayName } from './utils/patientSession';
+import { ensurePatientSessionUser, getPatientDisplayName } from '../../utils/patientSession';
 
-const ViremLogo = require('./assets/imagenes/descarga.png');
-const DefaultAvatar = require('./assets/imagenes/avatar-default.jpg');
+const ViremLogo = require('../../assets/imagenes/descarga.png');
+const DefaultAvatar = require('../../assets/imagenes/avatar-default.jpg');
 
 const DoctorAvatar: ImageSourcePropType = DefaultAvatar;
 const STORAGE_KEY = 'user';
@@ -125,7 +125,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const { t, tx } = useLanguage();
   const navigation = usePortalAwareNavigation();
   const { isInsidePortal, isSidebarOpen, toggleSidebar, setIsNotificationsOpen } = usePacienteModule();
-  const route = useRoute<RouteProp<RootStackParamList, 'SalaEsperaVirtualPaciente'>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'WaitingRoom'>>();
   const { signOut } = useAuth();
   const { width: viewportWidth } = useWindowDimensions();
   const [cameraOn, setCameraOn] = useState(true);
@@ -163,7 +163,8 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const roomReadyPulse = useRef(new Animated.Value(0)).current;
   const panelTranslateX = useRef(new Animated.Value(430)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
-  const requestedCitaId = String(route.params?.citaId || '').trim();
+  const params = route.params as any;
+  const requestedCitaId = String(params?.citaId || '').trim();
   const isDesktopLayout = Platform.OS === 'web' && viewportWidth >= 1024;
 
   // Use standardized profile hook instead of manual AsyncStorage
@@ -171,7 +172,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
   const signaler = useCallSignaler();
   const IS_WEB = Platform.OS === 'web';
   const initiate = false;
-  const { state } = useWebRTCCall(selectedCitaId, initiate);
+  const { state } = useVideoCall(selectedCitaId);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -1676,7 +1677,7 @@ const styles = StyleSheet.create({
 });
 
 const SalaEsperaVirtualPacienteScreenWrapper: React.FC = (props) => (
-  <PacienteModuleProvider initialModule="SalaEsperaVirtualPaciente">
+  <PacienteModuleProvider initialModule="WaitingRoom">
     <SalaEsperaVirtualPacienteScreen {...props} />
   </PacienteModuleProvider>
 );

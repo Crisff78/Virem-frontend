@@ -29,7 +29,7 @@ import MedicoPacientesScreen from "./MedicoPacientesScreen";
 import MedicoChatScreen from "./MedicoChatScreen";
 import AdminPanelScreen from "./AdminPanelScreen";
 import NuevaConsultaPacienteScreen from "./NuevaConsultaPacienteScreen";
-import SalaEsperaVirtualPacienteScreen from "./SalaEsperaVirtualPacienteScreen";
+import WaitingRoomScreen from "./screens/video/WaitingRoom";
 import EspecialistasPorEspecialidadScreen from "./EspecialistasPorEspecialidadScreen";
 import PerfilEspecialistaAgendarScreen from "./PerfilEspecialistaAgendarScreen";
 import PacienteRecetasDocumentosScreen from "./PacienteRecetasDocumentosScreen";
@@ -85,7 +85,7 @@ const linking = {
       PacienteRecetasDocumentos: "paciente-recetas-documentos",
       PacientePerfil: "paciente-perfil",
       NuevaConsultaPaciente: "nueva-consulta",
-      SalaEsperaVirtualPaciente: "sala-espera",
+      WaitingRoom: "sala-espera",
       EspecialistasPorEspecialidad: "especialistas/:specialty",
       PerfilEspecialistaAgendar: "perfil-especialista/:specialty/:doctorId",
       DashboardMedico: "dashboard-medico",
@@ -114,7 +114,7 @@ const PatientConfiguracionScreen = withRoleGuard(PacienteConfiguracionScreen, [P
 const PatientCambiarContrasenaScreen = withRoleGuard(PacienteCambiarContrasenaScreen, [PACIENTE_ROLE_ID]);
 const PatientHistorialSesionesScreen = withRoleGuard(PacienteHistorialSesionesScreen, [PACIENTE_ROLE_ID]);
 const PatientNuevaConsultaScreen = withRoleGuard(NuevaConsultaPacienteScreen, [PACIENTE_ROLE_ID]);
-const PatientSalaEsperaScreen = withRoleGuard(SalaEsperaVirtualPacienteScreen, [PACIENTE_ROLE_ID]);
+const PatientSalaEsperaScreen = withRoleGuard(WaitingRoomScreen, [PACIENTE_ROLE_ID]);
 const PatientEspecialistasScreen = withRoleGuard(EspecialistasPorEspecialidadScreen, [PACIENTE_ROLE_ID]);
 const PatientPerfilEspecialistaScreen = withRoleGuard(PerfilEspecialistaAgendarScreen, [PACIENTE_ROLE_ID]);
 
@@ -194,7 +194,7 @@ const App: React.FC = () => {
                     component={PatientNuevaConsultaScreen}
                   />
                   <Stack.Screen
-                    name="SalaEsperaVirtualPaciente"
+                    name="WaitingRoom"
                     component={PatientSalaEsperaScreen}
                   />
                   <Stack.Screen

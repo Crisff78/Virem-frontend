@@ -81,7 +81,7 @@ export type RootStackParamList = {
   PacienteCambiarContrasena: undefined;
   PacienteHistorialSesiones: undefined;
   NuevaConsultaPaciente: undefined;
-  SalaEsperaVirtualPaciente:
+  WaitingRoom:
     | {
         citaId?: string;
       }

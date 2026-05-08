@@ -34,7 +34,7 @@ const MENU_ITEMS: MenuItem[] = [
   { module: 'DashboardPaciente', icon: 'grid-view', labelKey: 'menu.home' },
   { module: 'NuevaConsultaPaciente', icon: 'person-search', labelKey: 'menu.searchDoctor' },
   { module: 'PacienteCitas', icon: 'calendar-today', labelKey: 'menu.appointments' },
-  { module: 'SalaEsperaVirtualPaciente', icon: 'videocam', labelKey: 'menu.videocall' },
+  { module: 'WaitingRoom', icon: 'videocam', labelKey: 'menu.videocall' },
   { module: 'PacienteChat', icon: 'chat-bubble', labelKey: 'menu.chat' },
   { module: 'PacienteRecetasDocumentos', icon: 'description', labelKey: 'menu.recipesDocs' },
   { module: 'PacientePerfil', icon: 'account-circle', labelKey: 'menu.profile' },

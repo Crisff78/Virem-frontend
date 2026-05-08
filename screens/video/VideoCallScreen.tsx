@@ -15,14 +15,13 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
-import VideoContainer from '../../components/video/VideoContainer';
+import LocalVideo from '../../components/video/LocalVideo';
+import RemoteVideo from '../../components/video/RemoteVideo';
 import CallControls from '../../components/video/CallControls';
 import ConnectionStatus from '../../components/video/ConnectionStatus';
-import { useZegoCall } from '../../hooks/useZegoCall';
-import { useWebRTCCall } from '../../hooks/useWebRTCCall';
+import { useVideoCall } from '../../hooks/useVideoCall';
 import { useCallSignaler } from '../../hooks/useCallSignaling';
 import { useAppointmentVideoAccess, formatCountdown } from '../../hooks/useAppointmentVideoAccess';
-import { isZegoAvailable } from '../../services/zegoService';
 import type { RootStackParamList } from '../../navigation/types';
 
 type VideoRoute = RouteProp<RootStackParamList, 'VideoCall'>;
@@ -34,20 +33,12 @@ const VideoCallScreen: React.FC = () => {
   const initiate = Boolean(route.params?.initiate);
 
   const access = useAppointmentVideoAccess(citaId);
+  const call = useVideoCall(citaId);
+  const signaler = useCallSignaler();
 
   // ── Permission denied modal state ──
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [permissionType, setPermissionType] = useState<'camera' | 'mic' | 'both'>('both');
-
-  // Siempre llamamos ambos hooks (regla de hooks: no condicionales).
-  // Cada uno detecta su plataforma y es no-op en la plataforma incorrecta.
-  const zegoCall = useZegoCall(citaId);
-  const webCall = useWebRTCCall(citaId, initiate);
-
-  // Usamos el hook adecuado según la plataforma
-  const call = Platform.OS === 'web' ? webCall : zegoCall;
-
-  const signaler = useCallSignaler();
 
   /** Detectar errores de permisos y mostrar modal instructivo */
   useEffect(() => {
@@ -76,28 +67,22 @@ const VideoCallScreen: React.FC = () => {
     }
   }, [call.error]);
 
-  /** Iniciar la llamada cuando el acceso esté disponible — estilo Google Meet */
+  /** Iniciar la llamada cuando el acceso esté disponible */
   useEffect(() => {
     if (!citaId) return;
     if (call.state !== 'idle') return;
     if (!access.canJoin) return;
 
-    // Native: requiere Zego SDK (dev client)
-    if (Platform.OS !== 'web' && !isZegoAvailable()) return;
-
-    // Simplemente unirse a la sala — sin invitaciones ni popups
     call.start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [citaId, access.canJoin, call.state]);
 
   /** Salir si access deja de ser válido mientras la llamada está activa */
   useEffect(() => {
-    if (!access.canJoin && call.state === 'live') {
+    if (!access.canJoin && (call.state === 'connected' || call.state === 'joining')) {
       const t = setTimeout(() => call.end('time_up'), 1500);
       return () => clearTimeout(t);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [access.canJoin]);
+  }, [access.canJoin, call.state]);
 
   const handleEnd = async () => {
     await call.end();
@@ -108,13 +93,11 @@ const VideoCallScreen: React.FC = () => {
   // ── Auto-redirect when the OTHER side ends the call ──
   useEffect(() => {
     if (call.state !== 'ended') return;
-    // If we're the patient (initiate=false) and the call ended externally,
-    // show a "Consulta Finalizada" dialog
     if (!initiate) {
       const timer = setTimeout(() => {
         Alert.alert(
           'Consulta Finalizada',
-          'El médico ha finalizado la consulta.',
+          'La consulta ha finalizado.',
           [
             { text: 'Ver Recetas', onPress: () => navigation.navigate('PacienteRecetasDocumentos' as any) },
             { text: 'Volver', onPress: () => navigation.goBack() },
@@ -123,30 +106,23 @@ const VideoCallScreen: React.FC = () => {
       }, 500);
       return () => clearTimeout(timer);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [call.state]);
+  }, [call.state, initiate, navigation]);
 
   const durationLabel = useMemo(() => {
-    if (call.state !== 'live') return undefined;
+    if (call.state !== 'connected') return undefined;
     return `${formatCountdown(call.durationSec)}  ·  cierra en ${formatCountdown(
       Math.floor(call.remainingMs / 1000)
     )}`;
   }, [call.state, call.durationSec, call.remainingMs]);
 
-  // ── "5 minutes remaining" warning ──
-  const showFiveMinWarning = useMemo(() => {
-    if (call.state !== 'live') return false;
-    const remainSec = Math.floor(call.remainingMs / 1000);
-    return remainSec > 0 && remainSec <= 300;
-  }, [call.state, call.remainingMs]);
-
-  // Role-specific waiting label
   const waitingLabel = useMemo(() => {
-    if (call.remoteUserName) return call.remoteUserName;
+    if (call.remoteParticipants.length > 0) {
+      return call.remoteParticipants[0].name || 'Participante';
+    }
     return initiate
       ? 'Esperando a que el paciente se una...'
       : 'Esperando a que el médico se una...';
-  }, [call.remoteUserName, initiate]);
+  }, [call.remoteParticipants, initiate]);
 
   const openAppSettings = () => {
     if (Platform.OS === 'ios') {
@@ -154,50 +130,19 @@ const VideoCallScreen: React.FC = () => {
     } else if (Platform.OS === 'android') {
       Linking.openSettings();
     }
-    // Web: user needs to use browser UI
   };
-
-  // ── Fallback para native sin SDK Zego ────────────────────────────────────
-  if (!isZegoAvailable() && Platform.OS !== 'web') {
-    return (
-      <View style={styles.fallbackWrap}>
-        <MaterialIcons name="warning" size={42} color="#fbbf24" />
-        <Text style={styles.fallbackTitle}>SDK de video no disponible</Text>
-        <Text style={styles.fallbackBody}>
-          Esta versión corre en Expo Go. La videollamada requiere el dev client (npx expo
-          prebuild + EAS build) con `zego-express-engine-reactnative` instalado.
-        </Text>
-        <TouchableOpacity style={styles.fallbackBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.fallbackBtnTxt}>Volver</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
 
       {/* Video remoto fullscreen */}
-      <VideoContainer
-        mode="remote"
-        streamId={call.remoteStreamId}
-        stream={call.remoteStream}
-        enabled={Boolean(call.remoteStreamId || call.remoteStream)}
+      <RemoteVideo
+        participant={call.remoteParticipants[0]}
+        enabled={call.remoteParticipants.length > 0}
         avatarLabel={waitingLabel}
         fullscreen
-        fit="contain"
       />
-
-      {/* ── "La consulta finalizará en 5 min" warning ── */}
-      {showFiveMinWarning && (
-        <View style={styles.warningBanner}>
-          <MaterialIcons name="timer" size={16} color="#f59e0b" />
-          <Text style={styles.warningTxt}>
-            La consulta finalizará en {formatCountdown(Math.floor(call.remainingMs / 1000))}
-          </Text>
-        </View>
-      )}
 
       {/* Header */}
       <View style={styles.header}>
@@ -211,11 +156,14 @@ const VideoCallScreen: React.FC = () => {
         >
           <MaterialIcons name="close" size={24} color="#fff" />
         </TouchableOpacity>
-        <ConnectionStatus state={call.state} remoteUserName={call.remoteUserName} />
+        <ConnectionStatus 
+           state={call.state as any} 
+           remoteUserName={call.remoteParticipants[0]?.name || null} 
+        />
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Mensaje de error (solo si no es error de permisos — eso lo maneja el modal) */}
+      {/* Error Banner */}
       {call.error && !permissionDenied ? (
         <View style={styles.errorBanner}>
           <MaterialIcons name="error-outline" size={16} color="#fff" />
@@ -225,12 +173,10 @@ const VideoCallScreen: React.FC = () => {
 
       {/* Video local PiP */}
       <View style={styles.localPip}>
-        <VideoContainer
-          mode="local"
-          streamId={call.localStreamId || null}
-          stream={call.localStream}
+        <LocalVideo
+          participant={call.localParticipant}
           enabled={call.cameraEnabled}
-          avatarLabel="Tu cámara"
+          avatarLabel="Tú"
         />
       </View>
 
@@ -247,83 +193,35 @@ const VideoCallScreen: React.FC = () => {
         />
       </View>
 
-      {/* ── Permission Denied Modal ── */}
+      {/* Permission Denied Modal */}
       <Modal
         visible={permissionDenied}
         transparent
         animationType="fade"
-        onRequestClose={() => setPermissionDenied(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <View style={styles.modalIconWrap}>
-              <MaterialIcons
-                name={permissionType === 'camera' ? 'videocam-off' : permissionType === 'mic' ? 'mic-off' : 'block'}
-                size={40}
-                color="#ef4444"
-              />
-            </View>
+            <MaterialIcons
+              name={permissionType === 'camera' ? 'videocam-off' : permissionType === 'mic' ? 'mic-off' : 'block'}
+              size={40}
+              color="#ef4444"
+            />
             <Text style={styles.modalTitle}>Permisos necesarios</Text>
             <Text style={styles.modalBody}>
-              {permissionType === 'camera'
-                ? 'VIREM necesita acceso a tu cámara para la videollamada.'
-                : permissionType === 'mic'
-                ? 'VIREM necesita acceso a tu micrófono para la videollamada.'
-                : 'VIREM necesita acceso a tu cámara y micrófono para iniciar la videollamada.'}
+              VIREM necesita acceso a tu {permissionType === 'both' ? 'cámara y micrófono' : permissionType} para la videollamada.
             </Text>
-
-            <View style={styles.modalSteps}>
-              <Text style={styles.modalStepTitle}>¿Cómo habilitarlos?</Text>
-              {Platform.OS === 'web' ? (
-                <>
-                  <Text style={styles.modalStep}>
-                    1. Haz clic en el icono de candado 🔒 junto a la barra de direcciones
-                  </Text>
-                  <Text style={styles.modalStep}>
-                    2. Activa los permisos de cámara y micrófono
-                  </Text>
-                  <Text style={styles.modalStep}>3. Recarga la página</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.modalStep}>
-                    1. Abre la configuración de tu dispositivo
-                  </Text>
-                  <Text style={styles.modalStep}>2. Busca la app VIREM</Text>
-                  <Text style={styles.modalStep}>
-                    3. Habilita los permisos de cámara y micrófono
-                  </Text>
-                </>
-              )}
-            </View>
-
-            <View style={styles.modalActions}>
-              {Platform.OS !== 'web' && (
-                <TouchableOpacity style={styles.modalPrimaryBtn} onPress={openAppSettings}>
-                  <MaterialIcons name="settings" size={18} color="#fff" />
-                  <Text style={styles.modalPrimaryBtnText}>Abrir configuración</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={styles.modalSecondaryBtn}
-                onPress={() => {
-                  setPermissionDenied(false);
-                  call.start();
-                }}
-              >
-                <MaterialIcons name="refresh" size={18} color="#137fec" />
-                <Text style={styles.modalSecondaryBtnText}>Reintentar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalGhostBtn}
-                onPress={() => {
-                  setPermissionDenied(false);
-                  navigation.goBack();
-                }}
-              >
-                <Text style={styles.modalGhostBtnText}>Volver sin videollamada</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.modalPrimaryBtn} onPress={openAppSettings}>
+              <Text style={styles.modalPrimaryBtnText}>Abrir configuración</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalSecondaryBtn}
+              onPress={() => {
+                setPermissionDenied(false);
+                call.start();
+              }}
+            >
+              <Text style={styles.modalSecondaryBtnText}>Reintentar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -341,178 +239,61 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    zIndex: 10,
   },
   errorBanner: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 100 : 70,
+    top: 100,
     left: 16,
     right: 16,
     backgroundColor: 'rgba(220,53,69,0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    padding: 12,
     borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  errorTxt: { color: '#fff', flex: 1, fontSize: 12, fontWeight: '700' },
-  warningBanner: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 100 : 70,
-    left: 16,
-    right: 16,
-    backgroundColor: 'rgba(245,158,11,0.92)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     zIndex: 10,
   },
-  warningTxt: { color: '#fff', flex: 1, fontSize: 13, fontWeight: '800' },
+  errorTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
   localPip: {
     position: 'absolute',
     right: 16,
-    top: Platform.OS === 'ios' ? 100 : 80,
-    width: 120,
-    height: 180,
-    borderRadius: 16,
+    top: 100,
+    width: 110,
+    height: 160,
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.6)',
-    backgroundColor: '#000',
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 10,
+    borderColor: 'rgba(255,255,255,0.4)',
+    zIndex: 5,
   },
   controlsWrap: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 10,
   },
-  fallbackWrap: {
-    flex: 1,
-    backgroundColor: '#0a1931',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    gap: 12,
-  },
-  fallbackTitle: { color: '#fff', fontSize: 18, fontWeight: '900', textAlign: 'center' },
-  fallbackBody: { color: '#cbd5e1', fontSize: 13, textAlign: 'center', lineHeight: 19 },
-  fallbackBtn: {
-    marginTop: 16,
-    paddingHorizontal: 22,
-    paddingVertical: 10,
-    backgroundColor: '#137fec',
-    borderRadius: 10,
-  },
-  fallbackBtnTxt: { color: '#fff', fontWeight: '800' },
-
-  // ── Permission Modal styles ──
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.8)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   modalCard: {
     backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 28,
-    width: '100%',
-    maxWidth: 400,
-    alignItems: 'center',
-  },
-  modalIconWrap: {
-    width: 72,
-    height: 72,
     borderRadius: 20,
-    backgroundColor: '#fef2f2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#0a1931',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  modalBody: {
-    fontSize: 14,
-    color: '#4a7fa7',
-    fontWeight: '600',
-    textAlign: 'center',
-    lineHeight: 21,
-    marginBottom: 16,
-  },
-  modalSteps: {
+    padding: 24,
     width: '100%',
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-  },
-  modalStepTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0a1931',
-    marginBottom: 10,
-  },
-  modalStep: {
-    fontSize: 13,
-    color: '#4a7fa7',
-    fontWeight: '600',
-    lineHeight: 22,
-    marginBottom: 4,
-  },
-  modalActions: {
-    width: '100%',
-    gap: 10,
-  },
-  modalPrimaryBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#137fec',
-    paddingVertical: 14,
-    borderRadius: 14,
   },
-  modalPrimaryBtnText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  modalSecondaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#f1f5f9',
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  modalSecondaryBtnText: {
-    color: '#137fec',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  modalGhostBtn: {
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  modalGhostBtnText: {
-    color: '#94a3b8',
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  modalTitle: { fontSize: 18, fontWeight: '800', marginVertical: 12 },
+  modalBody: { fontSize: 14, textAlign: 'center', marginBottom: 20 },
+  modalPrimaryBtn: { backgroundColor: '#137fec', padding: 14, borderRadius: 12, width: '100%', alignItems: 'center' },
+  modalPrimaryBtnText: { color: '#fff', fontWeight: '700' },
+  modalSecondaryBtn: { marginTop: 12, padding: 10 },
+  modalSecondaryBtnText: { color: '#137fec', fontWeight: '600' },
 });
 
 export default VideoCallScreen;

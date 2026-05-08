@@ -613,7 +613,7 @@ const PacienteCitasScreen: React.FC = () => {
                             <TouchableOpacity
                               style={styles.actionJoin}
                               activeOpacity={0.8}
-                              onPress={() => navigation.navigate('SalaEsperaVirtualPaciente', { citaId: cita.citaid })}
+                              onPress={() => navigation.navigate('WaitingRoom', { citaId: cita.citaid })}
                             >
                               <MaterialIcons name="videocam" size={16} color="#fff" />
                               <Text style={styles.actionJoinText}>Unirse</Text>

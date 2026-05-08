@@ -13,7 +13,7 @@ export const PORTAL_MODULES = [
   'DashboardPaciente',
   'NuevaConsultaPaciente',
   'PacienteCitas',
-  'SalaEsperaVirtualPaciente',
+  'WaitingRoom',
   'PacienteChat',
   'PacienteRecetasDocumentos',
   'PacientePerfil',
