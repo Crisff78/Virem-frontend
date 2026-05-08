@@ -53,7 +53,7 @@ export function useLiveKitCall(citaId: string): LiveKitCallApi {
       setError(err.message || 'No se pudo conectar a la videollamada');
       setState('idle');
     }
-  }, [citaId, state]);
+  }, [citaId]);
 
   const end = useCallback(async (reason?: string) => {
     if (roomRef.current) {
