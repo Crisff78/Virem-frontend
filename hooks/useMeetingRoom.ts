@@ -7,7 +7,7 @@ import { useVideoCall } from './useVideoCall';
 export const useMeetingRoom = (citaId: string | undefined) => {
   const call = useVideoCall(citaId || '');
   return {
-    room: call.room,
+    room: call.room || call.jitsiConfig || null,
     state: call.state,
     error: call.error,
     connect: call.start,
@@ -17,12 +17,11 @@ export const useMeetingRoom = (citaId: string | undefined) => {
 
 /**
  * useRealtimePresence handles participants.
- * Currently integrated into useLiveKitCall/useVideoCall.
+ * Jitsi handles this internally in the iframe.
  */
 export const useRealtimePresence = (citaId: string | undefined) => {
-  const call = useVideoCall(citaId || '');
   return {
-    localParticipant: call.localParticipant,
-    remoteParticipants: call.remoteParticipants,
+    localParticipant: null,
+    remoteParticipants: [],
   };
 };
