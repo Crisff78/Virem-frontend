@@ -179,6 +179,17 @@ const MedicoHorariosScreen: React.FC = () => {
 
     try {
       setGenerating(true);
+
+      // Save config first so it persists
+      await apiClient.post("/api/agenda/medico/me/recurrente-config", {
+        authenticated: true,
+        body: {
+          pattern: weeklyPattern, // Save full pattern (active/inactive)
+          modalidad,
+          slotMinutos: parseInt(slot, 10) || 30
+        }
+      });
+
       const payload = await apiClient.post<any>("/api/agenda/medico/me/disponibilidades/recurrente", {
         authenticated: true,
         body: {
@@ -217,7 +228,13 @@ const MedicoHorariosScreen: React.FC = () => {
     try {
       const payload = await apiClient.get<any>("/api/agenda/medico/me/recurrente-config", { authenticated: true });
       if (payload?.success && payload.config) {
-        if (payload.config.pattern) setWeeklyPattern(payload.config.pattern);
+        if (payload.config.pattern && Array.isArray(payload.config.pattern)) {
+          // Merge with current state to keep all 7 days visible
+          setWeeklyPattern(prev => prev.map(p => {
+            const dbDay = payload.config.pattern.find((d: any) => d.dayOfWeek === p.dayOfWeek);
+            return dbDay ? { ...p, ...dbDay } : p;
+          }));
+        }
         if (payload.config.modalidad) setModalidad(payload.config.modalidad);
         if (payload.config.slotMinutos) setSlot(String(payload.config.slotMinutos));
       }
