@@ -1,24 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Linking,
-  Modal,
   Platform,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
-import LocalVideo from '../../components/video/LocalVideo';
-import RemoteVideo from '../../components/video/RemoteVideo';
-import CallControls from '../../components/video/CallControls';
 import ConnectionStatus from '../../components/video/ConnectionStatus';
+import JitsiVideoContainer from '../../components/video/JitsiVideoContainer';
 import { useVideoCall } from '../../hooks/useVideoCall';
 import { useCallSignaler } from '../../hooks/useCallSignaling';
 import { useAppointmentVideoAccess, formatCountdown } from '../../hooks/useAppointmentVideoAccess';
@@ -35,37 +32,6 @@ const VideoCallScreen: React.FC = () => {
   const access = useAppointmentVideoAccess(citaId);
   const call = useVideoCall(citaId);
   const signaler = useCallSignaler();
-
-  // ── Permission denied modal state ──
-  const [permissionDenied, setPermissionDenied] = useState(false);
-  const [permissionType, setPermissionType] = useState<'camera' | 'mic' | 'both'>('both');
-
-  /** Detectar errores de permisos y mostrar modal instructivo */
-  useEffect(() => {
-    if (!call.error) {
-      setPermissionDenied(false);
-      return;
-    }
-    const errorLower = call.error.toLowerCase();
-    if (
-      errorLower.includes('permitir') ||
-      errorLower.includes('permission') ||
-      errorLower.includes('notallowederror') ||
-      errorLower.includes('cámara') ||
-      errorLower.includes('micrófono') ||
-      errorLower.includes('camara') ||
-      errorLower.includes('microfono')
-    ) {
-      if (errorLower.includes('cámara') || errorLower.includes('camara')) {
-        setPermissionType('camera');
-      } else if (errorLower.includes('micrófono') || errorLower.includes('microfono')) {
-        setPermissionType('mic');
-      } else {
-        setPermissionType('both');
-      }
-      setPermissionDenied(true);
-    }
-  }, [call.error]);
 
   /** Iniciar la llamada cuando el acceso esté disponible */
   useEffect(() => {
@@ -108,159 +74,71 @@ const VideoCallScreen: React.FC = () => {
     }
   }, [call.state, initiate, navigation]);
 
-  const durationLabel = useMemo(() => {
-    if (call.state !== 'connected') return undefined;
-    return `${formatCountdown(call.durationSec)}  ·  cierra en ${formatCountdown(
-      Math.floor(call.remainingMs / 1000)
-    )}`;
-  }, [call.state, call.durationSec, call.remainingMs]);
-
-  const waitingLabel = useMemo(() => {
-    if (call.remoteParticipants.length > 0) {
-      return call.remoteParticipants[0].name || 'Participante';
-    }
-    return initiate
-      ? 'Esperando a que el paciente se una...'
-      : 'Esperando a que el médico se una...';
-  }, [call.remoteParticipants, initiate]);
-
-  const openAppSettings = () => {
-    if (Platform.OS === 'ios') {
-      Linking.openURL('app-settings:');
-    } else if (Platform.OS === 'android') {
-      Linking.openSettings();
-    }
-  };
-
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
 
-      {/* Video remoto fullscreen */}
-      <RemoteVideo
-        participant={call.remoteParticipants[0]}
-        enabled={call.remoteParticipants.length > 0}
-        avatarLabel={waitingLabel}
-        fullscreen
-      />
+      {call.state === 'connected' && call.jitsiConfig ? (
+        <JitsiVideoContainer config={call.jitsiConfig} onEnd={handleEnd} />
+      ) : (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#137fec" />
+          <Text style={styles.loadingText}>
+            {call.state === 'joining' ? 'Conectando con la sala de Jitsi...' : 'Preparando consulta...'}
+          </Text>
+          <ConnectionStatus state={call.state} />
+          
+          <TouchableOpacity style={styles.closeBtn} onPress={handleEnd}>
+            <MaterialIcons name="close" size={28} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      )}
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() =>
-            Alert.alert('Salir', '¿Finalizar la consulta?', [
-              { text: 'Cancelar', style: 'cancel' },
-              { text: 'Finalizar', style: 'destructive', onPress: handleEnd },
-            ])
-          }
-        >
-          <MaterialIcons name="close" size={24} color="#fff" />
-        </TouchableOpacity>
-        <ConnectionStatus 
-           state={call.state as any} 
-           remoteUserName={call.remoteParticipants[0]?.name || null} 
-        />
-        <View style={{ width: 24 }} />
-      </View>
-
-      {/* Error Banner */}
-      {call.error && !permissionDenied ? (
+      {call.error ? (
         <View style={styles.errorBanner}>
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <MaterialIcons name="error-outline" size={20} color="#fff" />
-            <Text style={styles.errorTxt}>{call.error}</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.retryBtn} 
-            onPress={() => call.start()}
-          >
+          <MaterialIcons name="error-outline" size={20} color="#fff" />
+          <Text style={styles.errorTxt}>{call.error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => call.start()}>
             <Text style={styles.retryBtnText}>REINTENTAR</Text>
           </TouchableOpacity>
         </View>
       ) : null}
-
-      {/* Video local PiP */}
-      <View style={styles.localPip}>
-        <LocalVideo
-          participant={call.localParticipant}
-          enabled={call.cameraEnabled}
-          avatarLabel="Tú"
-        />
-      </View>
-
-      {/* Controles */}
-      <View style={styles.controlsWrap}>
-        <CallControls
-          micEnabled={call.micEnabled}
-          cameraEnabled={call.cameraEnabled}
-          onToggleMic={call.toggleMic}
-          onToggleCamera={call.toggleCamera}
-          onFlipCamera={call.flipCamera}
-          onEnd={handleEnd}
-          durationLabel={durationLabel}
-        />
-      </View>
-
-      {/* Permission Denied Modal */}
-      <Modal
-        visible={permissionDenied}
-        transparent
-        animationType="fade"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <MaterialIcons
-              name={permissionType === 'camera' ? 'videocam-off' : permissionType === 'mic' ? 'mic-off' : 'block'}
-              size={40}
-              color="#ef4444"
-            />
-            <Text style={styles.modalTitle}>Permisos necesarios</Text>
-            <Text style={styles.modalBody}>
-              VIREM necesita acceso a tu {permissionType === 'both' ? 'cámara y micrófono' : permissionType} para la videollamada.
-            </Text>
-            <TouchableOpacity style={styles.modalPrimaryBtn} onPress={openAppSettings}>
-              <Text style={styles.modalPrimaryBtnText}>Abrir configuración</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modalSecondaryBtn}
-              onPress={() => {
-                setPermissionDenied(false);
-                call.start();
-              }}
-            >
-              <Text style={styles.modalSecondaryBtnText}>Reintentar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
-  header: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 20,
-    left: 16,
-    right: 16,
-    flexDirection: 'row',
+  loadingContainer: {
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    zIndex: 10,
+    justifyContent: 'center',
+    gap: 16,
+    padding: 24,
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 30,
+    right: 20,
+    padding: 8,
   },
   errorBanner: {
     position: 'absolute',
-    top: 100,
+    bottom: 40,
     left: 16,
     right: 16,
-    backgroundColor: 'rgba(220,53,69,0.9)',
+    backgroundColor: '#ef4444',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    zIndex: 10,
   },
   errorTxt: { color: '#fff', fontSize: 13, fontWeight: '600', flex: 1 },
   retryBtn: {
@@ -268,49 +146,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#fff',
   },
   retryBtnText: { color: '#fff', fontSize: 11, fontWeight: '800' },
-  localPip: {
-    position: 'absolute',
-    right: 16,
-    top: 100,
-    width: 110,
-    height: 160,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.4)',
-    zIndex: 5,
-  },
-  controlsWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 10,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    width: '100%',
-    alignItems: 'center',
-  },
-  modalTitle: { fontSize: 18, fontWeight: '800', marginVertical: 12 },
-  modalBody: { fontSize: 14, textAlign: 'center', marginBottom: 20 },
-  modalPrimaryBtn: { backgroundColor: '#137fec', padding: 14, borderRadius: 12, width: '100%', alignItems: 'center' },
-  modalPrimaryBtnText: { color: '#fff', fontWeight: '700' },
-  modalSecondaryBtn: { marginTop: 12, padding: 10 },
-  modalSecondaryBtnText: { color: '#137fec', fontWeight: '600' },
 });
 
 export default VideoCallScreen;
