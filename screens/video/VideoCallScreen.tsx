@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   Alert,
   Platform,
@@ -50,11 +50,11 @@ const VideoCallScreen: React.FC = () => {
     }
   }, [access.canJoin, call.state]);
 
-  const handleEnd = async () => {
+  const handleEnd = useCallback(async () => {
     await call.end();
     if (citaId) signaler.end(citaId).catch(() => undefined);
     navigation.goBack();
-  };
+  }, [call, citaId, signaler, navigation]);
 
   // ── Auto-redirect when the OTHER side ends the call ──
   useEffect(() => {

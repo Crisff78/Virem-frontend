@@ -20,6 +20,12 @@ declare global {
 const JitsiVideoContainer: React.FC<Props> = ({ config, onEnd }) => {
   const containerRef = useRef<any>(null);
   const apiRef = useRef<any>(null);
+  const onEndRef = useRef(onEnd);
+
+  // Mantener la referencia de onEnd actualizada sin disparar el efecto
+  useEffect(() => {
+    onEndRef.current = onEnd;
+  }, [onEnd]);
 
   useEffect(() => {
     const domain = config.domain || 'meet.jit.si';
@@ -52,7 +58,7 @@ const JitsiVideoContainer: React.FC<Props> = ({ config, onEnd }) => {
         configOverwrite: {
           startWithAudioMuted: false,
           startWithVideoMuted: false,
-          prejoinPageEnabled: false, // Desactivar para ir directo a la llamada y evitar bucles
+          prejoinPageEnabled: false,
           disableDeepLinking: true,
         },
       };
@@ -60,10 +66,12 @@ const JitsiVideoContainer: React.FC<Props> = ({ config, onEnd }) => {
       try {
         apiRef.current = new window.JitsiMeetExternalAPI(domain, options);
         
-        if (onEnd) {
-          apiRef.current.addEventListener('readyToClose', onEnd);
-          apiRef.current.addEventListener('videoConferenceLeft', onEnd);
-        }
+        apiRef.current.addEventListener('readyToClose', () => {
+          onEndRef.current?.();
+        });
+        apiRef.current.addEventListener('videoConferenceLeft', () => {
+          onEndRef.current?.();
+        });
       } catch (err) {
         console.error('[Jitsi] Error creating API:', err);
       }
@@ -89,7 +97,7 @@ const JitsiVideoContainer: React.FC<Props> = ({ config, onEnd }) => {
         apiRef.current = null;
       }
     };
-  }, [config.roomName, config.domain, config.displayName, onEnd]);
+  }, [config.roomName, config.domain, config.displayName]);
 
   return (
     <View style={styles.container}>
