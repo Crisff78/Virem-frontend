@@ -385,52 +385,52 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     }
   }, [selectedCitaId, upcomingCitas]);
 
-  useEffect(() => {
-    const loadVideoRoom = async () => {
-      const citaId = String(selectedCitaId || '').trim();
-      if (!citaId) {
+  const loadVideoRoom = useCallback(async () => {
+    const citaId = String(selectedCitaId || '').trim();
+    if (!citaId) {
+      setRoomJoinUrl('');
+      setRoomStatus('');
+      setRoomCanJoin(false);
+      return;
+    }
+
+    setLoadingRoom(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
         setRoomJoinUrl('');
         setRoomStatus('');
         setRoomCanJoin(false);
         return;
       }
 
-      setLoadingRoom(true);
-      try {
-        const token = await getAuthToken();
-        if (!token) {
-          setRoomJoinUrl('');
-          setRoomStatus('');
-          setRoomCanJoin(false);
-          return;
-        }
-
-        const response = await fetch(apiUrl(`/api/agenda/me/citas/${citaId}/video-sala`), {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.success || !payload?.videoSala) {
-          setRoomJoinUrl('');
-          setRoomStatus('');
-          setRoomCanJoin(false);
-          return;
-        }
-
-        setRoomJoinUrl(String(payload.videoSala.joinUrl || '').trim());
-        setRoomStatus(String(payload.videoSala.estado || '').trim().toLowerCase());
-        setRoomCanJoin(Boolean(payload.videoSala.canJoin));
-      } catch {
+      const response = await fetch(apiUrl(`/api/agenda/me/citas/${citaId}/video-sala`), {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success || !payload?.videoSala) {
         setRoomJoinUrl('');
         setRoomStatus('');
         setRoomCanJoin(false);
-      } finally {
-        setLoadingRoom(false);
+        return;
       }
-    };
 
-    loadVideoRoom();
+      setRoomJoinUrl(String(payload.videoSala.joinUrl || '').trim());
+      setRoomStatus(String(payload.videoSala.estado || '').trim().toLowerCase());
+      setRoomCanJoin(Boolean(payload.videoSala.canJoin));
+    } catch {
+      setRoomJoinUrl('');
+      setRoomStatus('');
+      setRoomCanJoin(false);
+    } finally {
+      setLoadingRoom(false);
+    }
   }, [selectedCitaId]);
+
+  useEffect(() => {
+    loadVideoRoom();
+  }, [loadVideoRoom]);
 
   useSocketRoom('cita', selectedCitaId, Boolean(selectedCitaId));
 
@@ -499,7 +499,7 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     }, 30000); 
     
     return () => clearInterval(interval);
-  }, [selectedCitaId, roomCanJoin]);
+  }, [selectedCitaId, roomCanJoin, loadVideoRoom]);
 
   // ── Listen for doctor ending the call → redirect patient ──
   useSocketEvent('call:ended', (payload: any) => {
