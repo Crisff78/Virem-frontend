@@ -57,6 +57,7 @@ const MedicoRecetasScreen: React.FC = () => {
   const [laboratorios, setLaboratorios] = useState('');
   const [firma, setFirma] = useState('');
   const [showErrors, setShowErrors] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Handle prefill from navigation
   useEffect(() => {
@@ -93,28 +94,37 @@ const MedicoRecetasScreen: React.FC = () => {
     fetchRecetas();
   }, [fetchRecetas]);
 
-  const addMedicamento = () => {
     const { nombre, dosis, frecuencia, duracion } = currentMed;
+    const newErrors: Record<string, string> = {};
 
-    if (!nombre || !dosis) {
-      Alert.alert('Error', 'Indique al menos el nombre y dosis del medicamento');
-      return;
-    }
+    if (!nombre) newErrors.medNombre = 'El nombre es obligatorio';
+    if (!dosis) newErrors.medDosis = 'La dosis es obligatoria';
 
-    // Validaciones estrictas antes de añadir a la lista
+    // Validaciones estrictas
     const lettersOnlyRegex = /[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g;
-    if (nombre.match(/[0-9]/) || lettersOnlyRegex.test(nombre)) {
-      Alert.alert('Dato Inválido', 'El nombre del medicamento solo puede contener letras.');
-      return;
+    if (nombre && (nombre.match(/[0-9]/) || lettersOnlyRegex.test(nombre))) {
+      newErrors.medNombre = 'Solo se permiten letras';
     }
 
     if (frecuencia.trim() === '/') {
-      Alert.alert('Dato Inválido', 'La frecuencia no puede ser solo un "/". Debe incluir números o letras.');
+      newErrors.medFrecuencia = 'No puede ser solo "/"';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(prev => ({ ...prev, ...newErrors }));
       return;
     }
 
     setMedicamentosList([...medicamentosList, currentMed]);
     setCurrentMed({ nombre: '', dosis: '', frecuencia: '', duracion: '' });
+    setFieldErrors(prev => {
+      const rest = { ...prev };
+      delete rest.medNombre;
+      delete rest.medDosis;
+      delete rest.medFrecuencia;
+      delete rest.medDuracion;
+      return rest;
+    });
   };
 
   const removeMedicamento = (index: number) => {
@@ -147,14 +157,24 @@ const MedicoRecetasScreen: React.FC = () => {
     const numericSlashRegex = /[^0-9/]/g;
     const alphaNumSlashRegex = /[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ/\s]/g;
 
+    const newErrors: Record<string, string> = {};
+
     // Validación extra para evitar que se guarde solo un slash
     if (presion.trim() === '/') {
-      Alert.alert('Dato Inválido', 'La presión debe incluir números, no puede ser solo un "/".');
-      return;
+      newErrors.presion = 'No puede ser solo "/"';
     }
     
-    if (medicamentosList.some(m => m.frecuencia.trim() === '/')) {
-      Alert.alert('Dato Inválido', 'La frecuencia del medicamento debe incluir letras o números, no puede ser solo un "/".');
+    if (peso.trim() === '/') {
+      newErrors.peso = 'No puede ser solo "/"';
+    }
+
+    if (temperatura.trim() === '/') {
+      newErrors.temperatura = 'No puede ser solo "/"';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(prev => ({ ...prev, ...newErrors }));
+      Alert.alert('Error de formato', 'Revise los campos marcados en rojo.');
       return;
     }
 
@@ -374,33 +394,44 @@ const MedicoRecetasScreen: React.FC = () => {
                 <View style={[styles.inputGroup, { flex: 1 }]}>
                   <Text style={styles.label}>Peso (lb/kg)</Text>
                   <TextInput 
-                    style={styles.input} 
+                    style={[styles.input, fieldErrors.peso && { borderColor: '#ef4444' }]} 
                     value={peso} 
-                    onChangeText={(t) => setPeso(t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, ''))} 
+                    onChangeText={(t) => {
+                      setPeso(t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, ''));
+                      setFieldErrors(prev => ({ ...prev, peso: '' }));
+                    }} 
                     placeholder="Ej. 165 lb" 
                   />
+                  {fieldErrors.peso && <Text style={styles.errorText}>{fieldErrors.peso}</Text>}
                 </View>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
                   <Text style={styles.label}>Presión Art.</Text>
                   <TextInput 
-                    style={styles.input} 
+                    style={[styles.input, fieldErrors.presion && { borderColor: '#ef4444' }]} 
                     value={presion} 
                     onChangeText={(t) => {
                       const filtered = t.replace(/[^0-9/]/g, '');
                       const parts = filtered.split('/');
-                      setPresion(parts.length > 2 ? parts[0] + '/' + parts[1] : filtered);
+                      const clean = parts.length > 2 ? parts[0] + '/' + parts[1] : filtered;
+                      setPresion(clean);
+                      setFieldErrors(prev => ({ ...prev, presion: '' }));
                     }} 
                     placeholder="Ej. 120/80" 
                   />
+                  {fieldErrors.presion && <Text style={styles.errorText}>{fieldErrors.presion}</Text>}
                 </View>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
                   <Text style={styles.label}>Temp. (°C)</Text>
                   <TextInput 
-                    style={styles.input} 
+                    style={[styles.input, fieldErrors.temperatura && { borderColor: '#ef4444' }]} 
                     value={temperatura} 
-                    onChangeText={(t) => setTemperatura(t.replace(/[^0-9]/g, ''))} 
+                    onChangeText={(t) => {
+                      setTemperatura(t.replace(/[^0-9]/g, ''));
+                      setFieldErrors(prev => ({ ...prev, temperatura: '' }));
+                    }} 
                     placeholder="Ej. 37" 
                   />
+                  {fieldErrors.temperatura && <Text style={styles.errorText}>{fieldErrors.temperatura}</Text>}
                 </View>
               </View>
             </View>
@@ -446,26 +477,34 @@ const MedicoRecetasScreen: React.FC = () => {
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Medicamento</Text>
                   <TextInput 
-                    style={styles.input} 
+                    style={[styles.input, fieldErrors.medNombre && { borderColor: '#ef4444' }]} 
                     value={currentMed.nombre} 
-                    onChangeText={(t) => setCurrentMed({...currentMed, nombre: t.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')})} 
+                    onChangeText={(t) => {
+                      setCurrentMed({...currentMed, nombre: t.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')});
+                      setFieldErrors(prev => ({ ...prev, medNombre: '' }));
+                    }} 
                     placeholder="Ej. Amoxicilina" 
                   />
+                  {fieldErrors.medNombre && <Text style={styles.errorText}>{fieldErrors.medNombre}</Text>}
                 </View>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <View style={[styles.inputGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Dosis</Text>
                     <TextInput 
-                      style={styles.input} 
+                      style={[styles.input, fieldErrors.medDosis && { borderColor: '#ef4444' }]} 
                       value={currentMed.dosis} 
-                      onChangeText={(t) => setCurrentMed({...currentMed, dosis: t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '')})} 
+                      onChangeText={(t) => {
+                        setCurrentMed({...currentMed, dosis: t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '')});
+                        setFieldErrors(prev => ({ ...prev, medDosis: '' }));
+                      }} 
                       placeholder="Ej. 1 caps" 
                     />
+                    {fieldErrors.medDosis && <Text style={styles.errorText}>{fieldErrors.medDosis}</Text>}
                   </View>
                   <View style={[styles.inputGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Frecuencia</Text>
                     <TextInput 
-                      style={styles.input} 
+                      style={[styles.input, fieldErrors.medFrecuencia && { borderColor: '#ef4444' }]} 
                       value={currentMed.frecuencia} 
                       onChangeText={(t) => {
                         const filtered = t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ/\s]/g, '');
@@ -474,18 +513,24 @@ const MedicoRecetasScreen: React.FC = () => {
                           ...currentMed, 
                           frecuencia: parts.length > 2 ? parts[0] + '/' + parts[1] : filtered
                         });
+                        setFieldErrors(prev => ({ ...prev, medFrecuencia: '' }));
                       }} 
                       placeholder="Ej. C/8h" 
                     />
+                    {fieldErrors.medFrecuencia && <Text style={styles.errorText}>{fieldErrors.medFrecuencia}</Text>}
                   </View>
                   <View style={[styles.inputGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Duración</Text>
                     <TextInput 
-                      style={styles.input} 
+                      style={[styles.input, fieldErrors.medDuracion && { borderColor: '#ef4444' }]} 
                       value={currentMed.duracion} 
-                      onChangeText={(t) => setCurrentMed({...currentMed, duracion: t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '')})} 
+                      onChangeText={(t) => {
+                        setCurrentMed({...currentMed, duracion: t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '')});
+                        setFieldErrors(prev => ({ ...prev, medDuracion: '' }));
+                      }} 
                       placeholder="Ej. 7 dias" 
                     />
+                    {fieldErrors.medDuracion && <Text style={styles.errorText}>{fieldErrors.medDuracion}</Text>}
                   </View>
                 </View>
                 <TouchableOpacity style={styles.addMedBtn} onPress={addMedicamento}>
@@ -616,6 +661,7 @@ const styles = StyleSheet.create({
   
   emptyBox: { padding: 40, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: colors.dark, fontSize: 16, fontWeight: '800', marginTop: 12 },
+  errorText: { color: '#ef4444', fontSize: 11, fontWeight: '700', marginTop: 4 },
 
   transactionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
   tLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
