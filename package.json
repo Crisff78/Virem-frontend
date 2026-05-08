@@ -9,7 +9,11 @@
     "web": "expo start --web",
     "start:web": "cross-env EXPO_PUBLIC_BACKEND_URL=http://localhost:3000 expo start --web -c",
     "start:mobile": "expo start -c",
-    "start:mobile:remote": "cross-env EXPO_PUBLIC_BACKEND_URL=https://virem-backend.onrender.com expo start -c"
+    "start:mobile:remote": "cross-env EXPO_PUBLIC_BACKEND_URL=https://virem-backend.onrender.com expo start -c",
+    "build": "npx expo export --platform web --output-dir dist-web --clear"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@babel/highlight": "^7.25.9",
