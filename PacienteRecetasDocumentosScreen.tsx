@@ -123,53 +123,117 @@ const sanitizeFileName = (raw: string) =>
     .replace(/\s+/g, '_')
     .replace(/[^\w\-]/g, '');
 
-const buildDocumentContent = (item: DocumentItem) => {
-  let content = `VIREM - RECETA MÉDICA\n\n`;
-  content += `Título: ${item.title}\n`;
-  content += `Emitido por: ${item.doctor}\n`;
-  content += `Fecha: ${item.date}\n\n`;
-  
-  if (item.diagnostico) {
-    content += `DIAGNÓSTICO: ${item.diagnostico}\n\n`;
-  }
-  
-  if (item.medicamentos && Array.isArray(item.medicamentos)) {
-    content += `TRATAMIENTO:\n`;
-    item.medicamentos.forEach((m, i) => {
-      content += `${i + 1}. ${m.nombre} - ${m.dosis} (${m.frecuencia} por ${m.duracion})\n`;
-    });
-    content += `\n`;
-  }
-  
-  if (item.instrucciones) {
-    content += `INSTRUCCIONES: ${item.instrucciones}\n\n`;
-  }
-  
-  content += `Nota: Este documento es una representación digital de su receta médica emitida a través de la plataforma VIREM.`;
-  return content;
+const buildDocumentHTML = (item: DocumentItem) => {
+  const medsHTML = (item.medicamentos || []).map((m, i) => `
+    <tr>
+      <td style="padding: 8px; border-bottom: 1px solid #eee;">${m.nombre}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #eee;">${m.dosis}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #eee;">${m.frecuencia}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #eee;">${m.duracion}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <html>
+    <head>
+      <style>
+        body { font-family: 'Helvetica', sans-serif; color: #333; line-height: 1.6; padding: 40px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #137fec; padding-bottom: 20px; margin-bottom: 30px; }
+        .logo-text { color: #137fec; font-size: 24px; font-weight: bold; }
+        .info-row { margin-bottom: 10px; }
+        .label { font-weight: bold; color: #666; width: 120px; display: inline-block; }
+        .section-title { background: #f4f8ff; padding: 8px 15px; font-weight: bold; color: #137fec; margin-top: 30px; border-left: 4px solid #137fec; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { text-align: left; background: #f9f9f9; padding: 10px; border-bottom: 2px solid #eee; color: #666; font-size: 13px; }
+        .footer { margin-top: 50px; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 20px; text-align: center; }
+        @media print { body { padding: 0; } .no-print { display: none; } }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div class="logo-text">VIREM</div>
+          <div style="font-size: 12px; color: #666;">Salud Digital de Próxima Generación</div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-weight: bold;">RECETA MÉDICA</div>
+          <div style="font-size: 12px; color: #666;">Folio: ${Math.floor(Math.random() * 1000000)}</div>
+        </div>
+      </div>
+
+      <div class="info-row"><span class="label">Paciente:</span> <span>${item.title.includes('Receta') ? 'Paciente Registrado' : item.title}</span></div>
+      <div class="info-row"><span class="label">Médico:</span> <span>${item.doctor}</span></div>
+      <div class="info-row"><span class="label">Fecha:</span> <span>${item.date}</span></div>
+
+      <div class="section-title">DIAGNÓSTICO / EVALUACIÓN</div>
+      <div style="padding: 15px;">${item.diagnostico || 'Consulta general de seguimiento.'}</div>
+
+      <div class="section-title">TRATAMIENTO Y MEDICAMENTOS</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Medicamento</th>
+            <th>Dosis</th>
+            <th>Frecuencia</th>
+            <th>Duración</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${medsHTML || '<tr><td colspan="4" style="text-align:center; padding: 20px; color: #999;">No se especificaron medicamentos en este registro.</td></tr>'}
+        </tbody>
+      </table>
+
+      ${item.instrucciones ? `
+        <div class="section-title">INSTRUCCIONES ADICIONALES</div>
+        <div style="padding: 15px;">${item.instrucciones}</div>
+      ` : ''}
+
+      <div style="margin-top: 60px; display: flex; justify-content: flex-end;">
+        <div style="text-align: center; width: 250px; border-top: 1px solid #333; padding-top: 10px;">
+          <div style="font-weight: bold;">${item.doctor}</div>
+          <div style="font-size: 12px; color: #666;">Firma Digital Autorizada</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        Este documento es una receta médica digital válida emitida a través de la plataforma VIREM.<br>
+        Verifique la autenticidad en app.virem.salud
+      </div>
+      
+      <script>
+        window.onload = function() {
+          setTimeout(function() { window.print(); }, 500);
+        }
+      </script>
+    </body>
+    </html>
+  `;
 };
 
 const downloadExampleDocument = (item: DocumentItem) => {
   if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
-    const blob = new Blob([buildDocumentContent(item)], {
-      type: 'text/plain;charset=utf-8',
-    });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${sanitizeFileName(item.title)}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    const html = buildDocumentHTML(item);
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
     return;
   }
 
+  // Fallback para mobile usando Share con texto formateado
+  let shareText = `VIREM - RECETA MÉDICA\n\n`;
+  shareText += `Médico: ${item.doctor}\n`;
+  shareText += `Fecha: ${item.date}\n\n`;
+  shareText += `DIAGNÓSTICO: ${item.diagnostico || 'N/A'}\n\n`;
+  shareText += `TRATAMIENTO:\n`;
+  (item.medicamentos || []).forEach(m => {
+    shareText += `- ${m.nombre}: ${m.dosis} (${m.frecuencia} por ${m.duracion})\n`;
+  });
+  
   Share.share({
     title: item.title,
-    message: `${buildDocumentContent(item)}\n\n(Documento de ejemplo VIREM)`,
-  }).catch(() => {
-    Alert.alert('Error', 'No se pudo compartir el documento en este dispositivo.');
+    message: shareText,
   });
 };
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput, Share } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useMedicoModule } from './navigation/MedicoModuleContext';
 import { usePortalAwareMedicoNavigation } from './navigation/usePortalAwareMedicoNavigation';
@@ -25,6 +25,8 @@ type Receta = {
   paciente_nombre: string;
   diagnostico: string;
   created_at: string;
+  medicamentos_json?: any;
+  instrucciones?: string;
 };
 
 const MedicoRecetasScreen: React.FC = () => {
@@ -54,6 +56,7 @@ const MedicoRecetasScreen: React.FC = () => {
   const [instrucciones, setInstrucciones] = useState('');
   const [laboratorios, setLaboratorios] = useState('');
   const [firma, setFirma] = useState('');
+  const [showErrors, setShowErrors] = useState(false);
 
   // Handle prefill from navigation
   useEffect(() => {
@@ -104,34 +107,26 @@ const MedicoRecetasScreen: React.FC = () => {
   };
 
   const handleEmitir = async () => {
-    console.log('[handleEmitir] Botón presionado. Estado actual:', {
-      pacienteId,
-      pacienteSearch,
-      diagnostico: !!diagnostico,
-      medicamentosCount: medicamentosList.length
-    });
+    setShowErrors(true);
+    
+    // Validamos estrictamente los campos requeridos
+    const hasPaciente = !!pacienteId || !!pacienteSearch;
+    const hasDiagnostico = !!diagnostico;
+    const hasMedicamentos = medicamentosList.length > 0;
 
-    if ((!pacienteId && !pacienteSearch) || !diagnostico || medicamentosList.length === 0) {
+    console.log('[handleEmitir] Intento de emisión:', { hasPaciente, hasDiagnostico, hasMedicamentos });
+
+    if (!hasPaciente || !hasDiagnostico || !hasMedicamentos) {
       const missingFields = [];
-      if (!pacienteId && !pacienteSearch) missingFields.push('Paciente (Nombre o Cédula)');
-      if (!diagnostico) missingFields.push('Diagnóstico');
-      if (medicamentosList.length === 0) missingFields.push('Medicamentos (Debe añadir al menos uno con el botón "+")');
+      if (!hasPaciente) missingFields.push('Paciente (Nombre o Cédula)');
+      if (!hasDiagnostico) missingFields.push('Diagnóstico');
+      if (!hasMedicamentos) missingFields.push('Medicamentos (Debe añadir al menos uno a la lista con el botón "+")');
       
-      const errorMessage = `Faltan datos obligatorios:\n- ${missingFields.join('\n- ')}`;
-      console.warn('[handleEmitir] Validación fallida:', errorMessage);
-      Alert.alert('Datos Incompletos', errorMessage);
+      Alert.alert('Datos Incompletos', `Por favor complete los campos marcados en rojo:\n\n- ${missingFields.join('\n- ')}`);
       return;
     }
 
     setLoading(true); 
-    console.log('[handleEmitir] Inician emisión de receta:', {
-      pacienteId,
-      pacienteSearch,
-      citaid: citaId,
-      diagnostico,
-      medicamentosCount: medicamentosList.length
-    });
-
     try {
       const payload = await apiClient.post<any>('/api/medico/me/recetas', {
         authenticated: true,
@@ -141,7 +136,7 @@ const MedicoRecetasScreen: React.FC = () => {
           citaid: citaId,
           diagnostico,
           signos_vitales: { peso, presion, temperatura },
-          medicamentos: medicamentosList,
+          medicamentos: medicamentosList, // Volvemos a medicamentosList estrictamente
           instrucciones,
           ordenes_laboratorio: laboratorios,
           doctor_info: {
@@ -182,9 +177,109 @@ const MedicoRecetasScreen: React.FC = () => {
     }
   };
 
+  const buildDocumentHTML = (r: Receta) => {
+    const meds = Array.isArray(r.medicamentos_json) ? r.medicamentos_json : [];
+    const medsHTML = meds.map((m: any) => `
+      <tr>
+        <td style="padding: 8px; border-bottom: 1px solid #eee;">${m.nombre}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee;">${m.dosis}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee;">${m.frecuencia}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee;">${m.duracion}</td>
+      </tr>
+    `).join('');
+
+    return `
+      <html>
+      <head>
+        <style>
+          body { font-family: 'Helvetica', sans-serif; color: #333; line-height: 1.6; padding: 40px; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #137fec; padding-bottom: 20px; margin-bottom: 30px; }
+          .logo-text { color: #137fec; font-size: 24px; font-weight: bold; }
+          .info-row { margin-bottom: 10px; }
+          .label { font-weight: bold; color: #666; width: 120px; display: inline-block; }
+          .section-title { background: #f4f8ff; padding: 8px 15px; font-weight: bold; color: #137fec; margin-top: 30px; border-left: 4px solid #137fec; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+          th { text-align: left; background: #f9f9f9; padding: 10px; border-bottom: 2px solid #eee; color: #666; font-size: 13px; }
+          .footer { margin-top: 50px; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 20px; text-align: center; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="logo-text">VIREM</div>
+            <div style="font-size: 12px; color: #666;">Salud Digital de Próxima Generación</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-weight: bold;">RECETA MÉDICA</div>
+            <div style="font-size: 12px; color: #666;">Folio: ${r.recetaid.split('-')[0].toUpperCase()}</div>
+          </div>
+        </div>
+
+        <div class="info-row"><span class="label">Paciente:</span> <span>${r.paciente_nombre}</span></div>
+        <div class="info-row"><span class="label">Médico:</span> <span>${doctorName}</span></div>
+        <div class="info-row"><span class="label">Fecha:</span> <span>${new Date(r.created_at).toLocaleDateString()}</span></div>
+
+        <div class="section-title">DIAGNÓSTICO / EVALUACIÓN</div>
+        <div style="padding: 15px;">${r.diagnostico}</div>
+
+        <div class="section-title">TRATAMIENTO Y MEDICAMENTOS</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Medicamento</th>
+              <th>Dosis</th>
+              <th>Frecuencia</th>
+              <th>Duración</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${medsHTML || '<tr><td colspan="4" style="text-align:center; padding: 20px; color: #999;">No hay medicamentos registrados.</td></tr>'}
+          </tbody>
+        </table>
+
+        ${r.instrucciones ? `
+          <div class="section-title">INSTRUCCIONES ADICIONALES</div>
+          <div style="padding: 15px;">${r.instrucciones}</div>
+        ` : ''}
+
+        <div style="margin-top: 60px; display: flex; justify-content: flex-end;">
+          <div style="text-align: center; width: 250px; border-top: 1px solid #333; padding-top: 10px;">
+            <div style="font-weight: bold;">${doctorName}</div>
+            <div style="font-size: 12px; color: #666;">Firma Digital Autorizada</div>
+          </div>
+        </div>
+
+        <div class="footer">
+          Documento digital VIREM - Validado por ${doctorSpec}
+        </div>
+        
+        <script>
+          window.onload = function() { setTimeout(function() { window.print(); }, 500); }
+        </script>
+      </body>
+      </html>
+    `;
+  };
+
   const handleDownload = (receta: Receta) => {
-    // Simulamos descarga o visualización
-    Alert.alert('Receta', `Visualizando receta para ${receta.paciente_nombre}\n\nDiagnóstico: ${receta.diagnostico}\n\nEn un entorno real, esto abriría un PDF.`);
+    if (Platform.OS === 'web') {
+      const html = buildDocumentHTML(receta);
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.write(html);
+        win.document.close();
+      }
+      return;
+    }
+
+    // Mobile fallback
+    let msg = `RECETA VIREM\nPaciente: ${receta.paciente_nombre}\nDiagnóstico: ${receta.diagnostico}\n\n`;
+    (Array.isArray(receta.medicamentos_json) ? receta.medicamentos_json : []).forEach((m:any) => {
+      msg += `- ${m.nombre}: ${m.dosis}\n`;
+    });
+
+    Share.share({ title: 'Receta Médica', message: msg });
   };
 
   return (
@@ -216,7 +311,11 @@ const MedicoRecetasScreen: React.FC = () => {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Paciente (Nombre o Cédula)</Text>
                 <TextInput 
-                  style={[styles.input, pacienteNombre ? { backgroundColor: '#f1f5f9', color: '#64748b' } : null]} 
+                  style={[
+                    styles.input, 
+                    pacienteNombre ? { backgroundColor: '#f1f5f9', color: '#64748b' } : null,
+                    (showErrors && !pacienteId && !pacienteSearch) && { borderColor: '#ef4444', borderWidth: 1.5 }
+                  ]} 
                   value={pacienteNombre || pacienteSearch} 
                   editable={!pacienteNombre}
                   onChangeText={setPacienteSearch} 
@@ -245,7 +344,11 @@ const MedicoRecetasScreen: React.FC = () => {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Diagnóstico y Hallazgos</Text>
                 <TextInput 
-                  style={[styles.input, { height: 80, textAlignVertical: 'top' }]} 
+                  style={[
+                    styles.input, 
+                    { height: 80, textAlignVertical: 'top' },
+                    (showErrors && !diagnostico) && { borderColor: '#ef4444', borderWidth: 1.5 }
+                  ]} 
                   value={diagnostico} 
                   onChangeText={setDiagnostico} 
                   placeholder="Describa el diagnóstico principal y hallazgos relevantes..." 
@@ -273,7 +376,7 @@ const MedicoRecetasScreen: React.FC = () => {
                 </View>
               )}
 
-              <View style={styles.medForm}>
+              <View style={[styles.medForm, (showErrors && medicamentosList.length === 0) && { borderColor: '#ef4444', borderWidth: 1.5 }]}>
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Medicamento</Text>
                   <TextInput style={styles.input} value={currentMed.nombre} onChangeText={(t) => setCurrentMed({...currentMed, nombre: t})} placeholder="Ej. Amoxicilina 500mg" />
