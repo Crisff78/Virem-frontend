@@ -20,12 +20,22 @@ export function useLiveKitCall(citaId: string): LiveKitCallApi {
     setError(null);
 
     try {
+      console.log('[LiveKit Web] Requesting token for cita:', citaId);
       const response = await apiClient.post<any>(`/api/video/me/citas/${citaId}/token`, { body: {}, authenticated: true });
+      
+      console.log('[LiveKit Web] Token response:', {
+        success: response.success,
+        provider: response.provider,
+        hasLiveKit: !!response.livekit,
+        hasZego: !!response.zego
+      });
+
       if (!response.success || !response.livekit) {
-        throw new Error(response.message || 'Error al obtener token de videollamada');
+        throw new Error(response.message || 'Error al obtener token de videollamada (Proveedor no disponible)');
       }
 
       const { url, token } = response.livekit;
+      console.log('[LiveKit Web] Connecting to:', url);
 
       const room = new Room({
         videoCaptureDefaults: {
@@ -37,12 +47,20 @@ export function useLiveKitCall(citaId: string): LiveKitCallApi {
       });
       roomRef.current = room;
 
-      room.on(RoomEvent.Connected, () => setState('connected'));
-      room.on(RoomEvent.Disconnected, () => setState('disconnected'));
+      room.on(RoomEvent.Connected, () => {
+        console.log('[LiveKit Web] Connected!');
+        setState('connected');
+      });
+      room.on(RoomEvent.Disconnected, () => {
+        console.log('[LiveKit Web] Disconnected');
+        setState('disconnected');
+      });
       room.on(RoomEvent.Reconnecting, () => setState('reconnecting'));
       room.on(RoomEvent.Reconnected, () => setState('connected'));
 
-      await room.connect(url, token);
+      await room.connect(url, token, {
+        autoSubscribe: true,
+      });
       await room.localParticipant.enableCameraAndMicrophone();
       
       setMicEnabled(room.localParticipant.isMicrophoneEnabled);

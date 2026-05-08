@@ -166,8 +166,16 @@ const VideoCallScreen: React.FC = () => {
       {/* Error Banner */}
       {call.error && !permissionDenied ? (
         <View style={styles.errorBanner}>
-          <MaterialIcons name="error-outline" size={16} color="#fff" />
-          <Text style={styles.errorTxt}>{call.error}</Text>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <MaterialIcons name="error-outline" size={20} color="#fff" />
+            <Text style={styles.errorTxt}>{call.error}</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.retryBtn} 
+            onPress={() => call.start()}
+          >
+            <Text style={styles.retryBtnText}>REINTENTAR</Text>
+          </TouchableOpacity>
         </View>
       ) : null}
 
@@ -254,7 +262,16 @@ const styles = StyleSheet.create({
     gap: 8,
     zIndex: 10,
   },
-  errorTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  errorTxt: { color: '#fff', fontSize: 13, fontWeight: '600', flex: 1 },
+  retryBtn: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  retryBtnText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   localPip: {
     position: 'absolute',
     right: 16,

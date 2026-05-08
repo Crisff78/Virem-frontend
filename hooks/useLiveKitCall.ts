@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRoom, useParticipant } from '@livekit/react-native';
-import { Room, RoomEvent, Track, VideoPresets } from 'livekit-client';
+import { Room, RoomEvent, useRoom, useParticipant } from '@livekit/react-native';
+import { Track, VideoPresets } from 'livekit-client';
 import { apiClient } from '../utils/api';
 import { LiveKitCallApi, CallState } from './useLiveKitCall.types';
 
@@ -13,7 +13,7 @@ export function useLiveKitCall(citaId: string): LiveKitCallApi {
   const [durationSec, setDurationSec] = useState(0);
   const [remainingMs, setRemainingMs] = useState(0);
 
-  const roomRef = useRef<InstanceType<typeof Room> | null>(null);
+  const roomRef = useRef<Room | null>(null);
 
   const start = useCallback(async () => {
     if (state !== 'idle') return;
