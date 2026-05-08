@@ -126,6 +126,8 @@ const MedicoRecetasScreen: React.FC = () => {
       return;
     }
 
+    setLoading(true); 
+    try {
       const cleanPeso = peso.replace(/[^a-zA-Z0-9.\s/°-]/g, '').trim();
       const cleanPresion = presion.replace(/[^a-zA-Z0-9.\s/°-]/g, '').trim();
       const cleanTemperatura = temperatura.replace(/[^a-zA-Z0-9.\s/°-]/g, '').trim();
