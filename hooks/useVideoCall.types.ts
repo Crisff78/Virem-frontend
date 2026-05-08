@@ -14,4 +14,8 @@ export interface VideoCallApi {
     displayName: string;
     userId: string;
   };
+  // Legacy fields for backward compatibility during migration
+  room?: any;
+  localParticipant?: any;
+  remoteParticipants?: any[];
 }
