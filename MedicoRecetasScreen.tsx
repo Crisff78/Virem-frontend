@@ -359,7 +359,11 @@ const MedicoRecetasScreen: React.FC = () => {
                   <TextInput 
                     style={styles.input} 
                     value={presion} 
-                    onChangeText={(t) => setPresion(t.replace(/[^0-9/]/g, ''))} 
+                    onChangeText={(t) => {
+                      const filtered = t.replace(/[^0-9/]/g, '');
+                      const parts = filtered.split('/');
+                      setPresion(parts.length > 2 ? parts[0] + '/' + parts[1] : filtered);
+                    }} 
                     placeholder="Ej. 120/80" 
                   />
                 </View>
@@ -437,7 +441,14 @@ const MedicoRecetasScreen: React.FC = () => {
                     <TextInput 
                       style={styles.input} 
                       value={currentMed.frecuencia} 
-                      onChangeText={(t) => setCurrentMed({...currentMed, frecuencia: t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ/\s]/g, '')})} 
+                      onChangeText={(t) => {
+                        const filtered = t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ/\s]/g, '');
+                        const parts = filtered.split('/');
+                        setCurrentMed({
+                          ...currentMed, 
+                          frecuencia: parts.length > 2 ? parts[0] + '/' + parts[1] : filtered
+                        });
+                      }} 
                       placeholder="Ej. C/8h" 
                     />
                   </View>
