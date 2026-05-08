@@ -94,10 +94,25 @@ const MedicoRecetasScreen: React.FC = () => {
   }, [fetchRecetas]);
 
   const addMedicamento = () => {
-    if (!currentMed.nombre || !currentMed.dosis) {
+    const { nombre, dosis, frecuencia, duracion } = currentMed;
+
+    if (!nombre || !dosis) {
       Alert.alert('Error', 'Indique al menos el nombre y dosis del medicamento');
       return;
     }
+
+    // Validaciones estrictas antes de añadir a la lista
+    const lettersOnlyRegex = /[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g;
+    if (nombre.match(/[0-9]/) || lettersOnlyRegex.test(nombre)) {
+      Alert.alert('Dato Inválido', 'El nombre del medicamento solo puede contener letras.');
+      return;
+    }
+
+    if (frecuencia.trim() === '/') {
+      Alert.alert('Dato Inválido', 'La frecuencia no puede ser solo un "/". Debe incluir números o letras.');
+      return;
+    }
+
     setMedicamentosList([...medicamentosList, currentMed]);
     setCurrentMed({ nombre: '', dosis: '', frecuencia: '', duracion: '' });
   };
