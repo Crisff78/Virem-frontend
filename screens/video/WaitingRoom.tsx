@@ -471,6 +471,36 @@ const SalaEsperaVirtualPacienteScreen: React.FC = () => {
     }
   });
 
+  // ── Listen for appointment updates (e.g. doctor opens the room) ──
+  useSocketEvent('cita_actualizada', (payload: any) => {
+    if (!selectedCitaId) return;
+    if (String(payload?.citaId || '') !== selectedCitaId) return;
+    
+    console.log('[WaitingRoom] Appointment updated via socket, refreshing room state...');
+    
+    // If the payload contains videoSala info, use it directly to avoid a network roundtrip
+    if (payload?.extraPayload?.videoSala) {
+      const vs = payload.extraPayload.videoSala;
+      setRoomStatus(String(vs.estado || '').trim().toLowerCase());
+      setRoomCanJoin(Boolean(vs.canJoin));
+      if (vs.joinUrl) setRoomJoinUrl(String(vs.joinUrl).trim());
+    } else {
+      // Fallback
+      loadVideoRoom();
+    }
+  });
+
+  // ── Periodic background refresh (fallback for socket misses or time-based access) ──
+  useEffect(() => {
+    if (!selectedCitaId || roomCanJoin) return;
+    
+    const interval = setInterval(() => {
+      loadVideoRoom();
+    }, 30000); 
+    
+    return () => clearInterval(interval);
+  }, [selectedCitaId, roomCanJoin]);
+
   // ── Listen for doctor ending the call → redirect patient ──
   useSocketEvent('call:ended', (payload: any) => {
     if (!selectedCitaId) return;
