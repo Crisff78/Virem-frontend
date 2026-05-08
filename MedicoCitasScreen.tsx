@@ -492,7 +492,15 @@ const MedicoCitasScreen: React.FC = () => {
                     <Text style={styles.secondaryActionText}>Chat</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.secondaryAction} onPress={() => showDetails(cita)}>
+                  <TouchableOpacity
+                    style={styles.secondaryAction}
+                    onPress={() =>
+                      navigation.navigate('MedicoPacienteDetalle', {
+                        patientId: String(cita?.paciente?.pacienteid || ''),
+                        patientName: normalizeText(cita?.paciente?.nombreCompleto || 'Paciente'),
+                      })
+                    }
+                  >
                     <Text style={styles.secondaryActionText}>Detalles</Text>
                   </TouchableOpacity>
                 </View>
@@ -542,7 +550,15 @@ const MedicoCitasScreen: React.FC = () => {
                 >
                   <Text style={[styles.smallActionText, { color: '#15803d' }]}>Crear Receta</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.smallAction} onPress={() => showDetails(cita)}>
+                <TouchableOpacity
+                  style={styles.smallAction}
+                  onPress={() =>
+                    navigation.navigate('MedicoPacienteDetalle', {
+                      patientId: String(cita?.paciente?.pacienteid || ''),
+                      patientName: normalizeText(cita?.paciente?.nombreCompleto || 'Paciente'),
+                    })
+                  }
+                >
                   <Text style={styles.smallActionText}>Ver</Text>
                 </TouchableOpacity>
               </View>

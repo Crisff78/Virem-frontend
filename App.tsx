@@ -26,6 +26,7 @@ import DashboardMedico from "./DashboardMedico";
 import MedicoPortalScreen from "./MedicoPortalScreen";
 import MedicoCitasScreen from "./MedicoCitasScreen";
 import MedicoPacientesScreen from "./MedicoPacientesScreen";
+import MedicoPacienteDetalleScreen from "./MedicoPacienteDetalleScreen";
 import MedicoChatScreen from "./MedicoChatScreen";
 import AdminPanelScreen from "./AdminPanelScreen";
 import NuevaConsultaPacienteScreen from "./NuevaConsultaPacienteScreen";
@@ -91,6 +92,7 @@ const linking = {
       DashboardMedico: "dashboard-medico",
       MedicoCitas: "medico-citas",
       MedicoPacientes: "medico-pacientes",
+      MedicoPacienteDetalle: "medico-paciente-detalle/:patientId",
       MedicoChat: "medico-chat",
       MedicoPerfil: "medico-perfil",
       MedicoConfiguracion: "medico-configuracion",
@@ -209,6 +211,7 @@ const App: React.FC = () => {
                   <Stack.Screen name="DashboardMedico" component={DoctorPortalScreen} />
                   <Stack.Screen name="MedicoCitas" component={DoctorCitasScreen} />
                   <Stack.Screen name="MedicoPacientes" component={DoctorPacientesScreen} />
+                  <Stack.Screen name="MedicoPacienteDetalle" component={MedicoPacienteDetalleScreen} />
                   <Stack.Screen name="MedicoChat" component={DoctorChatScreen} />
                   <Stack.Screen name="MedicoPerfil" component={DoctorPerfilScreen} />
                   <Stack.Screen name="MedicoConfiguracion" component={DoctorConfiguracionScreen} />

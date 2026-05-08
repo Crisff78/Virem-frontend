@@ -1090,7 +1090,12 @@ const DashboardMedico: React.FC = () => {
                       detail={formatDateTime(cita.fechaHoraInicio)}
                       avatar={resolveAvatarSource(cita.paciente.fotoUrl)}
                       onVideoCall={() => handleVideoCall(cita.citaid)}
-                      onDetails={() => { }}
+                      onDetails={() =>
+                        navigation.navigate('MedicoPacienteDetalle', {
+                          patientId: cita.paciente.pacienteid,
+                          patientName: cita.paciente.nombreCompleto,
+                        })
+                      }
                       videoCallDisabled={!!openingCitaId}
                     />
                   ))
@@ -1112,6 +1117,12 @@ const DashboardMedico: React.FC = () => {
                         name={exp.name}
                         id={exp.code}
                         lastSeen={exp.lastSeenText}
+                        onPress={() =>
+                          navigation.navigate('MedicoPacienteDetalle', {
+                            patientId: exp.id,
+                            patientName: exp.name,
+                          })
+                        }
                       />
                     ))
                   ) : (

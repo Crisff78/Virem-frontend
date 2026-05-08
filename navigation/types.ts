@@ -112,6 +112,10 @@ export type RootStackParamList = {
       citaId: string;
     }
   } | undefined;
+  MedicoPacienteDetalle: {
+    patientId: string;
+    patientName: string;
+  };
   AdminPanel: undefined;
   BlogDetail: {
     category: string;
