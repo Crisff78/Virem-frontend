@@ -57,6 +57,7 @@ type ChatContact = {
   unreadCount: number;
   nextDateMs: number;
   timeLabel: string;
+  fotoUrl?: string | null;
 };
 
 const normalizeText = (value: unknown) =>
@@ -142,6 +143,7 @@ const MedicoChatScreen: React.FC = () => {
             timeLabel: conv?.cita?.fechaHoraInicio
               ? formatDateTime(conv?.cita?.fechaHoraInicio)
               : 'Sin cita programada',
+            fotoUrl: conv?.paciente?.fotoUrl || null,
           } as ChatContact;
         })
         .filter((c): c is ChatContact => Boolean(c))
@@ -442,7 +444,10 @@ const MedicoChatScreen: React.FC = () => {
                       }}
                       activeOpacity={0.85}
                     >
-                      <Image source={DefaultAvatar} style={styles.contactAvatar} />
+                      <Image 
+                        source={chat.fotoUrl ? { uri: chat.fotoUrl } : DefaultAvatar} 
+                        style={styles.contactAvatar} 
+                      />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.contactName, active && styles.contactNameActive]}>{chat.name}</Text>
                         <Text style={styles.contactMeta}>
@@ -467,7 +472,10 @@ const MedicoChatScreen: React.FC = () => {
                         <MaterialIcons name="arrow-back" size={24} color={colors.dark} />
                       </TouchableOpacity>
                     )}
-                    <Image source={DefaultAvatar} style={styles.chatHeaderAvatar} />
+                    <Image 
+                      source={selectedContact.fotoUrl ? { uri: selectedContact.fotoUrl } : DefaultAvatar} 
+                      style={styles.chatHeaderAvatar} 
+                    />
                     <View>
                       <Text style={styles.chatHeaderName}>{selectedContact.name}</Text>
                       <Text style={styles.chatHeaderSub}>
