@@ -126,23 +126,29 @@ const MedicoRecetasScreen: React.FC = () => {
       return;
     }
 
-    setLoading(true); 
-    try {
+      const cleanPeso = peso.replace(/[^a-zA-Z0-9.\s/°-]/g, '').trim();
+      const cleanPresion = presion.replace(/[^a-zA-Z0-9.\s/°-]/g, '').trim();
+      const cleanTemperatura = temperatura.replace(/[^a-zA-Z0-9.\s/°-]/g, '').trim();
+
       const payload = await apiClient.post<any>('/api/medico/me/recetas', {
         authenticated: true,
         body: {
           pacienteid: pacienteId ? parseInt(pacienteId, 10) : undefined,
           paciente_search: !pacienteId ? pacienteSearch : undefined,
           citaid: citaId,
-          diagnostico,
-          signos_vitales: { peso, presion, temperatura },
+          diagnostico: diagnostico.trim(),
+          signos_vitales: { 
+            peso: cleanPeso, 
+            presion: cleanPresion, 
+            temperatura: cleanTemperatura 
+          },
           medicamentos: medicamentosList, // Volvemos a medicamentosList estrictamente
-          instrucciones,
-          ordenes_laboratorio: laboratorios,
+          instrucciones: instrucciones.trim(),
+          ordenes_laboratorio: laboratorios.trim(),
           doctor_info: {
             nombre: doctorName,
             especialidad: doctorSpec,
-            firma: firma || 'Firma Digital'
+            firma: (firma || 'Firma Digital').trim()
           },
           disponible_paciente: true
         },
