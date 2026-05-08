@@ -132,6 +132,17 @@ const MedicoRecetasScreen: React.FC = () => {
     const numericSlashRegex = /[^0-9/]/g;
     const alphaNumSlashRegex = /[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ/\s]/g;
 
+    // Validación extra para evitar que se guarde solo un slash
+    if (presion.trim() === '/') {
+      Alert.alert('Dato Inválido', 'La presión debe incluir números, no puede ser solo un "/".');
+      return;
+    }
+    
+    if (medicamentosList.some(m => m.frecuencia.trim() === '/')) {
+      Alert.alert('Dato Inválido', 'La frecuencia del medicamento debe incluir letras o números, no puede ser solo un "/".');
+      return;
+    }
+
     setLoading(true); 
     try {
       const cleanPeso = peso.replace(alphaNumRegex, '').trim();
