@@ -236,6 +236,12 @@ const PacientePerfilScreen: React.FC = () => {
   const [bloodTypeOpen, setBloodTypeOpen] = useState(false);
   const selectingBloodTypeRef = useRef(false);
   const lastRefreshRef = useRef(0);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
   const [form, setForm] = useState<ProfileForm>({
     nombres: '',
     apellidos: '',
@@ -379,7 +385,7 @@ const PacientePerfilScreen: React.FC = () => {
       const nextUser: User = { ...(user || {}), fotoUrl: uri };
       nextUser.fotoUrl = finalUri;
       await persistSessionUser(nextUser);
-      Alert.alert('Foto actualizada', 'Tu foto de perfil fue actualizada.');
+      showToast('Foto actualizada correctamente');
     } catch (error) {
       if (isAuthError(error)) {
         Alert.alert('Sesion expirada', 'Inicia sesion nuevamente para actualizar tu foto.');
@@ -434,7 +440,7 @@ const PacientePerfilScreen: React.FC = () => {
       });
 
       if (!payload?.success || !payload?.profile) {
-        Alert.alert('Error', payload?.message || 'No se pudo guardar el perfil.');
+        showToast(payload?.message || 'No se pudo guardar el perfil.', 'error');
         return;
       }
 
@@ -466,16 +472,16 @@ const PacientePerfilScreen: React.FC = () => {
 
       setForm((prev) => ({ ...prev, confirmPassword: '' }));
       await persistSessionUser(nextUser);
-      Alert.alert('Perfil actualizado', 'Tus datos de paciente fueron guardados correctamente.');
+      showToast('Guardado correctamente');
     } catch (error) {
       if (isAuthError(error)) {
-        Alert.alert('Sesion expirada', 'Inicia sesion nuevamente para guardar tus cambios.');
+        showToast('Sesión expirada. Inicia sesión nuevamente.', 'error');
         await signOut();
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
         return;
       }
 
-      Alert.alert('Error', getApiErrorMessage(error, 'No se pudo guardar el perfil.'));
+      showToast(getApiErrorMessage(error, 'No se pudo guardar el perfil.'), 'error');
     } finally {
       setSaving(false);
     }
@@ -796,6 +802,8 @@ const PacientePerfilScreen: React.FC = () => {
             </>
           )}
         </TouchableOpacity>
+        
+
 
         <View style={styles.successBanner}>
           <MaterialIcons name="verified-user" size={18} color={colors.success} />
@@ -804,6 +812,17 @@ const PacientePerfilScreen: React.FC = () => {
           </Text>
         </View>
       </ScrollView>
+
+      {toast && (
+        <View style={[styles.toast, toast.type === 'error' && styles.toastError]}>
+          <MaterialIcons 
+            name={toast.type === 'success' ? 'check-circle' : 'error'} 
+            size={20} 
+            color="#fff" 
+          />
+          <Text style={styles.toastText}>{toast.message}</Text>
+        </View>
+      )}
     </View>
   </View>
 );
