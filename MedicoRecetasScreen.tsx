@@ -124,13 +124,19 @@ const MedicoRecetasScreen: React.FC = () => {
       
       Alert.alert('Datos Incompletos', `Por favor complete los campos marcados en rojo:\n\n- ${missingFields.join('\n- ')}`);
       return;
-    }
+        const alphaNumRegex = /[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g;
+    const lettersOnlyRegex = /[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g;
+    const numbersOnlyRegex = /[^0-9]/g;
+    const numericSlashRegex = /[^0-9/]/g;
+    const alphaNumSlashRegex = /[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ/\s]/g;
 
     setLoading(true); 
     try {
-      const cleanPeso = peso.replace(/[^a-zA-Z0-9.\s/°-]/g, '').trim();
-      const cleanPresion = presion.replace(/[^a-zA-Z0-9.\s/°-]/g, '').trim();
-      const cleanTemperatura = temperatura.replace(/[^a-zA-Z0-9.\s/°-]/g, '').trim();
+      const cleanPeso = peso.replace(alphaNumRegex, '').trim();
+      const cleanPresion = presion.replace(numericSlashRegex, '').trim();
+      const cleanTemperatura = temperatura.replace(numbersOnlyRegex, '').trim();
+      const cleanDiagnostico = diagnostico.replace(alphaNumRegex, '').trim();
+      const cleanFirma = (firma || 'Firma Digital').replace(lettersOnlyRegex, '').trim();
 
       const payload = await apiClient.post<any>('/api/medico/me/recetas', {
         authenticated: true,
@@ -138,19 +144,24 @@ const MedicoRecetasScreen: React.FC = () => {
           pacienteid: pacienteId ? parseInt(pacienteId, 10) : undefined,
           paciente_search: !pacienteId ? pacienteSearch : undefined,
           citaid: citaId,
-          diagnostico: diagnostico.trim(),
+          diagnostico: cleanDiagnostico,
           signos_vitales: { 
             peso: cleanPeso, 
             presion: cleanPresion, 
             temperatura: cleanTemperatura 
           },
-          medicamentos: medicamentosList, // Volvemos a medicamentosList estrictamente
+          medicamentos: medicamentosList.map(m => ({
+            nombre: m.nombre.replace(lettersOnlyRegex, '').trim(),
+            dosis: m.dosis.replace(alphaNumRegex, '').trim(),
+            frecuencia: m.frecuencia.replace(alphaNumSlashRegex, '').trim(),
+            duracion: m.duracion.replace(alphaNumRegex, '').trim()
+          })),
           instrucciones: instrucciones.trim(),
           ordenes_laboratorio: laboratorios.trim(),
           doctor_info: {
             nombre: doctorName,
             especialidad: doctorSpec,
-            firma: (firma || 'Firma Digital').trim()
+            firma: cleanFirma
           },
           disponible_paciente: true
         },
@@ -334,15 +345,30 @@ const MedicoRecetasScreen: React.FC = () => {
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
                   <Text style={styles.label}>Peso (lb/kg)</Text>
-                  <TextInput style={styles.input} value={peso} onChangeText={setPeso} placeholder="Ej. 165 lb" />
+                  <TextInput 
+                    style={styles.input} 
+                    value={peso} 
+                    onChangeText={(t) => setPeso(t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, ''))} 
+                    placeholder="Ej. 165 lb" 
+                  />
                 </View>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
                   <Text style={styles.label}>Presión Art.</Text>
-                  <TextInput style={styles.input} value={presion} onChangeText={setPresion} placeholder="Ej. 120/80" />
+                  <TextInput 
+                    style={styles.input} 
+                    value={presion} 
+                    onChangeText={(t) => setPresion(t.replace(/[^0-9/]/g, ''))} 
+                    placeholder="Ej. 120/80" 
+                  />
                 </View>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
                   <Text style={styles.label}>Temp. (°C)</Text>
-                  <TextInput style={styles.input} value={temperatura} onChangeText={setTemperatura} placeholder="Ej. 37" />
+                  <TextInput 
+                    style={styles.input} 
+                    value={temperatura} 
+                    onChangeText={(t) => setTemperatura(t.replace(/[^0-9]/g, ''))} 
+                    placeholder="Ej. 37" 
+                  />
                 </View>
               </View>
             </View>
@@ -358,7 +384,7 @@ const MedicoRecetasScreen: React.FC = () => {
                     (showErrors && !diagnostico) && { borderColor: '#ef4444', borderWidth: 1.5 }
                   ]} 
                   value={diagnostico} 
-                  onChangeText={setDiagnostico} 
+                  onChangeText={(t) => setDiagnostico(t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, ''))} 
                   placeholder="Describa el diagnóstico principal y hallazgos relevantes..." 
                   multiline
                 />
@@ -387,20 +413,40 @@ const MedicoRecetasScreen: React.FC = () => {
               <View style={[styles.medForm, (showErrors && medicamentosList.length === 0) && { borderColor: '#ef4444', borderWidth: 1.5 }]}>
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Medicamento</Text>
-                  <TextInput style={styles.input} value={currentMed.nombre} onChangeText={(t) => setCurrentMed({...currentMed, nombre: t})} placeholder="Ej. Amoxicilina 500mg" />
+                  <TextInput 
+                    style={styles.input} 
+                    value={currentMed.nombre} 
+                    onChangeText={(t) => setCurrentMed({...currentMed, nombre: t.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')})} 
+                    placeholder="Ej. Amoxicilina" 
+                  />
                 </View>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <View style={[styles.inputGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Dosis</Text>
-                    <TextInput style={styles.input} value={currentMed.dosis} onChangeText={(t) => setCurrentMed({...currentMed, dosis: t})} placeholder="Ej. 1 caps." />
+                    <TextInput 
+                      style={styles.input} 
+                      value={currentMed.dosis} 
+                      onChangeText={(t) => setCurrentMed({...currentMed, dosis: t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '')})} 
+                      placeholder="Ej. 1 caps" 
+                    />
                   </View>
                   <View style={[styles.inputGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Frecuencia</Text>
-                    <TextInput style={styles.input} value={currentMed.frecuencia} onChangeText={(t) => setCurrentMed({...currentMed, frecuencia: t})} placeholder="Ej. C/8h" />
+                    <TextInput 
+                      style={styles.input} 
+                      value={currentMed.frecuencia} 
+                      onChangeText={(t) => setCurrentMed({...currentMed, frecuencia: t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ/\s]/g, '')})} 
+                      placeholder="Ej. C/8h" 
+                    />
                   </View>
                   <View style={[styles.inputGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Duración</Text>
-                    <TextInput style={styles.input} value={currentMed.duracion} onChangeText={(t) => setCurrentMed({...currentMed, duracion: t})} placeholder="Ej. 7 días" />
+                    <TextInput 
+                      style={styles.input} 
+                      value={currentMed.duracion} 
+                      onChangeText={(t) => setCurrentMed({...currentMed, duracion: t.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '')})} 
+                      placeholder="Ej. 7 dias" 
+                    />
                   </View>
                 </View>
                 <TouchableOpacity style={styles.addMedBtn} onPress={addMedicamento}>
@@ -431,7 +477,7 @@ const MedicoRecetasScreen: React.FC = () => {
                 <TextInput 
                   style={[styles.input, { height: 60, fontStyle: firma ? 'normal' : 'italic' }]} 
                   value={firma} 
-                  onChangeText={setFirma} 
+                  onChangeText={(t) => setFirma(t.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, ''))} 
                   placeholder="Escriba su firma aquí..." 
                 />
               </View>
