@@ -26,7 +26,10 @@ const JitsiVideoContainer: React.FC<Props> = ({ config, onEnd }) => {
     const scriptId = 'jitsi-external-api';
     
     const loadJitsi = () => {
-      if (!containerRef.current) return;
+      if (!containerRef.current || apiRef.current) return;
+      
+      // Limpiar contenedor para evitar duplicados
+      containerRef.current.innerHTML = '';
       
       const options = {
         roomName: config.roomName,
@@ -49,34 +52,44 @@ const JitsiVideoContainer: React.FC<Props> = ({ config, onEnd }) => {
         configOverwrite: {
           startWithAudioMuted: false,
           startWithVideoMuted: false,
+          prejoinPageEnabled: false, // Desactivar para ir directo a la llamada y evitar bucles
+          disableDeepLinking: true,
         },
       };
 
-      apiRef.current = new window.JitsiMeetExternalAPI(domain, options);
-      
-      if (onEnd) {
-        apiRef.current.addEventListener('readyToClose', onEnd);
-        apiRef.current.addEventListener('videoConferenceLeft', onEnd);
+      try {
+        apiRef.current = new window.JitsiMeetExternalAPI(domain, options);
+        
+        if (onEnd) {
+          apiRef.current.addEventListener('readyToClose', onEnd);
+          apiRef.current.addEventListener('videoConferenceLeft', onEnd);
+        }
+      } catch (err) {
+        console.error('[Jitsi] Error creating API:', err);
       }
     };
 
     if (window.JitsiMeetExternalAPI) {
       loadJitsi();
     } else {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.src = `https://${domain}/external_api.js`;
-      script.async = true;
+      let script = document.getElementById(scriptId) as HTMLScriptElement;
+      if (!script) {
+        script = document.createElement('script');
+        script.id = scriptId;
+        script.src = `https://${domain}/external_api.js`;
+        script.async = true;
+        document.body.appendChild(script);
+      }
       script.onload = loadJitsi;
-      document.body.appendChild(script);
     }
 
     return () => {
       if (apiRef.current) {
         apiRef.current.dispose();
+        apiRef.current = null;
       }
     };
-  }, [config, onEnd]);
+  }, [config.roomName, config.domain, config.displayName, onEnd]);
 
   return (
     <View style={styles.container}>
