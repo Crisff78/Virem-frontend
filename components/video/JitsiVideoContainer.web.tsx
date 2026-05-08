@@ -18,7 +18,7 @@ declare global {
 }
 
 const JitsiVideoContainer: React.FC<Props> = ({ config, onEnd }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<any>(null);
   const apiRef = useRef<any>(null);
 
   useEffect(() => {
@@ -80,9 +80,9 @@ const JitsiVideoContainer: React.FC<Props> = ({ config, onEnd }) => {
 
   return (
     <View style={styles.container}>
-      <div 
-        ref={containerRef} 
-        style={{ width: '100%', height: '100%', backgroundColor: '#000' }} 
+      <View 
+        ref={containerRef as any} 
+        style={styles.jitsiContainer} 
       />
     </View>
   );
@@ -91,6 +91,11 @@ const JitsiVideoContainer: React.FC<Props> = ({ config, onEnd }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000',
+  },
+  jitsiContainer: {
+    width: '100%',
+    height: '100%',
     backgroundColor: '#000',
   },
 });
