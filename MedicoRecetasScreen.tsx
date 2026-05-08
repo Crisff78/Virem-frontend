@@ -124,7 +124,9 @@ const MedicoRecetasScreen: React.FC = () => {
       
       Alert.alert('Datos Incompletos', `Por favor complete los campos marcados en rojo:\n\n- ${missingFields.join('\n- ')}`);
       return;
-        const alphaNumRegex = /[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g;
+    }
+
+    const alphaNumRegex = /[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g;
     const lettersOnlyRegex = /[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g;
     const numbersOnlyRegex = /[^0-9]/g;
     const numericSlashRegex = /[^0-9/]/g;
