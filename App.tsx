@@ -147,9 +147,21 @@ const App: React.FC = () => {
                     animation: "none",
                   }}
                 >
-                  <Stack.Screen name="Landing" component={LandingScreen} />
-                  <Stack.Screen name="SeleccionPerfil" component={SeleccionPerfil} />
-                  <Stack.Screen name="Login" component={LoginScreen} />
+                  <Stack.Screen 
+                    name="Landing" 
+                    component={LandingScreen} 
+                    options={{ title: "Virem - Tu salud en buenas manos" }} 
+                  />
+                  <Stack.Screen 
+                    name="SeleccionPerfil" 
+                    component={SeleccionPerfil} 
+                    options={{ title: "Virem - Registro" }} 
+                  />
+                  <Stack.Screen 
+                    name="Login" 
+                    component={LoginScreen} 
+                    options={{ title: "Virem - Iniciar Sesión" }} 
+                  />
 
                   <Stack.Screen name="RegistroPaciente" component={RegistroPacienteScreen} />
                   <Stack.Screen name="RegistroMedico" component={RegistroMedicoScreen} />
@@ -212,7 +224,13 @@ const App: React.FC = () => {
                   <Stack.Screen name="DashboardMedico" component={DoctorPortalScreen} />
                   <Stack.Screen name="MedicoCitas" component={DoctorCitasScreen} />
                   <Stack.Screen name="MedicoPacientes" component={DoctorPacientesScreen} />
-                  <Stack.Screen name="MedicoPacienteDetalle" component={DoctorPacienteDetalleScreen} />
+                  <Stack.Screen 
+                    name="MedicoPacienteDetalle" 
+                    component={DoctorPacienteDetalleScreen} 
+                    options={({ route }: any) => ({ 
+                      title: `Virem - Paciente: ${route.params?.patientName || "Detalles"}` 
+                    })} 
+                  />
                   <Stack.Screen name="MedicoChat" component={DoctorChatScreen} />
                   <Stack.Screen name="MedicoPerfil" component={DoctorPerfilScreen} />
                   <Stack.Screen name="MedicoConfiguracion" component={DoctorConfiguracionScreen} />

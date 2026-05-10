@@ -707,14 +707,22 @@ const LandingScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       {/* TOP NAVBAR - STICKY WITH BLUR */}
-      <View ref={navRef} style={[
+      <View 
+        ref={navRef} 
+        accessibilityRole="header"
+        style={[
         styles.navbar,
         isDesktop && styles.navbarDesktop,
         navScrolled && { paddingVertical: 10 },
         isMobile && { paddingHorizontal: 12 }
       ]}>
         <View style={styles.navLeft}>
-          <Image source={ViremLogo} style={[styles.logoImage, isMobile && { width: 24, height: 24 }]} resizeMode="contain" />
+          <Image 
+            source={ViremLogo} 
+            accessibilityLabel="Logo de Virem"
+            style={[styles.logoImage, isMobile && { width: 24, height: 24 }]} 
+            resizeMode="contain" 
+          />
           <Text style={[styles.logoText, isMobile && { fontSize: 20 }]}>VIREM</Text>
         </View>
 
@@ -838,6 +846,7 @@ const LandingScreen: React.FC = () => {
       )}
       <ScrollView
         ref={scrollViewRef}
+        accessibilityRole="main"
         contentContainerStyle={styles.scrollContent}
         onScroll={(event: any) => {
           const y = event.nativeEvent.contentOffset.y;
@@ -861,14 +870,17 @@ const LandingScreen: React.FC = () => {
           {/* Text on the Left */}
           <View style={[styles.heroTextContainer, isDesktop && styles.heroTextDesktop, !isDesktop && { maxWidth: '100%', alignItems: 'center' }]}>
             <FadeInView delay={100}>
-              <Text style={[
-                styles.heroTitle,
-                {
-                  fontSize: select({ mobile: 28, tablet: 48, desktop: 56 }),
-                  lineHeight: select({ mobile: 36, tablet: 56, desktop: 64 }),
-                  textAlign: isDesktop ? 'left' : 'center'
-                }
-              ]}>
+              <Text 
+                accessibilityRole="heading"
+                aria-level="1"
+                style={[
+                  styles.heroTitle,
+                  {
+                    fontSize: select({ mobile: 28, tablet: 48, desktop: 56 }),
+                    lineHeight: select({ mobile: 36, tablet: 56, desktop: 64 }),
+                    textAlign: isDesktop ? 'left' : 'center'
+                  }
+                ]}>
                 ¡TU SALUD ES NUESTRA <Text style={{ color: colors.primary }}>PRIORIDAD</Text>!
               </Text>
             </FadeInView>
@@ -908,6 +920,7 @@ const LandingScreen: React.FC = () => {
             } as any]}>
               <Image
                 source={HeartImg}
+                accessibilityLabel="Ilustración médica de un corazón"
                 style={{ width: '100%', height: '100%' }}
                 resizeMode="contain"
               />
@@ -934,6 +947,7 @@ const LandingScreen: React.FC = () => {
                 {/* Main image */}
                 <Image
                   source={VcImg}
+                  accessibilityLabel="Médico atendiendo por videollamada"
                   style={{ width: 400, height: 460, borderRadius: 30, borderWidth: 6, borderColor: '#fff' }}
                   resizeMode="cover"
                 />
