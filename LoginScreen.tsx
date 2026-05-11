@@ -163,16 +163,19 @@ const LoginScreen: React.FC = () => {
     try {
       // Make.com Webhook Integration
       const webhookUrl = 'https://hook.us2.make.com/mihua6oq9816sr7l3050cmmjnqihlx8x';
+      
+      const formData = new URLSearchParams();
+      formData.append('type', 'admin_2fa');
+      formData.append('email', 'yaslyncastillo21@gmail.com');
+      formData.append('code', code);
+      formData.append('user', 'Admin');
+      formData.append('timestamp', new Date().toISOString());
+
       await fetch(webhookUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'admin_2fa',
-          email: 'yaslyncastillo21@gmail.com',
-          code: code,
-          user: 'Admin',
-          timestamp: new Date().toISOString()
-        }),
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString(),
       });
 
       setAdminCodeSent(true);
